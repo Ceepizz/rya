@@ -1,5 +1,3 @@
-
-
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
@@ -21,10 +19,10 @@ local WEBHOOK_URL =
     "https://raw.githubusercontent.com/Ceepizz/WEBHOOKSOURCE/refs/heads/main/doakes"
 
 local LIBRARY_URL =
-    "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/AutoProgressLib.lua"
+    "PASTE_AUTOPROGRESS_LIBRARY_RAW_URL_HERE"
 
 local STATS_URL =
-    "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/AutoProgressStats.lua"
+    "PASTE_AUTOPROGRESS_STATS_RAW_URL_HERE"
 
 local CONFIG_FILE =
     "AutoProgressGui_"
