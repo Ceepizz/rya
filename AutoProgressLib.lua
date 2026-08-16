@@ -309,7 +309,7 @@ function Library.CreateWindow(options)
     floating.Name = "FloatingLogo"
     floating.Size = UDim2.fromOffset(58, 58)
     floating.Position = UDim2.new(0, 18, 0.5, -29)
-    floating.BackgroundColor3 = C.Surface
+    floating.BackgroundTransparency = 1
     floating.BorderSizePixel = 0
     floating.AutoButtonColor = false
     floating.Image = "rbxassetid://87824587597558"
@@ -319,9 +319,6 @@ function Library.CreateWindow(options)
     floating.Visible = false
     floating.Parent = gui
 
-    Corner(floating, 14)
-    Stroke(floating, C.Border, 1, 0)
-    Gradient(floating, C.Surface2, C.Background2, 90)
 
     local floatingPadding = Instance.new("UIPadding")
     floatingPadding.PaddingTop = UDim.new(0, 7)
