@@ -14,7 +14,7 @@ Library.Theme = {
     AccentHover = Color3.fromRGB(35, 205, 230),
     AccentPressed = Color3.fromRGB(0, 95, 130),
     Text = Color3.fromRGB(238, 247, 250),
-    Muted = Color3.fromRGB(145, 170, 180),
+    Muted = Color3.fromRGB(238, 247, 250),
     Green = Color3.fromRGB(92, 190, 130),
     Red = Color3.fromRGB(210, 92, 104)
 }
@@ -72,7 +72,7 @@ function Library.CreateButton(parent, text, height)
     button.Text = text or "Button"
     button.TextColor3 = C.Text
     button.TextSize = 14
-    button.Font = Enum.Font.GothamSemibold
+    button.Font = Enum.Font.GothamBold
     button.AutoButtonColor = false
     button.Parent = parent
 
@@ -124,7 +124,7 @@ function Library.CreateLabel(parent, text, height)
     label.Text = text or ""
     label.TextColor3 = C.Muted
     label.TextSize = 13
-    label.Font = Enum.Font.Gotham
+    label.Font = Enum.Font.GothamBold
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.Parent = parent
     return label
@@ -138,11 +138,11 @@ function Library.CreateTextBox(parent, options)
     box.BackgroundColor3 = C.Surface
     box.BorderSizePixel = 0
     box.PlaceholderText = options.Placeholder or ""
-    box.PlaceholderColor3 = C.Muted
+    box.PlaceholderColor3 = C.Text
     box.Text = options.Text or ""
     box.TextColor3 = C.Text
     box.TextSize = options.TextSize or 13
-    box.Font = Enum.Font.Gotham
+    box.Font = Enum.Font.GothamBold
     box.ClearTextOnFocus = false
     box.TextXAlignment = Enum.TextXAlignment.Left
     box.Parent = parent
