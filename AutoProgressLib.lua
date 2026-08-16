@@ -70,7 +70,7 @@ function Library.CreateButton(parent, text, height)
     button.BackgroundColor3 = C.Accent
     button.BorderSizePixel = 0
     button.Text = text or "Button"
-    button.TextColor3 = C.Text
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
     button.TextSize = 14
     button.Font = Enum.Font.GothamBold
     button.AutoButtonColor = false
@@ -125,6 +125,11 @@ function Library.CreateLabel(parent, text, height)
     label.TextColor3 = C.Muted
     label.TextSize = 13
     label.Font = Enum.Font.GothamBold
+
+    if text == "Progress Webhook" then
+        label.TextColor3 = Color3.fromRGB(255, 255, 255)
+        label.Font = Enum.Font.Gotham
+    end
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.Parent = parent
     return label
@@ -138,11 +143,11 @@ function Library.CreateTextBox(parent, options)
     box.BackgroundColor3 = C.Surface
     box.BorderSizePixel = 0
     box.PlaceholderText = options.Placeholder or ""
-    box.PlaceholderColor3 = C.Text
+    box.PlaceholderColor3 = Color3.fromRGB(255, 255, 255)
     box.Text = options.Text or ""
-    box.TextColor3 = C.Text
+    box.TextColor3 = Color3.fromRGB(255, 255, 255)
     box.TextSize = options.TextSize or 13
-    box.Font = Enum.Font.GothamBold
+    box.Font = Enum.Font.Gotham
     box.ClearTextOnFocus = false
     box.TextXAlignment = Enum.TextXAlignment.Left
     box.Parent = parent
@@ -410,7 +415,7 @@ function Library.CreateWindow(options)
     yesButton.BackgroundColor3 = C.Accent
     yesButton.BorderSizePixel = 0
     yesButton.Text = "YES"
-    yesButton.TextColor3 = C.Text
+    yesButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     yesButton.TextSize = 13
     yesButton.Font = Enum.Font.GothamBold
     yesButton.AutoButtonColor = false
@@ -427,7 +432,7 @@ function Library.CreateWindow(options)
     noButton.BackgroundColor3 = Color3.fromRGB(28, 48, 58)
     noButton.BorderSizePixel = 0
     noButton.Text = "NO"
-    noButton.TextColor3 = C.Text
+    noButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     noButton.TextSize = 13
     noButton.Font = Enum.Font.GothamBold
     noButton.AutoButtonColor = false
