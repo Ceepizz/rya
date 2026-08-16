@@ -79,39 +79,24 @@ function Library.CreateButton(parent, text, height)
     Corner(button, 9)
     Stroke(button, Color3.fromRGB(45, 130, 150), 1, 0.45)
 
-    local gradient = Gradient(
-        button,
-        C.Accent,
-        C.Accent2,
-        90
-    )
-
     button.MouseEnter:Connect(function()
-        gradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, C.AccentHover),
-            ColorSequenceKeypoint.new(1, C.Accent)
-        })
+        button.BackgroundColor3 = C.AccentHover
+        button.TextColor3 = Color3.fromRGB(255, 255, 255)
     end)
 
     button.MouseLeave:Connect(function()
-        gradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, C.Accent),
-            ColorSequenceKeypoint.new(1, C.Accent2)
-        })
+        button.BackgroundColor3 = C.Accent
+        button.TextColor3 = Color3.fromRGB(255, 255, 255)
     end)
 
     button.MouseButton1Down:Connect(function()
-        gradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, C.AccentPressed),
-            ColorSequenceKeypoint.new(1, C.Accent2)
-        })
+        button.BackgroundColor3 = C.AccentPressed
+        button.TextColor3 = Color3.fromRGB(255, 255, 255)
     end)
 
     button.MouseButton1Up:Connect(function()
-        gradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, C.AccentHover),
-            ColorSequenceKeypoint.new(1, C.Accent)
-        })
+        button.BackgroundColor3 = C.AccentHover
+        button.TextColor3 = Color3.fromRGB(255, 255, 255)
     end)
 
     return button
@@ -149,7 +134,6 @@ function Library.CreateTextBox(parent, options)
 
     Corner(box, 9)
     Stroke(box, C.Border, 1, 0.2)
-    Gradient(box, C.Surface2, C.Surface, 90)
 
     local padding = Instance.new("UIPadding")
     padding.PaddingLeft = UDim.new(0, 12)
@@ -416,7 +400,6 @@ function Library.CreateWindow(options)
 
     Corner(yesButton, 9)
     Stroke(yesButton, C.Border, 1, 0.15)
-    Gradient(yesButton, C.Accent, C.Accent2, 90)
 
     local noButton = Instance.new("TextButton")
     noButton.Size = UDim2.new(0.5, -18, 0, 38)
