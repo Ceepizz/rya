@@ -4,6 +4,8 @@ end
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MarketplaceService = game:GetService("MarketplaceService")
 
 local Player =
     Players.LocalPlayer
@@ -28,6 +30,10 @@ local CONFIG_FILE =
     "AutoProgressGui_"
     .. tostring(Player.UserId)
     .. ".json"
+
+local LOBBY_PLACE_ID = 3260590327
+local VIP_MAP_GAMEPASS_ID = 10518590
+local Status
 
 local Config = {
     AutoFarmRunning = false,
@@ -273,6 +279,228 @@ local function WaitForGame()
     GameReady = true
 end
 
+local function GetProgressMode(level)
+    level = tonumber(level) or 0
+
+    if level >= 175 then
+        return "Molten"
+    elseif level >= 50 then
+        return "Hardcore"
+    elseif level >= 15 then
+        return "Molten"
+    end
+
+    return "Easy"
+end
+
+local function CanOverrideMap()
+    local ownsPass = false
+
+    pcall(function()
+        ownsPass =
+            MarketplaceService:UserOwnsGamePassAsync(
+                Player.UserId,
+                VIP_MAP_GAMEPASS_ID
+            ) == true
+    end)
+
+    if ownsPass then
+        return true
+    end
+
+    local stateReplicators =
+        ReplicatedStorage:FindFirstChild(
+            "StateReplicators"
+        )
+
+    local gameStateReplicator =
+        stateReplicators
+        and stateReplicators:FindFirstChild(
+            "GameStateReplicator"
+        )
+
+    return gameStateReplicator
+        and gameStateReplicator:GetAttribute(
+            "IsPrivateServer"
+        ) == true
+        or false
+end
+
+local function ReadBoardMaps(folderName)
+    local lobby =
+        workspace:FindFirstChild(folderName)
+
+    local boards =
+        lobby
+        and lobby:FindFirstChild("Boards")
+
+    if not boards then
+        return nil
+    end
+
+    local maps = {}
+
+    for i = 1, 4 do
+        local board =
+            boards:FindFirstChild("Board" .. i)
+
+        local hitboxes =
+            board
+            and board:FindFirstChild("Hitboxes")
+
+        local bottom =
+            hitboxes
+            and hitboxes:FindFirstChild("Bottom")
+
+        local mapDisplay =
+            bottom
+            and bottom:FindFirstChild("MapDisplay")
+
+        local title =
+            mapDisplay
+            and mapDisplay:FindFirstChild("Title")
+
+        if title then
+            maps[i] = title.Text
+        end
+    end
+
+    return maps
+end
+
+local function GetTargetMaps(mode)
+    if mode == "Easy" then
+        return {
+            ["Meltdown"] = true,
+            ["Simplicity"] = true,
+            ["Stained Temple"] = true,
+            ["Midnight Issue"] = true,
+            ["Spring Fever"] = true
+        }
+    elseif mode == "Hardcore" then
+        return {
+            ["Wretched Front"] = true
+        }
+    end
+
+    return {
+        ["Wrecked Battlefield II"] = true,
+        ["Lighthaos"] = true,
+        ["Midnight Issue"] = true,
+        ["Nether"] = true
+    }
+end
+
+local function FindTargetMap(mode)
+    local folderName =
+        mode == "Hardcore"
+        and "HardcoreIntermissionLobby"
+        or "IntermissionLobby"
+
+    local maps =
+        ReadBoardMaps(folderName)
+
+    local targetMaps =
+        GetTargetMaps(mode)
+
+    if maps then
+        for _, mapName in pairs(maps) do
+            if targetMaps[mapName] then
+                return mapName
+            end
+        end
+    end
+
+    if CanOverrideMap() then
+        for mapName in pairs(targetMaps) do
+            return mapName
+        end
+    end
+
+    return nil
+end
+
+local function StartModeMatchmaking(mode)
+    local remote =
+        ReplicatedStorage:WaitForChild(
+            "RemoteFunction"
+        )
+
+    local difficulty =
+        mode == "Hardcore"
+        and "Easy"
+        or mode
+
+    local matchmakingMode =
+        mode == "Hardcore"
+        and "hardcore"
+        or "survival"
+
+    local ok, result = pcall(function()
+        return remote:InvokeServer(
+            "Multiplayer",
+            "v2:start",
+            {
+                difficulty = difficulty,
+                mode = matchmakingMode,
+                count = 1
+            }
+        )
+    end)
+
+    if not ok then
+        warn(
+            "[AUTO PROGRESS GUI] Matchmaking failed:",
+            result
+        )
+
+        return false
+    end
+
+    return true
+end
+
+local function WaitForTargetMapBeforeBackend(level)
+    if game.PlaceId == LOBBY_PLACE_ID then
+        return true
+    end
+
+    local mode =
+        GetProgressMode(level)
+
+    local selectedMap =
+        FindTargetMap(mode)
+
+    if selectedMap then
+        return true
+    end
+
+    local remoteEvent =
+        ReplicatedStorage:WaitForChild(
+            "RemoteEvent"
+        )
+
+    pcall(function()
+        remoteEvent:FireServer(
+            "LobbyVoting",
+            "Veto"
+        )
+    end)
+
+    task.wait(2)
+
+    selectedMap =
+        FindTargetMap(mode)
+
+    if selectedMap then
+        return true
+    end
+
+    StartModeMatchmaking(mode)
+
+    return false
+end
+
 local function LoadAutoFarm()
     if AutoFarm then
         return AutoFarm
@@ -386,10 +614,10 @@ SectionTitle.TextColor3 = C.Text
 SectionTitle.TextSize = 16
 SectionTitle.Font = Enum.Font.GothamBold
 
-local Status =
+Status =
     Library.CreateLabel(
         FarmPage,
-        "Status: Waiting for game..."
+        "Status: Disabled"
     )
 
 Status.LayoutOrder = 3
@@ -483,6 +711,20 @@ Back.MouseButton1Click:Connect(
 local LastSnapshot =
     Stats.GetSnapshot()
 
+
+local function UpdateStatusText()
+    if not Running then
+        Status.Text = "Status: Disabled"
+        return
+    end
+
+    if game.PlaceId == LOBBY_PLACE_ID then
+        Status.Text = "Status: Running | Waiting for Match"
+    else
+        Status.Text = "Status: Running | Anti-Stuck: 15m"
+    end
+end
+
 local function Refresh(snapshot)
     if not Gui.Parent then
         return
@@ -515,11 +757,6 @@ local function Refresh(snapshot)
         Gatling.TextColor3 =
             C.Green
 
-        Status.Text =
-            "Status: Completed"
-
-        Status.TextColor3 =
-            C.Green
 
         Toggle.Text =
             "COMPLETED"
@@ -531,6 +768,7 @@ local function Refresh(snapshot)
         Config.AutoFarmRunning = false
         SaveConfig()
 
+    UpdateStatusText()
         return
     end
 
@@ -547,12 +785,8 @@ local function Refresh(snapshot)
     Gatling.TextColor3 =
         C.Muted
 
-    Status.TextColor3 =
-        C.Muted
 
     if not GameReady then
-        Status.Text =
-            "Status: Waiting for game..."
 
         Toggle.Text =
             Running
@@ -561,35 +795,14 @@ local function Refresh(snapshot)
 
         return
     end
-
     if Running then
         Toggle.Text = "STOP"
-
-        if shared.AutoProgress
-            and shared.AutoProgress.GetStatus then
-
-            local ok, state =
-                pcall(
-                    shared.AutoProgress.GetStatus
-                )
-
-            if ok and state then
-                Status.Text =
-                    tostring(state)
-
-                return
-            end
-        end
-
-        Status.Text =
-            "Status: Running"
+        UpdateStatusText()
     else
         Toggle.Text = "START"
-        Status.Text =
-            "Status: Disabled"
+        UpdateStatusText()
     end
 end
-
 local function SetWebhook()
     Config.Webhook =
         WebhookBox.Text
@@ -601,9 +814,6 @@ local function SetWebhook()
 
     if not module
         or not module.SetWebhook then
-
-        Status.Text =
-            "Status: Webhook Failed To Load"
 
         return false
     end
@@ -634,10 +844,11 @@ local function StartFarm(
     Config.AutoFarmRunning = true
     SaveConfig()
 
+    UpdateStatusText()
+
     Toggle.Text = "STOP"
 
-    Status.Text =
-        "Status: Waiting for game..."
+    UpdateStatusText()
 
     StartTaskRunning = true
 
@@ -660,8 +871,27 @@ local function StartFarm(
             return
         end
 
-        Status.Text =
-            "Status: Loading Auto Progress..."
+        if game.PlaceId ~= LOBBY_PLACE_ID then
+            local snapshot =
+                Stats.GetSnapshot()
+
+            local level =
+                tonumber(snapshot.Level) or 0
+
+            local mapReady =
+                WaitForTargetMapBeforeBackend(level)
+
+            if not Running then
+                StartTaskRunning = false
+                return
+            end
+
+            if not mapReady then
+                StartTaskRunning = false
+                Refresh()
+                return
+            end
+        end
 
         local farm =
             LoadAutoFarm()
@@ -677,9 +907,6 @@ local function StartFarm(
             Running = false
             Config.AutoFarmRunning = false
             SaveConfig()
-
-            Status.Text =
-                "Status: Auto Farm Failed To Load"
 
             Toggle.Text = "START"
             StartTaskRunning = false
@@ -776,8 +1003,6 @@ end
 
 local function SendProgressWebhook()
     if not GameReady then
-        Status.Text =
-            "Status: Waiting for game..."
 
         return
     end
@@ -786,8 +1011,6 @@ local function SendProgressWebhook()
         LoadProgressWebhook()
 
     if not module then
-        Status.Text =
-            "Status: Webhook Failed To Load"
 
         return
     end
@@ -808,17 +1031,7 @@ local function SendProgressWebhook()
     if module.Send then
         local ok, result =
             module.Send(true)
-
-        Status.Text =
-            ok
-            and "Status: Webhook Sent"
-            or (
-                "Status: "
-                .. tostring(result)
-            )
     else
-        Status.Text =
-            "Status: Send Function Missing"
     end
 end
 
