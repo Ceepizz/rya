@@ -13,6 +13,121 @@ local Player =
     Players.LocalPlayer
     or Players.PlayerAdded:Wait()
 
+local Workspace = game:GetService("Workspace")
+
+pcall(function()
+    settings().Rendering.QualityLevel =
+        Enum.QualityLevel.Level01
+end)
+
+local function hideAntiLagObject(v)
+    pcall(function()
+        if v:IsA("BasePart") then
+            v.Transparency = 1
+            v.LocalTransparencyModifier = 1
+            v.CastShadow = false
+        elseif v:IsA("Decal")
+            or v:IsA("Texture") then
+            v.Transparency = 1
+        elseif v:IsA("ParticleEmitter")
+            or v:IsA("Trail")
+            or v:IsA("Beam")
+            or v:IsA("Smoke")
+            or v:IsA("Fire")
+            or v:IsA("Sparkles") then
+            v.Enabled = false
+        elseif v:IsA("Highlight") then
+            v.Enabled = false
+        elseif v:IsA("BillboardGui")
+            or v:IsA("SurfaceGui") then
+            v.Enabled = false
+        end
+    end)
+end
+
+local function hookAntiLagFolder(folder)
+    if not folder then
+        return
+    end
+
+    for _, obj in ipairs(folder:GetDescendants()) do
+        hideAntiLagObject(obj)
+    end
+
+    folder.DescendantAdded:Connect(function(obj)
+        task.defer(function()
+            hideAntiLagObject(obj)
+        end)
+    end)
+end
+
+task.spawn(function()
+    local Towers =
+        Workspace:WaitForChild(
+            "Towers",
+            30
+        )
+
+    local NPCs =
+        Workspace:WaitForChild(
+            "NPCs",
+            30
+        )
+
+    if Towers then
+        hookAntiLagFolder(Towers)
+    end
+
+    if NPCs then
+        hookAntiLagFolder(NPCs)
+    end
+
+    while true do
+        local TowersFolder =
+            Workspace:FindFirstChild("Towers")
+
+        local ClientUnits =
+            Workspace:FindFirstChild("ClientUnits")
+
+        if TowersFolder then
+            for _, tower in ipairs(
+                TowersFolder:GetChildren()
+            ) do
+                local anims =
+                    tower:FindFirstChild("Animations")
+
+                local weapon =
+                    tower:FindFirstChild("Weapon")
+
+                local projectiles =
+                    tower:FindFirstChild("Projectiles")
+
+                if anims then
+                    anims:Destroy()
+                end
+
+                if projectiles then
+                    projectiles:Destroy()
+                end
+
+                if weapon then
+                    weapon:Destroy()
+                end
+            end
+        end
+
+        if ClientUnits then
+            for _, unit in ipairs(
+                ClientUnits:GetChildren()
+            ) do
+                unit:Destroy()
+            end
+        end
+
+        task.wait(0.5)
+    end
+end)
+
 local PlayerGui =
     Player:WaitForChild("PlayerGui")
 
