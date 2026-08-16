@@ -6,6 +6,8 @@ local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local MarketplaceService = game:GetService("MarketplaceService")
+local TeleportService = game:GetService("TeleportService")
+local GuiService = game:GetService("GuiService")
 
 local Player =
     Players.LocalPlayer
@@ -191,6 +193,25 @@ local GameReady = false
 
 local C = Library.Theme
 
+local function Reconnect()
+    local initialCode = GuiService:GetErrorCode()
+
+    if initialCode
+        and initialCode ~= Enum.ConnectionError.OK then
+
+        task.wait(5)
+
+        if GuiService:GetErrorCode() == initialCode then
+            pcall(function()
+                TeleportService:TeleportReconnect()
+            end)
+        end
+    end
+end
+
+task.spawn(Reconnect)
+GuiService.ErrorMessageChanged:Connect(Reconnect)
+
 local function WaitForLoadingScreen()
     local loadingScreen =
         PlayerGui:FindFirstChild(
@@ -273,8 +294,34 @@ local function WaitForGame()
 
     Player:WaitForChild("PlayerGui")
 
-    WaitForLoadingScreen()
-    WaitUntilLoaded()
+    local startedAt = os.clock()
+
+    print(
+        "[AUTO PROGRESS GUI] Waiting for loading screen..."
+    )
+
+    while IsLoading() do
+        if os.clock() - startedAt >= 60 then
+            warn(
+                "[AUTO PROGRESS GUI] Loading stuck for 60 seconds. Teleporting to lobby..."
+            )
+
+            pcall(function()
+                TeleportService:Teleport(
+                    LOBBY_PLACE_ID,
+                    Player
+                )
+            end)
+
+            return
+        end
+
+        task.wait(1)
+    end
+
+    print(
+        "[AUTO PROGRESS GUI] Loaded!"
+    )
 
     GameReady = true
 end
@@ -549,6 +596,8 @@ local function LoadProgressWebhook()
         and ProgressWebhook
         or nil
 end
+
+WaitForGame()
 
 local Window =
     Library.CreateWindow({
