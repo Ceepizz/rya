@@ -70,7 +70,7 @@ function Library.CreateButton(parent, text, height)
     button.BackgroundColor3 = C.Accent
     button.BorderSizePixel = 0
     button.Text = text or "Button"
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextTransparency = 1
     button.TextSize = 14
     button.Font = Enum.Font.GothamBold
     button.AutoButtonColor = false
@@ -79,24 +79,57 @@ function Library.CreateButton(parent, text, height)
     Corner(button, 9)
     Stroke(button, Color3.fromRGB(45, 130, 150), 1, 0.45)
 
+    local gradient = Gradient(
+        button,
+        C.Accent,
+        C.Accent2,
+        90
+    )
+
+    local textOverlay = Instance.new("TextLabel")
+    textOverlay.Name = "TextOverlay"
+    textOverlay.Size = UDim2.fromScale(1, 1)
+    textOverlay.BackgroundTransparency = 1
+    textOverlay.Text = button.Text
+    textOverlay.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textOverlay.TextSize = 14
+    textOverlay.Font = Enum.Font.GothamBold
+    textOverlay.TextXAlignment = Enum.TextXAlignment.Center
+    textOverlay.TextYAlignment = Enum.TextYAlignment.Center
+    textOverlay.ZIndex = button.ZIndex + 1
+    textOverlay.Active = false
+    textOverlay.Parent = button
+
+    button:GetPropertyChangedSignal("Text"):Connect(function()
+        textOverlay.Text = button.Text
+    end)
+
     button.MouseEnter:Connect(function()
-        button.BackgroundColor3 = C.AccentHover
-        button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        gradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, C.AccentHover),
+            ColorSequenceKeypoint.new(1, C.Accent)
+        })
     end)
 
     button.MouseLeave:Connect(function()
-        button.BackgroundColor3 = C.Accent
-        button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        gradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, C.Accent),
+            ColorSequenceKeypoint.new(1, C.Accent2)
+        })
     end)
 
     button.MouseButton1Down:Connect(function()
-        button.BackgroundColor3 = C.AccentPressed
-        button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        gradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, C.AccentPressed),
+            ColorSequenceKeypoint.new(1, C.Accent2)
+        })
     end)
 
     button.MouseButton1Up:Connect(function()
-        button.BackgroundColor3 = C.AccentHover
-        button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        gradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, C.AccentHover),
+            ColorSequenceKeypoint.new(1, C.Accent)
+        })
     end)
 
     return button
