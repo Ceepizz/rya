@@ -1,570 +1,343 @@
-if not game:IsLoaded() then
-    game.Loaded:Wait()
-end
+local UIS = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
 
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local HttpService = game:GetService("HttpService")
+local Library = {}
 
-local Player = Players.LocalPlayer or Players.PlayerAdded:Wait()
-local PlayerGui = Player:WaitForChild("PlayerGui")
-local LOBBY_PLACE_ID = 3260590327
+Library.Theme = {
+    Background = Color3.fromRGB(24, 24, 31),
+    Surface = Color3.fromRGB(29, 28, 38),
+    Border = Color3.fromRGB(36, 35, 48),
 
-local Stats = {}
+    Accent = Color3.fromRGB(0, 170, 236),
+    AccentHover = Color3.fromRGB(38, 243, 251),
+    AccentPressed = Color3.fromRGB(0, 120, 210),
 
-local SETTINGS_FILE =
-    "AutoProgressStats_" .. tostring(Player.UserId) .. ".json"
+    Text = Color3.fromRGB(255, 255, 255),
+    Muted = Color3.fromRGB(150, 150, 150),
 
-local BACKEND_SETTINGS_FILE =
-    "AutoProgression_" .. tostring(Player.UserId) .. ".json"
-
-local Saved = {
-    SavedLevel = 0,
-    SavedCoins = 0
+    Green = Color3.fromRGB(86, 200, 120),
+    Red = Color3.fromRGB(220, 90, 90)
 }
 
-local MatchStartCoins = 0
-local CurrentTrackedCoins = 0
-local LastGameOverState = false
-local HadGameReplicator = false
-local Monitoring = false
-local MonitorToken = 0
-local RewardTimeout = 3
+local C = Library.Theme
 
-local function LoadSaved()
-    if not isfile
-        or not readfile
-        or not isfile(SETTINGS_FILE) then
-        return
+local function Corner(parent, radius)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, radius or 8)
+    corner.Parent = parent
+    return corner
+end
+
+local function Stroke(parent, color, thickness)
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = color or C.Border
+    stroke.Thickness = thickness or 1
+    stroke.Parent = parent
+    return stroke
+end
+
+function Library.FormatNumber(value)
+    local n = math.floor(tonumber(value) or 0)
+    local s = tostring(n)
+
+    while true do
+        local changed
+        s, changed = s:gsub("^(-?%d+)(%d%d%d)", "%1,%2")
+
+        if changed == 0 then
+            break
+        end
     end
 
-    local ok, data = pcall(function()
-        return HttpService:JSONDecode(
-            readfile(SETTINGS_FILE)
-        )
+    return s
+end
+
+function Library.CreateButton(parent, text, height)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, 0, 0, height or 42)
+    button.BackgroundColor3 = C.Accent
+    button.BorderSizePixel = 0
+    button.Text = text or "Button"
+    button.TextColor3 = C.Text
+    button.TextSize = 14
+    button.Font = Enum.Font.GothamSemibold
+    button.AutoButtonColor = false
+    button.Parent = parent
+
+    Corner(button, 8)
+
+    button.MouseEnter:Connect(function()
+        button.BackgroundColor3 = C.AccentHover
     end)
 
-    if not ok or type(data) ~= "table" then
-        return
-    end
-
-    for key, defaultValue in pairs(Saved) do
-        if data[key] ~= nil then
-            Saved[key] = data[key]
-        else
-            Saved[key] = defaultValue
-        end
-    end
-end
-
-local function Save()
-    if not writefile then
-        return
-    end
-
-    pcall(function()
-        writefile(
-            SETTINGS_FILE,
-            HttpService:JSONEncode(Saved)
-        )
-    end)
-end
-
-LoadSaved()
-
-MatchStartCoins = tonumber(Saved.SavedCoins) or 0
-CurrentTrackedCoins = tonumber(Saved.SavedCoins) or 0
-
-local function ReadNumberStat(name)
-    local obj = Player:FindFirstChild(name)
-
-    if obj and obj.Value ~= nil then
-        return tonumber(obj.Value)
-    end
-
-    local attr = Player:GetAttribute(name)
-
-    if attr ~= nil then
-        return tonumber(attr)
-    end
-
-    local leaderstats = Player:FindFirstChild("leaderstats")
-    local stat =
-        leaderstats
-        and leaderstats:FindFirstChild(name)
-
-    if stat and stat.Value ~= nil then
-        return tonumber(stat.Value)
-    end
-
-    return nil
-end
-
-local function ReadBackendSettings()
-    if not isfile
-        or not readfile
-        or not isfile(BACKEND_SETTINGS_FILE) then
-        return nil
-    end
-
-    local ok, data = pcall(function()
-        return HttpService:JSONDecode(
-            readfile(BACKEND_SETTINGS_FILE)
-        )
+    button.MouseLeave:Connect(function()
+        button.BackgroundColor3 = C.Accent
     end)
 
-    if not ok or type(data) ~= "table" then
-        return nil
-    end
+    button.MouseButton1Down:Connect(function()
+        button.BackgroundColor3 = C.AccentPressed
+    end)
 
-    return data
+    button.MouseButton1Up:Connect(function()
+        button.BackgroundColor3 = C.AccentHover
+    end)
+
+    return button
 end
 
-function Stats.GetBackendSavedLevel()
-    local data = ReadBackendSettings()
-
-    if not data
-        or data.ProgressInitialized ~= true then
-        return nil
-    end
-
-    local level = tonumber(data.SavedLevel)
-
-    if level and level >= 0 then
-        return level
-    end
-
-    return nil
+function Library.CreateLabel(parent, text, height)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, height or 22)
+    label.BackgroundTransparency = 1
+    label.Text = text or ""
+    label.TextColor3 = C.Muted
+    label.TextSize = 13
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = parent
+    return label
 end
 
-function Stats.GetLevel()
-    local backendLevel =
-        Stats.GetBackendSavedLevel()
+function Library.CreateTextBox(parent, options)
+    options = options or {}
 
-    if backendLevel ~= nil then
-        if backendLevel ~= tonumber(Saved.SavedLevel) then
-            Saved.SavedLevel = backendLevel
-            Save()
-        end
+    local box = Instance.new("TextBox")
+    box.Size = UDim2.new(1, 0, 0, options.Height or 40)
+    box.BackgroundColor3 = C.Surface
+    box.BorderSizePixel = 0
+    box.PlaceholderText = options.Placeholder or ""
+    box.PlaceholderColor3 = C.Muted
+    box.Text = options.Text or ""
+    box.TextColor3 = C.Text
+    box.TextSize = options.TextSize or 13
+    box.Font = Enum.Font.Gotham
+    box.ClearTextOnFocus = false
+    box.TextXAlignment = Enum.TextXAlignment.Left
+    box.Parent = parent
 
-        return backendLevel
-    end
+    Corner(box, 8)
+    Stroke(box, C.Border, 1)
 
-    if shared.AutoProgress
-        and shared.AutoProgress.GetLevel then
+    local padding = Instance.new("UIPadding")
+    padding.PaddingLeft = UDim.new(0, 12)
+    padding.PaddingRight = UDim.new(0, 12)
+    padding.Parent = box
 
-        local ok, level = pcall(function()
-            return shared.AutoProgress.GetLevel()
-        end)
-
-        level = ok and tonumber(level) or nil
-
-        if level and level >= 0 then
-            if level ~= tonumber(Saved.SavedLevel) then
-                Saved.SavedLevel = level
-                Save()
-            end
-
-            return level
-        end
-    end
-
-    local liveLevel = ReadNumberStat("Level")
-
-    if liveLevel and liveLevel >= 0 then
-        if liveLevel ~= tonumber(Saved.SavedLevel) then
-            Saved.SavedLevel = liveLevel
-            Save()
-        end
-
-        return liveLevel
-    end
-
-    return tonumber(Saved.SavedLevel) or 0
+    return box
 end
 
-function Stats.GetPlayerReplicator()
-    local stateReplicators =
-        ReplicatedStorage:FindFirstChild(
-            "StateReplicators"
-        )
-
-    if not stateReplicators then
-        return nil
+function Library.CreatePage(parent, scrolling)
+    if scrolling then
+        local page = Instance.new("ScrollingFrame")
+        page.Size = UDim2.fromScale(1, 1)
+        page.BackgroundTransparency = 1
+        page.BorderSizePixel = 0
+        page.ScrollBarThickness = 3
+        page.ScrollBarImageColor3 = C.Accent
+        page.CanvasSize = UDim2.new()
+        page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        page.Parent = parent
+        return page
     end
 
-    for _, replicator in ipairs(
-        stateReplicators:GetChildren()
-    ) do
-        if replicator.Name == "PlayerReplicator"
-            and tonumber(
-                replicator:GetAttribute("UserId")
-            ) == Player.UserId then
-
-            return replicator
-        end
-    end
-
-    return nil
+    local page = Instance.new("Frame")
+    page.Size = UDim2.fromScale(1, 1)
+    page.BackgroundTransparency = 1
+    page.Parent = parent
+    return page
 end
 
-function Stats.GetGameStateReplicator()
-    local stateReplicators =
-        ReplicatedStorage:FindFirstChild(
-            "StateReplicators"
-        )
-
-    return stateReplicators
-        and stateReplicators:FindFirstChild(
-            "GameStateReplicator"
-        )
+function Library.AddListLayout(parent, padding)
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, padding or 10)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = parent
+    return layout
 end
 
-function Stats.GetLiveCoins()
-    local coinsObject =
-        Player:FindFirstChild("Coins")
+function Library.CreateWindow(options)
+    options = options or {}
 
-    if coinsObject
-        and coinsObject.Value ~= nil then
-
-        return tonumber(coinsObject.Value)
-    end
-
-    local attr = Player:GetAttribute("Coins")
-
-    if attr ~= nil then
-        return tonumber(attr)
-    end
-
-    local leaderstats =
-        Player:FindFirstChild("leaderstats")
-
-    local stat =
-        leaderstats
-        and leaderstats:FindFirstChild("Coins")
-
-    if stat and stat.Value ~= nil then
-        return tonumber(stat.Value)
-    end
-
-    return nil
-end
-
-local function SaveTrackedCoins(value)
-    value = tonumber(value)
-
-    if not value then
-        return CurrentTrackedCoins
-    end
-
-    value = math.max(value, 0)
-    CurrentTrackedCoins = value
-
-    if value ~= tonumber(Saved.SavedCoins) then
-        Saved.SavedCoins = value
-        Save()
-    end
-
-    return value
-end
-
-function Stats.GetCoins()
-    local liveCoins = Stats.GetLiveCoins()
-
-    if game.PlaceId == LOBBY_PLACE_ID
-        and Stats.GetGameStateReplicator() == nil
-        and liveCoins ~= nil then
-
-        SaveTrackedCoins(liveCoins)
-        MatchStartCoins = liveCoins
-        return liveCoins
-    end
-
-    if liveCoins ~= nil
-        and liveCoins > CurrentTrackedCoins then
-
-        SaveTrackedCoins(liveCoins)
-    end
-
-    return math.max(
-        tonumber(CurrentTrackedCoins) or 0,
-        tonumber(liveCoins) or 0
-    )
-end
-
-function Stats.RecordMatchStartCoins()
-    local liveCoins = Stats.GetLiveCoins()
-
-    MatchStartCoins = math.max(
-        tonumber(liveCoins) or 0,
-        tonumber(CurrentTrackedCoins) or 0
+    local old = CoreGui:FindFirstChild(
+        options.GuiName or "AutoProgressGui"
     )
 
-    SaveTrackedCoins(MatchStartCoins)
-
-    print(
-        "[AUTO PROGRESS STATS] Match start coins:",
-        MatchStartCoins
-    )
-
-    return MatchStartCoins
-end
-
-function Stats.UpdateCoinsFromReward()
-    local playerReplicator =
-        Stats.GetPlayerReplicator()
-
-    if not playerReplicator then
-        warn(
-            "[AUTO PROGRESS STATS] PlayerReplicator not found"
-        )
-
-        return Stats.GetCoins(), 0
+    if old then
+        old:Destroy()
     end
 
-    local reward = 0
-    local lastReward = nil
-    local stableReads = 0
-    local timeoutAt = os.clock() + RewardTimeout
+    local gui = Instance.new("ScreenGui")
+    gui.Name = options.GuiName or "AutoProgressGui"
+    gui.ResetOnSpawn = false
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.Parent = CoreGui
 
-    repeat
-        local value = tonumber(
-            playerReplicator:GetAttribute(
-                "CoinsReward"
+    local main = Instance.new("Frame")
+    main.Name = "Main"
+    main.Size = UDim2.fromOffset(
+        options.Width or 430,
+        options.CompactHeight or 150
+    )
+    main.Position = UDim2.new(
+        0.5,
+        -math.floor((options.Width or 430) / 2),
+        0.5,
+        -math.floor((options.CompactHeight or 150) / 2)
+    )
+    main.BackgroundColor3 = C.Background
+    main.BorderSizePixel = 0
+    main.Parent = gui
+
+    Corner(main, 12)
+    Stroke(main, C.Border, 1)
+
+    local topbar = Instance.new("Frame")
+    topbar.Name = "Topbar"
+    topbar.Size = UDim2.new(1, 0, 0, 52)
+    topbar.BackgroundColor3 = C.Surface
+    topbar.BorderSizePixel = 0
+    topbar.Active = true
+    topbar.Parent = main
+
+    Corner(topbar, 12)
+
+    local topFix = Instance.new("Frame")
+    topFix.Size = UDim2.new(1, 0, 0, 12)
+    topFix.Position = UDim2.new(0, 0, 1, -12)
+    topFix.BackgroundColor3 = C.Surface
+    topFix.BorderSizePixel = 0
+    topFix.Parent = topbar
+
+    local logo = Instance.new("ImageLabel")
+    logo.Name = "Logo"
+    logo.Size = UDim2.fromOffset(36, 36)
+    logo.Position = UDim2.fromOffset(10, 8)
+    logo.BackgroundTransparency = 1
+    logo.Image = "rbxassetid://87824587597558"
+    logo.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    logo.ImageTransparency = 0
+    logo.ScaleType = Enum.ScaleType.Fit
+    logo.Parent = topbar
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -138, 1, 0)
+    title.Position = UDim2.fromOffset(54, 0)
+    title.BackgroundTransparency = 1
+    title.Text = options.Title or "Auto Progress"
+    title.TextColor3 = C.Text
+    title.TextSize = 18
+    title.Font = Enum.Font.GothamBold
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = topbar
+
+    local close = Instance.new("TextButton")
+    close.Size = UDim2.fromOffset(34, 34)
+    close.Position = UDim2.new(1, -44, 0.5, -17)
+    close.BackgroundColor3 = C.Border
+    close.BorderSizePixel = 0
+    close.Text = "×"
+    close.TextColor3 = C.Text
+    close.TextSize = 22
+    close.Font = Enum.Font.GothamBold
+    close.AutoButtonColor = false
+    close.Parent = topbar
+
+    Corner(close, 8)
+
+    local content = Instance.new("Frame")
+    content.Name = "Content"
+    content.Size = UDim2.new(1, -24, 1, -76)
+    content.Position = UDim2.fromOffset(12, 64)
+    content.BackgroundTransparency = 1
+    content.Parent = main
+
+    close.MouseButton1Click:Connect(function()
+        gui:Destroy()
+    end)
+
+    local dragging = false
+    local dragInput
+    local dragStart
+    local startPos
+
+    topbar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+
+            dragging = true
+            dragStart = input.Position
+            startPos = main.Position
+        end
+    end)
+
+    topbar.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement
+            or input.UserInputType == Enum.UserInputType.Touch then
+
+            dragInput = input
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(input)
+        if input == dragInput and dragging and main.Parent then
+            local delta = input.Position - dragStart
+
+            main.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
             )
-        )
-
-        if value ~= nil and value >= 0 then
-            reward = value
-
-            if value == lastReward then
-                stableReads += 1
-            else
-                lastReward = value
-                stableReads = 1
-            end
-
-            if value > 0
-                and stableReads >= 3 then
-                break
-            end
-        end
-
-        task.wait(0.1)
-    until os.clock() >= timeoutAt
-
-    local newTotal =
-        (tonumber(MatchStartCoins) or 0)
-        + reward
-
-    local liveCoins = Stats.GetLiveCoins()
-
-    SaveTrackedCoins(
-        math.max(
-            newTotal,
-            tonumber(liveCoins) or 0
-        )
-    )
-
-    print(
-        "[AUTO PROGRESS STATS] Start:",
-        MatchStartCoins
-    )
-
-    print(
-        "[AUTO PROGRESS STATS] Reward:",
-        reward
-    )
-
-    print(
-        "[AUTO PROGRESS STATS] New total:",
-        CurrentTrackedCoins
-    )
-
-    return CurrentTrackedCoins, reward
-end
-
-function Stats.IsTowerOwned(towerName)
-    local inventory =
-        PlayerGui:FindFirstChild(
-            "ReactUniversalInventoryView"
-        )
-
-    if not inventory then
-        return false
-    end
-
-    local holder =
-        inventory:FindFirstChild("Holder")
-
-    local windowFrame =
-        holder
-        and holder:FindFirstChild(
-            "windowFrame"
-        )
-
-    local towerFrame =
-        windowFrame
-        and windowFrame:FindFirstChild(
-            "towersInventoryFrame"
-        )
-
-    if not towerFrame then
-        return false
-    end
-
-    for _, tower in ipairs(
-        towerFrame:GetDescendants()
-    ) do
-        if tower:IsA("Frame") then
-            local refLabel =
-                tower:FindFirstChild(
-                    "refLabel",
-                    true
-                )
-
-            local background =
-                tower:FindFirstChild(
-                    "background",
-                    true
-                )
-
-            if refLabel
-                and background
-                and refLabel.Text == towerName
-                and background.Visible == false then
-
-                return true
-            end
-        end
-    end
-
-    return false
-end
-
-function Stats.IsGatlingOwned()
-    return Stats.IsTowerOwned("Gatling Gun")
-end
-
-function Stats.GetSnapshot()
-    return {
-        Level = Stats.GetLevel(),
-        Coins = Stats.GetCoins(),
-        GatlingOwned = Stats.IsGatlingOwned()
-    }
-end
-
-function Stats.SetRewardTimeout(seconds)
-    RewardTimeout =
-        math.max(
-            tonumber(seconds) or 3,
-            0.5
-        )
-end
-
-function Stats.Start(callback)
-    if Monitoring then
-        return false
-    end
-
-    Monitoring = true
-    MonitorToken += 1
-    local myToken = MonitorToken
-
-    task.spawn(function()
-        local lastLevel = nil
-        local lastCoins = nil
-        local lastGatling = nil
-        local lastSnapshotAt = 0
-
-        while Monitoring
-            and myToken == MonitorToken do
-
-            task.wait(0.1)
-
-            local rep =
-                Stats.GetGameStateReplicator()
-
-            if rep then
-                if not HadGameReplicator then
-                    HadGameReplicator = true
-                    LastGameOverState = false
-                    Stats.RecordMatchStartCoins()
-                end
-
-                local isGameOver =
-                    rep:GetAttribute(
-                        "GameOver"
-                    ) == true
-
-                if not isGameOver
-                    and LastGameOverState then
-
-                    Stats.RecordMatchStartCoins()
-                end
-
-                if isGameOver
-                    and not LastGameOverState then
-
-                    Stats.UpdateCoinsFromReward()
-                end
-
-                LastGameOverState = isGameOver
-            else
-                HadGameReplicator = false
-                LastGameOverState = false
-
-                local liveCoins =
-                    Stats.GetLiveCoins()
-
-                if liveCoins ~= nil then
-                    SaveTrackedCoins(liveCoins)
-                    MatchStartCoins = liveCoins
-                end
-            end
-
-            if os.clock() - lastSnapshotAt >= 0.25 then
-                lastSnapshotAt = os.clock()
-
-                local snapshot =
-                    Stats.GetSnapshot()
-
-                local changed =
-                    snapshot.Level ~= lastLevel
-                    or snapshot.Coins ~= lastCoins
-                    or snapshot.GatlingOwned ~= lastGatling
-
-                if changed then
-                    lastLevel = snapshot.Level
-                    lastCoins = snapshot.Coins
-                    lastGatling = snapshot.GatlingOwned
-
-                    if callback then
-                        task.spawn(
-                            callback,
-                            snapshot
-                        )
-                    end
-                end
-            end
         end
     end)
 
-    return true
+    UIS.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+
+            dragging = false
+        end
+    end)
+
+    local window = {
+        Gui = gui,
+        Main = main,
+        Topbar = topbar,
+        Content = content,
+        Theme = C,
+        Width = options.Width or 430,
+        CompactHeight = options.CompactHeight or 150,
+        ExpandedHeight = options.ExpandedHeight or 470
+    }
+
+    function window:SetCompact()
+        local width = self.Width
+        local height = self.CompactHeight
+
+        self.Main.Size = UDim2.fromOffset(width, height)
+        self.Main.Position = UDim2.new(
+            0.5,
+            -math.floor(width / 2),
+            0.5,
+            -math.floor(height / 2)
+        )
+    end
+
+    function window:SetExpanded()
+        local width = self.Width
+        local height = self.ExpandedHeight
+
+        self.Main.Size = UDim2.fromOffset(width, height)
+        self.Main.Position = UDim2.new(
+            0.5,
+            -math.floor(width / 2),
+            0.5,
+            -math.floor(height / 2)
+        )
+    end
+
+    return window
 end
 
-function Stats.Stop()
-    Monitoring = false
-    MonitorToken += 1
-end
-
-function Stats.GetSavedCoins()
-    return tonumber(Saved.SavedCoins) or 0
-end
-
-function Stats.GetSavedLevel()
-    return tonumber(Saved.SavedLevel) or 0
-end
-
-shared.AutoProgressStats = Stats
-return Stats
+shared.AutoProgressLibrary = Library
+return Library
