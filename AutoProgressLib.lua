@@ -4,17 +4,17 @@ local CoreGui = game:GetService("CoreGui")
 local Library = {}
 
 Library.Theme = {
-    Background = Color3.fromRGB(10, 16, 27),
-    Background2 = Color3.fromRGB(13, 24, 40),
-    Surface = Color3.fromRGB(17, 29, 47),
-    Surface2 = Color3.fromRGB(21, 38, 60),
-    Border = Color3.fromRGB(39, 61, 87),
-    Accent = Color3.fromRGB(42, 103, 170),
-    Accent2 = Color3.fromRGB(35, 80, 135),
-    AccentHover = Color3.fromRGB(54, 122, 194),
-    AccentPressed = Color3.fromRGB(31, 72, 122),
-    Text = Color3.fromRGB(235, 241, 248),
-    Muted = Color3.fromRGB(137, 155, 177),
+    Background = Color3.fromRGB(18, 24, 32),
+    Background2 = Color3.fromRGB(21, 31, 42),
+    Surface = Color3.fromRGB(24, 35, 46),
+    Surface2 = Color3.fromRGB(27, 43, 56),
+    Border = Color3.fromRGB(48, 72, 86),
+    Accent = Color3.fromRGB(0, 170, 210),
+    Accent2 = Color3.fromRGB(0, 115, 155),
+    AccentHover = Color3.fromRGB(35, 205, 230),
+    AccentPressed = Color3.fromRGB(0, 95, 130),
+    Text = Color3.fromRGB(238, 247, 250),
+    Muted = Color3.fromRGB(145, 170, 180),
     Green = Color3.fromRGB(92, 190, 130),
     Red = Color3.fromRGB(210, 92, 104)
 }
@@ -77,7 +77,7 @@ function Library.CreateButton(parent, text, height)
     button.Parent = parent
 
     Corner(button, 9)
-    Stroke(button, Color3.fromRGB(71, 121, 171), 1, 0.45)
+    Stroke(button, Color3.fromRGB(45, 130, 150), 1, 0.45)
 
     local gradient = Gradient(
         button,
@@ -270,7 +270,7 @@ function Library.CreateWindow(options)
     minimize.Name = "Minimize"
     minimize.Size = UDim2.fromOffset(34, 34)
     minimize.Position = UDim2.new(1, -82, 0.5, -17)
-    minimize.BackgroundColor3 = Color3.fromRGB(29, 46, 67)
+    minimize.BackgroundColor3 = Color3.fromRGB(28, 48, 58)
     minimize.BorderSizePixel = 0
     minimize.Text = "−"
     minimize.TextColor3 = C.Muted
@@ -286,7 +286,7 @@ function Library.CreateWindow(options)
     close.Name = "Close"
     close.Size = UDim2.fromOffset(34, 34)
     close.Position = UDim2.new(1, -43, 0.5, -17)
-    close.BackgroundColor3 = Color3.fromRGB(29, 46, 67)
+    close.BackgroundColor3 = Color3.fromRGB(28, 48, 58)
     close.BorderSizePixel = 0
     close.Text = "×"
     close.TextColor3 = C.Muted
@@ -333,8 +333,8 @@ function Library.CreateWindow(options)
     local function setButtonHover(button, hovering)
         button.BackgroundColor3 =
             hovering
-            and Color3.fromRGB(39, 61, 87)
-            or Color3.fromRGB(29, 46, 67)
+            and Color3.fromRGB(38, 69, 80)
+            or Color3.fromRGB(28, 48, 58)
         button.TextColor3 =
             hovering
             and C.Text
@@ -355,7 +355,7 @@ function Library.CreateWindow(options)
     end)
 
     close.MouseLeave:Connect(function()
-        close.BackgroundColor3 = Color3.fromRGB(29, 46, 67)
+        close.BackgroundColor3 = Color3.fromRGB(28, 48, 58)
         close.TextColor3 = C.Muted
     end)
 
@@ -366,11 +366,6 @@ function Library.CreateWindow(options)
     minimize.MouseButton1Click:Connect(function()
         main.Visible = false
         floating.Visible = true
-    end)
-
-    floating.MouseButton1Click:Connect(function()
-        floating.Visible = false
-        main.Visible = true
     end)
 
     local dragging = false
