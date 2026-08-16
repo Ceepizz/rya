@@ -122,14 +122,9 @@ function Library.CreateLabel(parent, text, height)
     label.Size = UDim2.new(1, 0, 0, height or 22)
     label.BackgroundTransparency = 1
     label.Text = text or ""
-    label.TextColor3 = C.Muted
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
     label.TextSize = 13
     label.Font = Enum.Font.GothamBold
-
-    if text == "Progress Webhook" then
-        label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.Font = Enum.Font.Gotham
-    end
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.Parent = parent
     return label
@@ -278,7 +273,7 @@ function Library.CreateWindow(options)
     minimize.BackgroundColor3 = Color3.fromRGB(28, 48, 58)
     minimize.BorderSizePixel = 0
     minimize.Text = "−"
-    minimize.TextColor3 = C.Muted
+    minimize.TextColor3 = Color3.fromRGB(255, 255, 255)
     minimize.TextSize = 22
     minimize.Font = Enum.Font.GothamBold
     minimize.AutoButtonColor = false
@@ -294,7 +289,7 @@ function Library.CreateWindow(options)
     close.BackgroundColor3 = Color3.fromRGB(28, 48, 58)
     close.BorderSizePixel = 0
     close.Text = "×"
-    close.TextColor3 = C.Muted
+    close.TextColor3 = Color3.fromRGB(255, 255, 255)
     close.TextSize = 20
     close.Font = Enum.Font.GothamBold
     close.AutoButtonColor = false
@@ -337,10 +332,7 @@ function Library.CreateWindow(options)
             hovering
             and Color3.fromRGB(38, 69, 80)
             or Color3.fromRGB(28, 48, 58)
-        button.TextColor3 =
-            hovering
-            and C.Text
-            or C.Muted
+        button.TextColor3 = Color3.fromRGB(255, 255, 255)
     end
 
     minimize.MouseEnter:Connect(function()
@@ -358,7 +350,7 @@ function Library.CreateWindow(options)
 
     close.MouseLeave:Connect(function()
         close.BackgroundColor3 = Color3.fromRGB(28, 48, 58)
-        close.TextColor3 = C.Muted
+        close.TextColor3 = Color3.fromRGB(255, 255, 255)
     end)
 
     local confirmOverlay = Instance.new("Frame")
