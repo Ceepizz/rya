@@ -4,19 +4,19 @@ local CoreGui = game:GetService("CoreGui")
 local Library = {}
 
 Library.Theme = {
-    Background = Color3.fromRGB(24, 24, 31),
-    Surface = Color3.fromRGB(29, 28, 38),
-    Border = Color3.fromRGB(36, 35, 48),
-
-    Accent = Color3.fromRGB(0, 170, 236),
-    AccentHover = Color3.fromRGB(38, 243, 251),
-    AccentPressed = Color3.fromRGB(0, 120, 210),
-
-    Text = Color3.fromRGB(255, 255, 255),
-    Muted = Color3.fromRGB(150, 150, 150),
-
-    Green = Color3.fromRGB(86, 200, 120),
-    Red = Color3.fromRGB(220, 90, 90)
+    Background = Color3.fromRGB(10, 16, 27),
+    Background2 = Color3.fromRGB(13, 24, 40),
+    Surface = Color3.fromRGB(17, 29, 47),
+    Surface2 = Color3.fromRGB(21, 38, 60),
+    Border = Color3.fromRGB(39, 61, 87),
+    Accent = Color3.fromRGB(42, 103, 170),
+    Accent2 = Color3.fromRGB(35, 80, 135),
+    AccentHover = Color3.fromRGB(54, 122, 194),
+    AccentPressed = Color3.fromRGB(31, 72, 122),
+    Text = Color3.fromRGB(235, 241, 248),
+    Muted = Color3.fromRGB(137, 155, 177),
+    Green = Color3.fromRGB(92, 190, 130),
+    Red = Color3.fromRGB(210, 92, 104)
 }
 
 local C = Library.Theme
@@ -28,12 +28,24 @@ local function Corner(parent, radius)
     return corner
 end
 
-local function Stroke(parent, color, thickness)
+local function Stroke(parent, color, thickness, transparency)
     local stroke = Instance.new("UIStroke")
     stroke.Color = color or C.Border
     stroke.Thickness = thickness or 1
+    stroke.Transparency = transparency or 0
     stroke.Parent = parent
     return stroke
+end
+
+local function Gradient(parent, color1, color2, rotation)
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, color1),
+        ColorSequenceKeypoint.new(1, color2)
+    })
+    gradient.Rotation = rotation or 90
+    gradient.Parent = parent
+    return gradient
 end
 
 function Library.FormatNumber(value)
@@ -64,22 +76,42 @@ function Library.CreateButton(parent, text, height)
     button.AutoButtonColor = false
     button.Parent = parent
 
-    Corner(button, 8)
+    Corner(button, 9)
+    Stroke(button, Color3.fromRGB(71, 121, 171), 1, 0.45)
+
+    local gradient = Gradient(
+        button,
+        C.Accent,
+        C.Accent2,
+        90
+    )
 
     button.MouseEnter:Connect(function()
-        button.BackgroundColor3 = C.AccentHover
+        gradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, C.AccentHover),
+            ColorSequenceKeypoint.new(1, C.Accent)
+        })
     end)
 
     button.MouseLeave:Connect(function()
-        button.BackgroundColor3 = C.Accent
+        gradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, C.Accent),
+            ColorSequenceKeypoint.new(1, C.Accent2)
+        })
     end)
 
     button.MouseButton1Down:Connect(function()
-        button.BackgroundColor3 = C.AccentPressed
+        gradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, C.AccentPressed),
+            ColorSequenceKeypoint.new(1, C.Accent2)
+        })
     end)
 
     button.MouseButton1Up:Connect(function()
-        button.BackgroundColor3 = C.AccentHover
+        gradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, C.AccentHover),
+            ColorSequenceKeypoint.new(1, C.Accent)
+        })
     end)
 
     return button
@@ -115,8 +147,9 @@ function Library.CreateTextBox(parent, options)
     box.TextXAlignment = Enum.TextXAlignment.Left
     box.Parent = parent
 
-    Corner(box, 8)
-    Stroke(box, C.Border, 1)
+    Corner(box, 9)
+    Stroke(box, C.Border, 1, 0.2)
+    Gradient(box, C.Surface2, C.Surface, 90)
 
     local padding = Instance.new("UIPadding")
     padding.PaddingLeft = UDim.new(0, 12)
@@ -186,10 +219,12 @@ function Library.CreateWindow(options)
     )
     main.BackgroundColor3 = C.Background
     main.BorderSizePixel = 0
+    main.ClipsDescendants = true
     main.Parent = gui
 
-    Corner(main, 12)
-    Stroke(main, C.Border, 1)
+    Corner(main, 13)
+    Stroke(main, C.Border, 1, 0.05)
+    Gradient(main, C.Background2, C.Background, 90)
 
     local topbar = Instance.new("Frame")
     topbar.Name = "Topbar"
@@ -199,19 +234,20 @@ function Library.CreateWindow(options)
     topbar.Active = true
     topbar.Parent = main
 
-    Corner(topbar, 12)
+    Gradient(topbar, C.Surface2, C.Surface, 0)
 
-    local topFix = Instance.new("Frame")
-    topFix.Size = UDim2.new(1, 0, 0, 12)
-    topFix.Position = UDim2.new(0, 0, 1, -12)
-    topFix.BackgroundColor3 = C.Surface
-    topFix.BorderSizePixel = 0
-    topFix.Parent = topbar
+    local topbarLine = Instance.new("Frame")
+    topbarLine.Size = UDim2.new(1, 0, 0, 1)
+    topbarLine.Position = UDim2.new(0, 0, 1, -1)
+    topbarLine.BackgroundColor3 = C.Border
+    topbarLine.BackgroundTransparency = 0.15
+    topbarLine.BorderSizePixel = 0
+    topbarLine.Parent = topbar
 
     local logo = Instance.new("ImageLabel")
     logo.Name = "Logo"
-    logo.Size = UDim2.fromOffset(36, 36)
-    logo.Position = UDim2.fromOffset(10, 8)
+    logo.Size = UDim2.fromOffset(34, 34)
+    logo.Position = UDim2.fromOffset(11, 9)
     logo.BackgroundTransparency = 1
     logo.Image = "rbxassetid://87824587597558"
     logo.ImageColor3 = Color3.fromRGB(255, 255, 255)
@@ -220,7 +256,7 @@ function Library.CreateWindow(options)
     logo.Parent = topbar
 
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, -138, 1, 0)
+    title.Size = UDim2.new(1, -150, 1, 0)
     title.Position = UDim2.fromOffset(54, 0)
     title.BackgroundTransparency = 1
     title.Text = options.Title or "Auto Progress"
@@ -230,19 +266,37 @@ function Library.CreateWindow(options)
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.Parent = topbar
 
+    local minimize = Instance.new("TextButton")
+    minimize.Name = "Minimize"
+    minimize.Size = UDim2.fromOffset(34, 34)
+    minimize.Position = UDim2.new(1, -82, 0.5, -17)
+    minimize.BackgroundColor3 = Color3.fromRGB(29, 46, 67)
+    minimize.BorderSizePixel = 0
+    minimize.Text = "−"
+    minimize.TextColor3 = C.Muted
+    minimize.TextSize = 22
+    minimize.Font = Enum.Font.GothamBold
+    minimize.AutoButtonColor = false
+    minimize.Parent = topbar
+
+    Corner(minimize, 8)
+    Stroke(minimize, C.Border, 1, 0.25)
+
     local close = Instance.new("TextButton")
+    close.Name = "Close"
     close.Size = UDim2.fromOffset(34, 34)
-    close.Position = UDim2.new(1, -44, 0.5, -17)
-    close.BackgroundColor3 = C.Border
+    close.Position = UDim2.new(1, -43, 0.5, -17)
+    close.BackgroundColor3 = Color3.fromRGB(29, 46, 67)
     close.BorderSizePixel = 0
     close.Text = "×"
-    close.TextColor3 = C.Text
-    close.TextSize = 22
+    close.TextColor3 = C.Muted
+    close.TextSize = 20
     close.Font = Enum.Font.GothamBold
     close.AutoButtonColor = false
     close.Parent = topbar
 
     Corner(close, 8)
+    Stroke(close, C.Border, 1, 0.25)
 
     local content = Instance.new("Frame")
     content.Name = "Content"
@@ -251,8 +305,72 @@ function Library.CreateWindow(options)
     content.BackgroundTransparency = 1
     content.Parent = main
 
+    local floating = Instance.new("ImageButton")
+    floating.Name = "FloatingLogo"
+    floating.Size = UDim2.fromOffset(58, 58)
+    floating.Position = UDim2.new(0, 18, 0.5, -29)
+    floating.BackgroundColor3 = C.Surface
+    floating.BorderSizePixel = 0
+    floating.AutoButtonColor = false
+    floating.Image = "rbxassetid://87824587597558"
+    floating.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    floating.ImageTransparency = 0
+    floating.ScaleType = Enum.ScaleType.Fit
+    floating.Visible = false
+    floating.Parent = gui
+
+    Corner(floating, 14)
+    Stroke(floating, C.Border, 1, 0)
+    Gradient(floating, C.Surface2, C.Background2, 90)
+
+    local floatingPadding = Instance.new("UIPadding")
+    floatingPadding.PaddingTop = UDim.new(0, 7)
+    floatingPadding.PaddingBottom = UDim.new(0, 7)
+    floatingPadding.PaddingLeft = UDim.new(0, 7)
+    floatingPadding.PaddingRight = UDim.new(0, 7)
+    floatingPadding.Parent = floating
+
+    local function setButtonHover(button, hovering)
+        button.BackgroundColor3 =
+            hovering
+            and Color3.fromRGB(39, 61, 87)
+            or Color3.fromRGB(29, 46, 67)
+        button.TextColor3 =
+            hovering
+            and C.Text
+            or C.Muted
+    end
+
+    minimize.MouseEnter:Connect(function()
+        setButtonHover(minimize, true)
+    end)
+
+    minimize.MouseLeave:Connect(function()
+        setButtonHover(minimize, false)
+    end)
+
+    close.MouseEnter:Connect(function()
+        close.BackgroundColor3 = Color3.fromRGB(91, 45, 55)
+        close.TextColor3 = C.Text
+    end)
+
+    close.MouseLeave:Connect(function()
+        close.BackgroundColor3 = Color3.fromRGB(29, 46, 67)
+        close.TextColor3 = C.Muted
+    end)
+
     close.MouseButton1Click:Connect(function()
         gui:Destroy()
+    end)
+
+    minimize.MouseButton1Click:Connect(function()
+        main.Visible = false
+        floating.Visible = true
+    end)
+
+    floating.MouseButton1Click:Connect(function()
+        floating.Visible = false
+        main.Visible = true
     end)
 
     local dragging = false
@@ -278,6 +396,31 @@ function Library.CreateWindow(options)
         end
     end)
 
+    local floatingDragging = false
+    local floatingDragInput
+    local floatingDragStart
+    local floatingStartPos
+    local floatingMoved = false
+
+    floating.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+
+            floatingDragging = true
+            floatingMoved = false
+            floatingDragStart = input.Position
+            floatingStartPos = floating.Position
+        end
+    end)
+
+    floating.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement
+            or input.UserInputType == Enum.UserInputType.Touch then
+
+            floatingDragInput = input
+        end
+    end)
+
     UIS.InputChanged:Connect(function(input)
         if input == dragInput and dragging and main.Parent then
             local delta = input.Position - dragStart
@@ -289,6 +432,26 @@ function Library.CreateWindow(options)
                 startPos.Y.Offset + delta.Y
             )
         end
+
+        if input == floatingDragInput
+            and floatingDragging
+            and floating.Parent then
+
+            local delta = input.Position - floatingDragStart
+
+            if math.abs(delta.X) > 5
+                or math.abs(delta.Y) > 5 then
+
+                floatingMoved = true
+            end
+
+            floating.Position = UDim2.new(
+                floatingStartPos.X.Scale,
+                floatingStartPos.X.Offset + delta.X,
+                floatingStartPos.Y.Scale,
+                floatingStartPos.Y.Offset + delta.Y
+            )
+        end
     end)
 
     UIS.InputEnded:Connect(function(input)
@@ -296,7 +459,24 @@ function Library.CreateWindow(options)
             or input.UserInputType == Enum.UserInputType.Touch then
 
             dragging = false
+            floatingDragging = false
         end
+    end)
+
+    local lastFloatingClick = 0
+
+    floating.MouseButton1Click:Connect(function()
+        if floatingMoved then
+            return
+        end
+
+        if os.clock() - lastFloatingClick < 0.1 then
+            return
+        end
+
+        lastFloatingClick = os.clock()
+        floating.Visible = false
+        main.Visible = true
     end)
 
     local window = {
@@ -307,7 +487,8 @@ function Library.CreateWindow(options)
         Theme = C,
         Width = options.Width or 430,
         CompactHeight = options.CompactHeight or 150,
-        ExpandedHeight = options.ExpandedHeight or 470
+        ExpandedHeight = options.ExpandedHeight or 470,
+        FloatingLogo = floating
     }
 
     function window:SetCompact()
@@ -334,6 +515,16 @@ function Library.CreateWindow(options)
             0.5,
             -math.floor(height / 2)
         )
+    end
+
+    function window:Minimize()
+        self.Main.Visible = false
+        self.FloatingLogo.Visible = true
+    end
+
+    function window:Restore()
+        self.FloatingLogo.Visible = false
+        self.Main.Visible = true
     end
 
     return window
