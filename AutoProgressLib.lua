@@ -356,8 +356,97 @@ function Library.CreateWindow(options)
         close.TextColor3 = C.Muted
     end)
 
+    local confirmOverlay = Instance.new("Frame")
+    confirmOverlay.Name = "CloseConfirmOverlay"
+    confirmOverlay.Size = UDim2.fromScale(1, 1)
+    confirmOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    confirmOverlay.BackgroundTransparency = 0.35
+    confirmOverlay.BorderSizePixel = 0
+    confirmOverlay.Visible = false
+    confirmOverlay.ZIndex = 50
+    confirmOverlay.Parent = main
+
+    local confirmBox = Instance.new("Frame")
+    confirmBox.Name = "CloseConfirmBox"
+    confirmBox.Size = UDim2.fromOffset(300, 150)
+    confirmBox.AnchorPoint = Vector2.new(0.5, 0.5)
+    confirmBox.Position = UDim2.fromScale(0.5, 0.5)
+    confirmBox.BackgroundColor3 = C.Surface
+    confirmBox.BorderSizePixel = 0
+    confirmBox.ZIndex = 51
+    confirmBox.Parent = confirmOverlay
+
+    Corner(confirmBox, 12)
+    Stroke(confirmBox, C.Border, 1, 0.05)
+    Gradient(confirmBox, C.Surface2, C.Surface, 90)
+
+    local confirmTitle = Instance.new("TextLabel")
+    confirmTitle.Size = UDim2.new(1, -24, 0, 34)
+    confirmTitle.Position = UDim2.fromOffset(12, 14)
+    confirmTitle.BackgroundTransparency = 1
+    confirmTitle.Text = "Close Auto Progress?"
+    confirmTitle.TextColor3 = C.Text
+    confirmTitle.TextSize = 16
+    confirmTitle.Font = Enum.Font.GothamBold
+    confirmTitle.TextXAlignment = Enum.TextXAlignment.Center
+    confirmTitle.ZIndex = 52
+    confirmTitle.Parent = confirmBox
+
+    local confirmText = Instance.new("TextLabel")
+    confirmText.Size = UDim2.new(1, -24, 0, 28)
+    confirmText.Position = UDim2.fromOffset(12, 48)
+    confirmText.BackgroundTransparency = 1
+    confirmText.Text = "Are you sure you want to close the GUI?"
+    confirmText.TextColor3 = C.Text
+    confirmText.TextSize = 13
+    confirmText.Font = Enum.Font.GothamBold
+    confirmText.TextWrapped = true
+    confirmText.ZIndex = 52
+    confirmText.Parent = confirmBox
+
+    local yesButton = Instance.new("TextButton")
+    yesButton.Size = UDim2.new(0.5, -18, 0, 38)
+    yesButton.Position = UDim2.new(0, 12, 1, -50)
+    yesButton.BackgroundColor3 = C.Accent
+    yesButton.BorderSizePixel = 0
+    yesButton.Text = "YES"
+    yesButton.TextColor3 = C.Text
+    yesButton.TextSize = 13
+    yesButton.Font = Enum.Font.GothamBold
+    yesButton.AutoButtonColor = false
+    yesButton.ZIndex = 52
+    yesButton.Parent = confirmBox
+
+    Corner(yesButton, 9)
+    Stroke(yesButton, C.Border, 1, 0.15)
+    Gradient(yesButton, C.Accent, C.Accent2, 90)
+
+    local noButton = Instance.new("TextButton")
+    noButton.Size = UDim2.new(0.5, -18, 0, 38)
+    noButton.Position = UDim2.new(0.5, 6, 1, -50)
+    noButton.BackgroundColor3 = Color3.fromRGB(28, 48, 58)
+    noButton.BorderSizePixel = 0
+    noButton.Text = "NO"
+    noButton.TextColor3 = C.Text
+    noButton.TextSize = 13
+    noButton.Font = Enum.Font.GothamBold
+    noButton.AutoButtonColor = false
+    noButton.ZIndex = 52
+    noButton.Parent = confirmBox
+
+    Corner(noButton, 9)
+    Stroke(noButton, C.Border, 1, 0.15)
+
     close.MouseButton1Click:Connect(function()
+        confirmOverlay.Visible = true
+    end)
+
+    yesButton.MouseButton1Click:Connect(function()
         gui:Destroy()
+    end)
+
+    noButton.MouseButton1Click:Connect(function()
+        confirmOverlay.Visible = false
     end)
 
     minimize.MouseButton1Click:Connect(function()
