@@ -19,10 +19,10 @@ local WEBHOOK_URL =
     "https://raw.githubusercontent.com/Ceepizz/WEBHOOKSOURCE/refs/heads/main/doakes"
 
 local LIBRARY_URL =
-    "PASTE_AUTOPROGRESS_LIBRARY_RAW_URL_HERE"
+    "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/AutoProgressLib.lua"
 
 local STATS_URL =
-    "PASTE_AUTOPROGRESS_STATS_RAW_URL_HERE"
+    "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/AutoProgressStats.lua"
 
 local CONFIG_FILE =
     "AutoProgressGui_"
@@ -172,7 +172,9 @@ if not Stats then
     )
 end
 
-Stats.SetRewardTimeout(3)
+if Stats.SetRewardTimeout then
+    Stats.SetRewardTimeout(3)
+end
 
 local AutoFarm
 local ProgressWebhook
