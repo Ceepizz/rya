@@ -680,7 +680,7 @@ local function Refresh(snapshot)
         tonumber(snapshot.Level) or 0
 
     local coins =
-        tonumber(snapshot.Coins) or 0
+        math.min(tonumber(snapshot.Coins) or 0, 35000)
 
     local owned =
         snapshot.GatlingOwned == true
