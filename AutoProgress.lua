@@ -1,329 +1,485 @@
-if not game:IsLoaded() then
-    game.Loaded:Wait()
-end
+local Globals = getgenv()
 
 local Players = game:GetService("Players")
-local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PathfindingService = game:GetService("PathfindingService")
+local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local GuiService = game:GetService("GuiService")
 
-local Player =
-    Players.LocalPlayer
-    or Players.PlayerAdded:Wait()
+local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local Workspace = game:GetService("Workspace")
-
-pcall(function()
-    settings().Rendering.QualityLevel =
-        Enum.QualityLevel.Level01
-end)
-
-local function hideAntiLagObject(v)
-    pcall(function()
-        if v:IsA("BasePart") then
-            v.Transparency = 1
-            v.LocalTransparencyModifier = 1
-            v.CastShadow = false
-        elseif v:IsA("Decal")
-            or v:IsA("Texture") then
-            v.Transparency = 1
-        elseif v:IsA("ParticleEmitter")
-            or v:IsA("Trail")
-            or v:IsA("Beam")
-            or v:IsA("Smoke")
-            or v:IsA("Fire")
-            or v:IsA("Sparkles") then
-            v.Enabled = false
-        elseif v:IsA("Highlight") then
-            v.Enabled = false
-        elseif v:IsA("BillboardGui")
-            or v:IsA("SurfaceGui") then
-            v.Enabled = false
-        end
-    end)
-end
-
-local function hookAntiLagFolder(folder)
-    if not folder then
-        return
-    end
-
-    for _, obj in ipairs(folder:GetDescendants()) do
-        hideAntiLagObject(obj)
-    end
-
-    folder.DescendantAdded:Connect(function(obj)
-        task.defer(function()
-            hideAntiLagObject(obj)
-        end)
-    end)
-end
-
-task.spawn(function()
-    local Towers =
-        Workspace:WaitForChild(
-            "Towers",
-            30
-        )
-
-    local NPCs =
-        Workspace:WaitForChild(
-            "NPCs",
-            30
-        )
-
-    if Towers then
-        hookAntiLagFolder(Towers)
-    end
-
-    if NPCs then
-        hookAntiLagFolder(NPCs)
-    end
-
-    while true do
-        local TowersFolder =
-            Workspace:FindFirstChild("Towers")
-
-        local ClientUnits =
-            Workspace:FindFirstChild("ClientUnits")
-
-        if TowersFolder then
-            for _, tower in ipairs(
-                TowersFolder:GetChildren()
-            ) do
-                local anims =
-                    tower:FindFirstChild("Animations")
-
-                local weapon =
-                    tower:FindFirstChild("Weapon")
-
-                local projectiles =
-                    tower:FindFirstChild("Projectiles")
-
-                if anims then
-                    anims:Destroy()
-                end
-
-                if projectiles then
-                    projectiles:Destroy()
-                end
-
-                if weapon then
-                    weapon:Destroy()
-                end
-            end
-        end
-
-        if ClientUnits then
-            for _, unit in ipairs(
-                ClientUnits:GetChildren()
-            ) do
-                unit:Destroy()
-            end
-        end
-
-        task.wait(0.5)
-    end
-end)
-
-local PlayerGui =
-    Player:WaitForChild("PlayerGui")
-
-local AUTO_FARM_URL =
-    "https://api.jnkie.com/api/v1/luascripts/public/b6f94e11cee9f4f5d02f2d41490f2370afdbed8b345834b3b383decb2c386acc/download"
-
-local WEBHOOK_URL =
-    "https://raw.githubusercontent.com/Ceepizz/WEBHOOKSOURCE/refs/heads/main/doakes"
-
-local LIBRARY_URL =
-    "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/AutoProgressLib.lua"
-
-local STATS_URL =
-    "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/AutoProgressStats.lua"
-
-local CONFIG_FILE =
-    "AutoProgressGui_"
-    .. tostring(Player.UserId)
-    .. ".json"
-
+local CONFIG_FILE = "AutoProgress_" .. tostring(LocalPlayer.Name) .. ".json"
 local LOBBY_PLACE_ID = 3260590327
-local Status
+local AUTO_FARM_URL = "https://raw.githubusercontent.com/itsryaaa/tds/refs/heads/main/back"
 
-local Config = {
-    AutoFarmRunning = false,
+local STATS_URL = "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/AutoProgressStats.lua"
+local WEBHOOK_URL = "https://raw.githubusercontent.com/Ceepizz/WEBHOOKSOURCE/refs/heads/main/doakes"
+
+local function LoadRemoteModule(url)
+    local ok, result = pcall(function()
+        return loadstring(game:HttpGet(url))()
+    end)
+
+    if ok then
+        return result
+    end
+
+    warn("[Auto Progress] Failed to load module:", result)
+    return nil
+end
+
+local Stats = shared.AutoProgressStats or LoadRemoteModule(STATS_URL)
+local ProgressWebhook
+
+local function LoadProgressWebhook()
+    if type(ProgressWebhook) == "table" then
+        return ProgressWebhook
+    end
+
+    if type(shared.ProgressWebhook) == "table" then
+        ProgressWebhook = shared.ProgressWebhook
+        return ProgressWebhook
+    end
+
+    ProgressWebhook = LoadRemoteModule(WEBHOOK_URL)
+    if type(ProgressWebhook) ~= "table" then
+        ProgressWebhook = shared.ProgressWebhook
+    end
+
+    return type(ProgressWebhook) == "table" and ProgressWebhook or nil
+end
+
+if Stats and Stats.SetRewardTimeout then
+    pcall(function()
+        Stats.SetRewardTimeout(3)
+    end)
+end
+
+local Defaults = {
+    AutoPickups = false,
+    PickupMethod = "Pathfinding",
+    ClaimRewards = false,
+    AutoFarmGatlingStrategy = "Win",
+    AutoProgressEnabled = false,
     Webhook = ""
 }
 
-local function LoadConfig()
-    if not isfile
-        or not readfile
-        or not isfile(CONFIG_FILE) then
-
-        return
-    end
-
-    local ok, data = pcall(function()
-        return HttpService:JSONDecode(
-            readfile(CONFIG_FILE)
-        )
-    end)
-
-    if not ok or type(data) ~= "table" then
-        return
-    end
-
-    for key, defaultValue in pairs(Config) do
-        if data[key] ~= nil then
-            Config[key] = data[key]
-        else
-            Config[key] = defaultValue
-        end
-    end
-end
-
-local function SaveConfig()
+local function SaveSettings()
     if not writefile then
         return
     end
 
+    local data = {}
+
+    if isfile and readfile and isfile(CONFIG_FILE) then
+        pcall(function()
+            local existing = HttpService:JSONDecode(readfile(CONFIG_FILE))
+            if type(existing) == "table" then
+                data = existing
+            end
+        end)
+    end
+
+    for key, defaultValue in pairs(Defaults) do
+        local value = Globals[key]
+        if value == nil then
+            value = defaultValue
+        end
+        data[key] = value
+    end
+
     pcall(function()
-        writefile(
-            CONFIG_FILE,
-            HttpService:JSONEncode(Config)
-        )
+        writefile(CONFIG_FILE, HttpService:JSONEncode(data))
     end)
 end
 
-local function LoadModule(url)
-    if type(url) ~= "string"
-        or url == ""
-        or url:find("PASTE_", 1, true) then
+local function LoadSettings()
+    local saved = {}
 
-        return nil
+    if isfile and readfile and isfile(CONFIG_FILE) then
+        pcall(function()
+            saved = HttpService:JSONDecode(readfile(CONFIG_FILE))
+        end)
     end
 
-    local ok, source = pcall(function()
-        return game:HttpGet(url)
-    end)
-
-    if not ok then
-        warn(
-            "[AUTO PROGRESS] Download failed:",
-            source
-        )
-
-        return nil
-    end
-
-    local fn, compileError =
-        loadstring(source)
-
-    if not fn then
-        warn(
-            "[AUTO PROGRESS] Compile failed:",
-            compileError
-        )
-
-        return nil
-    end
-
-    local ran, result = pcall(fn)
-
-    if not ran then
-        warn(
-            "[AUTO PROGRESS] Module error:",
-            result
-        )
-
-        return nil
-    end
-
-    return result
-end
-
-local function RequireSharedOrUrl(
-    sharedName,
-    url
-)
-    if type(shared[sharedName]) == "table" then
-        return shared[sharedName]
-    end
-
-    local result = LoadModule(url)
-
-    if type(result) == "table" then
-        return result
-    end
-
-    if type(shared[sharedName]) == "table" then
-        return shared[sharedName]
-    end
-
-    return nil
-end
-
-LoadConfig()
-
-local Library =
-    RequireSharedOrUrl(
-        "AutoProgressLibrary",
-        LIBRARY_URL
-    )
-
-if not Library then
-    error(
-        "AutoProgressLibrary is missing. "
-        .. "Execute AutoProgressLibrary.lua first "
-        .. "or paste its raw URL into LIBRARY_URL."
-    )
-end
-
-local Stats =
-    RequireSharedOrUrl(
-        "AutoProgressStats",
-        STATS_URL
-    )
-
-if not Stats then
-    error(
-        "AutoProgressStats is missing. "
-        .. "Execute AutoProgressStats.lua first "
-        .. "or paste its raw URL into STATS_URL."
-    )
-end
-
-if Stats.SetRewardTimeout then
-    Stats.SetRewardTimeout(3)
-end
-
-local AutoFarm
-local ProgressWebhook
-local Running =
-    Config.AutoFarmRunning == true
-
-local GameReady = false
-
-local C = Library.Theme
-
-local function Reconnect()
-    local initialCode = GuiService:GetErrorCode()
-
-    if initialCode
-        and initialCode ~= Enum.ConnectionError.OK then
-
-        task.wait(5)
-
-        if GuiService:GetErrorCode() == initialCode then
-            pcall(function()
-                TeleportService:TeleportReconnect()
-            end)
+    for key, defaultValue in pairs(Defaults) do
+        if Globals[key] == nil then
+            if type(saved) == "table" and saved[key] ~= nil then
+                Globals[key] = saved[key]
+            else
+                Globals[key] = defaultValue
+            end
         end
     end
 end
 
-task.spawn(Reconnect)
-GuiService.ErrorMessageChanged:Connect(Reconnect)
+local function SetSetting(name, value)
+    if Defaults[name] == nil then
+        return
+    end
+
+    Globals[name] = value
+    SaveSettings()
+end
+
+LoadSettings()
+shared.AutoProgressStrategy = Globals.AutoFarmGatlingStrategy == "Lose" and "Lose" or "Win"
+
+local function IsLobby()
+    return PlayerGui:FindFirstChild("ReactLobbyHud") ~= nil
+end
+
+local function IsVoidCharm(obj)
+    return math.abs(obj.Position.Y) > 999999
+end
+
+local function GetRoot()
+    local character = LocalPlayer.Character
+    return character and character:FindFirstChild("HumanoidRootPart")
+end
+
+local AutoPickupsRunning = false
+local AutoClaimRewards = false
+
+local function StartAutoPickups()
+    if AutoPickupsRunning or not Globals.AutoPickups then
+        return
+    end
+
+    AutoPickupsRunning = true
+
+    task.spawn(function()
+        while Globals.AutoPickups do
+            local folder = workspace:FindFirstChild("Pickups")
+            local hrp = GetRoot()
+
+            if folder and hrp then
+                local character = hrp.Parent
+                local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+                local function MoveToPos(targetPos)
+                    if not humanoid then
+                        return false
+                    end
+
+                    local function MoveDirect(pos)
+                        humanoid:MoveTo(pos)
+                        local startedAt = os.clock()
+
+                        while os.clock() - startedAt < 2 do
+                            if not Globals.AutoPickups then
+                                return false
+                            end
+
+                            if (hrp.Position - pos).Magnitude < 4 then
+                                return true
+                            end
+
+                            task.wait(0.1)
+                        end
+
+                        return (hrp.Position - pos).Magnitude < 4
+                    end
+
+                    local path = PathfindingService:CreatePath({
+                        AgentRadius = 2,
+                        AgentHeight = 6,
+                        AgentCanJump = true,
+                        AgentJumpHeight = 7,
+                        AgentMaxSlope = 45
+                    })
+
+                    local ok = pcall(function()
+                        path:ComputeAsync(hrp.Position, targetPos)
+                    end)
+
+                    if ok and path.Status == Enum.PathStatus.Success then
+                        local blockedConnection
+
+                        blockedConnection = path.Blocked:Connect(function()
+                            if blockedConnection then
+                                blockedConnection:Disconnect()
+                            end
+
+                            if Globals.AutoPickups then
+                                task.spawn(function()
+                                    MoveToPos(targetPos)
+                                end)
+                            end
+                        end)
+
+                        for _, waypoint in ipairs(path:GetWaypoints()) do
+                            if not Globals.AutoPickups then
+                                if blockedConnection then
+                                    blockedConnection:Disconnect()
+                                end
+                                return false
+                            end
+
+                            if waypoint.Action == Enum.PathWaypointAction.Jump then
+                                humanoid.Jump = true
+                            end
+
+                            if not MoveDirect(waypoint.Position) then
+                                if blockedConnection then
+                                    blockedConnection:Disconnect()
+                                end
+                                return false
+                            end
+                        end
+
+                        if blockedConnection then
+                            blockedConnection:Disconnect()
+                        end
+
+                        return true
+                    end
+
+                    return MoveDirect(targetPos)
+                end
+
+                for _, item in ipairs(folder:GetChildren()) do
+                    if not Globals.AutoPickups then
+                        break
+                    end
+
+                    if item:IsA("MeshPart")
+                        and (item.Name == "Bunz" or item.Name == "Lorebook" or item.Name == "SnowCharm")
+                        and not IsVoidCharm(item) then
+
+                        if Globals.PickupMethod == "Instant" then
+                            hrp.CFrame = item.CFrame * CFrame.new(0, 3, 0)
+                            task.wait(0.5)
+                        else
+                            MoveToPos(item.Position + Vector3.new(0, 3, 0))
+                            task.wait(0.5)
+                        end
+                    end
+                end
+            end
+
+            task.wait(1)
+        end
+
+        AutoPickupsRunning = false
+    end)
+end
+
+local function StartClaimRewards()
+    if AutoClaimRewards or not Globals.ClaimRewards or not IsLobby() then
+        return
+    end
+
+    AutoClaimRewards = true
+
+    task.spawn(function()
+        pcall(function()
+            local network = ReplicatedStorage:WaitForChild("Network")
+            local spinTickets = LocalPlayer:WaitForChild("SpinTickets", 15)
+
+            if spinTickets and spinTickets.Value > 0 then
+                local dailySpin = network:WaitForChild("DailySpin", 5)
+                local redeemSpin = dailySpin and dailySpin:WaitForChild("RF:RedeemSpin", 5)
+
+                if redeemSpin then
+                    local ticketCount = spinTickets.Value
+                    for _ = 1, ticketCount do
+                        if not Globals.ClaimRewards then
+                            break
+                        end
+                        redeemSpin:InvokeServer()
+                        task.wait(0.5)
+                    end
+                end
+            end
+
+            if Globals.ClaimRewards then
+                local playtimeRewards = network:WaitForChild("PlaytimeRewards")
+                local claimReward = playtimeRewards:WaitForChild("RF:ClaimReward")
+
+                for i = 1, 6 do
+                    if not Globals.ClaimRewards then
+                        break
+                    end
+                    claimReward:InvokeServer(i)
+                    task.wait(0.5)
+                end
+            end
+
+            if Globals.ClaimRewards then
+                local dailySpin = network:FindFirstChild("DailySpin")
+                local redeemReward = dailySpin and dailySpin:FindFirstChild("RF:RedeemReward")
+                if redeemReward then
+                    redeemReward:InvokeServer()
+                end
+            end
+        end)
+
+        AutoClaimRewards = false
+    end)
+end
+
+local AutoProgressFarm
+
+local function LoadAutoProgressFarm()
+    if type(AutoProgressFarm) == "table" then
+        return AutoProgressFarm
+    end
+
+    if type(shared.AutoProgress) == "table" then
+        AutoProgressFarm = shared.AutoProgress
+        return AutoProgressFarm
+    end
+
+    local success, result = pcall(function()
+        return loadstring(game:HttpGet(AUTO_FARM_URL))()
+    end)
+
+    if success and type(result) == "table" then
+        AutoProgressFarm = result
+    elseif type(shared.AutoProgress) == "table" then
+        AutoProgressFarm = shared.AutoProgress
+    else
+        warn("[AUTO PROGRESS] Failed to load farm source:", result)
+    end
+
+    return AutoProgressFarm
+end
+
+local StartTaskRunning = false
+
+local function StartAutoProgress()
+    if StartTaskRunning then
+        return
+    end
+
+    if Globals.AutoProgressEnabled ~= true then
+        return
+    end
+
+    StartTaskRunning = true
+
+    task.spawn(function()
+        local farm = LoadAutoProgressFarm()
+
+        if not farm
+            or not farm.Start then
+
+            StartTaskRunning = false
+            return
+        end
+
+        shared.AutoProgressStrategy = Globals.AutoFarmGatlingStrategy == "Lose" and "Lose" or "Win"
+
+        if farm.SetStrategy then
+            pcall(function()
+                farm.SetStrategy(shared.AutoProgressStrategy)
+            end)
+        end
+
+        local alreadyRunning = false
+
+        if shared.AutoProgress
+            and shared.AutoProgress.GetStatus then
+
+            local ok, state =
+                pcall(
+                    shared.AutoProgress.GetStatus
+                )
+
+            if ok and state then
+                local stateText =
+                    tostring(state)
+
+                alreadyRunning =
+                    stateText ~= ""
+                    and stateText ~= "Disabled"
+                    and stateText ~= "Status: Disabled"
+            end
+        end
+
+        if not alreadyRunning
+            and Globals.AutoProgressEnabled == true then
+
+            farm.Start()
+        end
+
+        StartTaskRunning = false
+    end)
+end
+
+local function StopAutoProgress()
+    StartTaskRunning = false
+
+    local farm = AutoProgressFarm or shared.AutoProgress
+
+    if farm and farm.Stop then
+        pcall(function()
+            farm.Stop()
+        end)
+    elseif farm and farm.SetEnabled then
+        pcall(function()
+            farm.SetEnabled(false)
+        end)
+    end
+end
+
+local function TeleportToLobby()
+    if game.PlaceId == LOBBY_PLACE_ID then
+        return false
+    end
+
+    pcall(function()
+        TeleportService:Teleport(
+            LOBBY_PLACE_ID,
+            LocalPlayer
+        )
+    end)
+
+    return true
+end
+
+
+local DisconnectCheckRunning = false
+
+local function DisconnectToLobby()
+    if DisconnectCheckRunning then
+        return
+    end
+
+    local initialCode = GuiService:GetErrorCode()
+
+    if not initialCode
+        or initialCode == Enum.ConnectionError.OK
+        or game.PlaceId == LOBBY_PLACE_ID then
+
+        return
+    end
+
+    DisconnectCheckRunning = true
+
+    task.spawn(function()
+        task.wait(5)
+
+        local currentCode = GuiService:GetErrorCode()
+
+        if currentCode == initialCode
+            and currentCode ~= Enum.ConnectionError.OK
+            and game.PlaceId ~= LOBBY_PLACE_ID then
+
+            TeleportToLobby()
+        end
+
+        DisconnectCheckRunning = false
+    end)
+end
+
+task.spawn(DisconnectToLobby)
+GuiService.ErrorMessageChanged:Connect(DisconnectToLobby)
+
+local GameReady = false
 
 local function WaitForLoadingScreen()
     local loadingScreen =
@@ -350,17 +506,17 @@ end
 
 local function IsLoading()
     local attrLoading =
-        Player:GetAttribute(
+        LocalPlayer:GetAttribute(
             "Loading"
         ) == true
 
     local attrTeleporting =
-        Player:GetAttribute(
+        LocalPlayer:GetAttribute(
             "Teleporting"
         ) == true
 
     local pg =
-        Player:FindFirstChild(
+        LocalPlayer:FindFirstChild(
             "PlayerGui"
         )
 
@@ -405,7 +561,7 @@ local function WaitForGame()
         game.Loaded:Wait()
     end
 
-    Player:WaitForChild("PlayerGui")
+    LocalPlayer:WaitForChild("PlayerGui")
 
     local startedAt = os.clock()
 
@@ -419,14 +575,9 @@ local function WaitForGame()
                 "[AUTO PROGRESS GUI] Loading stuck for 60 seconds. Teleporting to lobby..."
             )
 
-            pcall(function()
-                TeleportService:Teleport(
-                    LOBBY_PLACE_ID,
-                    Player
-                )
-            end)
+            TeleportToLobby()
 
-            return
+            return false
         end
 
         task.wait(1)
@@ -437,561 +588,447 @@ local function WaitForGame()
     )
 
     GameReady = true
-end
-
-local function LoadAutoFarm()
-    if AutoFarm then
-        return AutoFarm
-    end
-
-    if type(shared.AutoProgress) == "table" then
-        AutoFarm = shared.AutoProgress
-        return AutoFarm
-    end
-
-    AutoFarm =
-        LoadModule(AUTO_FARM_URL)
-
-    if type(AutoFarm) ~= "table" then
-        AutoFarm = shared.AutoProgress
-    end
-
-    return
-        type(AutoFarm) == "table"
-        and AutoFarm
-        or nil
-end
-
-local function LoadProgressWebhook()
-    if ProgressWebhook then
-        return ProgressWebhook
-    end
-
-    if type(shared.ProgressWebhook) == "table" then
-        ProgressWebhook =
-            shared.ProgressWebhook
-
-        return ProgressWebhook
-    end
-
-    ProgressWebhook =
-        LoadModule(WEBHOOK_URL)
-
-    if type(ProgressWebhook) ~= "table" then
-        ProgressWebhook =
-            shared.ProgressWebhook
-    end
-
-    return
-        type(ProgressWebhook) == "table"
-        and ProgressWebhook
-        or nil
-end
-
-WaitForGame()
-
-local Window =
-    Library.CreateWindow({
-        Title = "Auto Progress",
-        GuiName = "AutoProgressGui",
-        Width = 430,
-        CompactHeight = 150,
-        ExpandedHeight = 470
-    })
-
-local Gui = Window.Gui
-local Content = Window.Content
-
-local Home =
-    Library.CreatePage(
-        Content,
-        false
-    )
-
-Library.AddListLayout(
-    Home,
-    12
-)
-
-local Selector =
-    Library.CreateButton(
-        Home,
-        "Auto Farm Until Gatling",
-        48
-    )
-
-local FarmPage =
-    Library.CreatePage(
-        Content,
-        true
-    )
-
-FarmPage.Visible = false
-
-Library.AddListLayout(
-    FarmPage,
-    10
-)
-
-local Back =
-    Library.CreateButton(
-        FarmPage,
-        "< BACK",
-        36
-    )
-
-Back.LayoutOrder = 1
-
-local SectionTitle =
-    Library.CreateLabel(
-        FarmPage,
-        "Auto Farm Until Gatling",
-        28
-    )
-
-SectionTitle.LayoutOrder = 2
-SectionTitle.TextColor3 = C.Text
-SectionTitle.TextSize = 16
-SectionTitle.Font = Enum.Font.GothamBold
-
-Status =
-    Library.CreateLabel(
-        FarmPage,
-        "Status: Disabled"
-    )
-
-Status.LayoutOrder = 3
-
-local Level =
-    Library.CreateLabel(
-        FarmPage,
-        "Level: Loading..."
-    )
-
-Level.LayoutOrder = 4
-
-local Coins =
-    Library.CreateLabel(
-        FarmPage,
-        "Coins: Loading..."
-    )
-
-Coins.LayoutOrder = 5
-
-local Gatling =
-    Library.CreateLabel(
-        FarmPage,
-        "Gatling Gun: Checking..."
-    )
-
-Gatling.LayoutOrder = 6
-
-local WebhookTitle =
-    Library.CreateLabel(
-        FarmPage,
-        "Progress Webhook"
-    )
-
-WebhookTitle.LayoutOrder = 7
-
-local WebhookBox =
-    Library.CreateTextBox(
-        FarmPage,
-        {
-            Placeholder =
-                "Paste Discord webhook...",
-            Text =
-                tostring(
-                    Config.Webhook or ""
-                ),
-            Height = 40
-        }
-    )
-
-WebhookBox.LayoutOrder = 8
-
-local Toggle =
-    Library.CreateButton(
-        FarmPage,
-        "START",
-        42
-    )
-
-Toggle.LayoutOrder = 9
-
-local SendWebhook =
-    Library.CreateButton(
-        FarmPage,
-        "SEND WEBHOOK",
-        42
-    )
-
-SendWebhook.LayoutOrder = 10
-
-local function ShowHome()
-    Home.Visible = true
-    FarmPage.Visible = false
-    Window:SetCompact()
-end
-
-local function ShowFarm()
-    Home.Visible = false
-    FarmPage.Visible = true
-    Window:SetExpanded()
-end
-
-Selector.MouseButton1Click:Connect(
-    ShowFarm
-)
-
-Back.MouseButton1Click:Connect(
-    ShowHome
-)
-
-local LastSnapshot =
-    Stats.GetSnapshot()
-
-
-local function UpdateStatusText()
-    if not Running then
-        Status.Text = "Status: Disabled"
-        return
-    end
-
-    if game.PlaceId == LOBBY_PLACE_ID then
-        Status.Text = "Status: Running | Waiting for Match"
-    else
-        Status.Text = "Status: Running | Anti-Stuck: 15m"
-    end
-end
-
-local function Refresh(snapshot)
-    if not Gui.Parent then
-        return
-    end
-
-    snapshot =
-        snapshot
-        or Stats.GetSnapshot()
-
-    LastSnapshot = snapshot
-
-    local level =
-        tonumber(snapshot.Level) or 0
-
-    local coins =
-        math.min(tonumber(snapshot.Coins) or 0, 35000)
-
-    local owned =
-        snapshot.GatlingOwned == true
-
-    Level.Text =
-        "Level: " .. tostring(level)
-
-    if owned then
-        Coins.Visible = false
-
-        Gatling.Text =
-            "Gatling Gun: Owned"
-
-        Gatling.TextColor3 =
-            C.Green
-
-
-        Toggle.Text =
-            "COMPLETED"
-
-        Toggle.BackgroundColor3 =
-            C.Border
-
-        Running = false
-        Config.AutoFarmRunning = false
-        SaveConfig()
-
-    UpdateStatusText()
-        return
-    end
-
-    Coins.Visible = true
-
-    Coins.Text =
-        "Coins: "
-        .. Library.FormatNumber(coins)
-        .. " / 35,000"
-
-    Gatling.Text =
-        "Gatling Gun: Not Owned"
-
-    Gatling.TextColor3 =
-        C.Muted
-
-
-    if not GameReady then
-
-        Toggle.Text =
-            Running
-            and "STOP"
-            or "START"
-
-        return
-    end
-    if Running then
-        Toggle.Text = "STOP"
-        UpdateStatusText()
-    else
-        Toggle.Text = "START"
-        UpdateStatusText()
-    end
-end
-local function SetWebhook()
-    Config.Webhook =
-        WebhookBox.Text
-
-    SaveConfig()
-
-    local module =
-        LoadProgressWebhook()
-
-    if not module
-        or not module.SetWebhook then
-
-        return false
-    end
-
-    module.SetWebhook(
-        WebhookBox.Text
-    )
-
     return true
 end
 
-local StartTaskRunning = false
 
-local function StartFarm(
-    resumeExisting
-)
-    if StartTaskRunning then
-        return
+-- Match the original working Auto Progress startup order:
+-- do not create the UI until TDS is no longer loading.
+WaitForGame()
+
+local Library = loadstring(game:HttpGet(
+    "https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Sources/UI.lua"
+))()
+
+local Window = Library:Window({
+    Title = "Auto Progress",
+    Desc = "Progression Hub",
+    Theme = "Default",
+    Icon = 99432006374500,
+    Config = {
+        Keybind = Enum.KeyCode.LeftControl,
+        Size = UDim2.new(0, 500, 0, 400)
+    }
+})
+
+local LevelLabel
+local CoinsLabel
+local GatlingLabel
+
+local Automation = Window:Tab({Title = "Automation", Icon = "bot"}) do
+    Automation:Section({Title = "Auto Farm Until Gatling"})
+
+    LevelLabel = Automation:Label({
+        Title = "Level: Loading...",
+        Desc = ""
+    })
+
+    CoinsLabel = Automation:Label({
+        Title = "Coins: Loading...",
+        Desc = ""
+    })
+
+    GatlingLabel = Automation:Label({
+        Title = "Gatling Gun: Checking...",
+        Desc = ""
+    })
+
+    local AutoProgressStatus = Automation:Label({
+        Title = "Status: Ready",
+        Desc = ""
+    })
+
+    local function SetAutoProgressStatus(text)
+        text = tostring(text or "Ready")
+        local title = text:match("^Status:") and text or ("Status: " .. text)
+
+        local updated = false
+
+        pcall(function()
+            if AutoProgressStatus.SetTitle then
+                AutoProgressStatus:SetTitle(title)
+                updated = true
+            end
+        end)
+
+        if not updated then
+            pcall(function()
+                if AutoProgressStatus.Set then
+                    AutoProgressStatus:Set({
+                        Title = title,
+                        Desc = ""
+                    })
+                end
+            end)
+        end
     end
 
-    if Running
-        and not resumeExisting then
+    local function GetStrategyDescription(strategy)
+        if strategy == "Lose" then
+           return "Lose Strategy", "Recommended for speed. Faster progression and usually reaches Gatling in about 2–3 days."
+        end
 
-        return
+        return "Win Strategy", "Slower but safer. Has a 100% win ratio and usually reaches Gatling in about 5–7 days."
+     end
+
+    local initialStrategy = Globals.AutoFarmGatlingStrategy == "Lose" and "Lose" or "Win"
+    local initialTitle, initialDesc = GetStrategyDescription(initialStrategy)
+
+    local StrategyDescription = Automation:Label({
+        Title = initialTitle,
+        Desc = initialDesc
+    })
+
+    local function UpdateStrategyDescription(strategy)
+        local title, desc = GetStrategyDescription(strategy)
+
+        local updated = false
+
+        pcall(function()
+            if StrategyDescription.SetTitle then
+                StrategyDescription:SetTitle(title)
+                updated = true
+            end
+        end)
+
+        pcall(function()
+            if StrategyDescription.SetDesc then
+                StrategyDescription:SetDesc(desc)
+                updated = true
+            end
+        end)
+
+        if not updated then
+            pcall(function()
+                if StrategyDescription.Set then
+                    StrategyDescription:Set({
+                        Title = title,
+                        Desc = desc
+                    })
+                end
+            end)
+        end
     end
 
-    Running = true
-    Config.AutoFarmRunning = true
-    SaveConfig()
+    Automation:Dropdown({
+        Title = "Strategy",
+        Desc = "Choose how Auto Farm Until Gatling should run",
+        List = {"Win", "Lose"},
+        Value = initialStrategy,
+        Callback = function(choice)
+            local selected = type(choice) == "table" and choice[1] or choice
 
-    UpdateStatusText()
+            if selected ~= "Lose" then
+                selected = "Win"
+            end
 
-    Toggle.Text = "STOP"
+            local oldStrategy = Globals.AutoFarmGatlingStrategy or "Win"
 
-    UpdateStatusText()
+            SetSetting("AutoFarmGatlingStrategy", selected)
+            shared.AutoProgressStrategy = selected
+            UpdateStrategyDescription(selected)
 
-    StartTaskRunning = true
+            local farm = AutoProgressFarm or shared.AutoProgress
+            if farm and farm.SetStrategy then
+                pcall(function()
+                    farm.SetStrategy(selected)
+                end)
+            end
 
+            if selected ~= oldStrategy then
+                StopAutoProgress()
+
+                if game.PlaceId == LOBBY_PLACE_ID then
+                    if Globals.AutoProgressEnabled == true then
+                        SetAutoProgressStatus("Strat changed to " .. selected .. " - Restarting Auto Progress...")
+
+                        task.delay(0.5, function()
+                            if Globals.AutoProgressEnabled == true
+                                and Globals.AutoFarmGatlingStrategy == selected then
+
+                                StartAutoProgress()
+                                SetAutoProgressStatus("Auto Progress Running - " .. selected)
+                            end
+                        end)
+                    else
+                        SetAutoProgressStatus("Strat changed to " .. selected)
+                    end
+                else
+                    SetAutoProgressStatus("Strat changed to " .. selected .. " - Teleporting to Lobby...")
+
+                    task.delay(2, function()
+                        if Globals.AutoProgressEnabled == true
+                            and Globals.AutoFarmGatlingStrategy == selected then
+
+                            TeleportToLobby()
+                        end
+                    end)
+                end
+            end
+        end
+    })
+
+    Automation:Toggle({
+        Title = "Start Auto Progress",
+        Desc = "Starts or stops Auto Farm Until Gatling",
+        Value = Globals.AutoProgressEnabled or false,
+        Callback = function(value)
+            SetSetting("AutoProgressEnabled", value)
+
+            if value then
+                SetAutoProgressStatus("Auto Progress Turned On - Starting...")
+
+                local webhook = LoadProgressWebhook()
+
+                if webhook then
+                    local url = Globals.Webhook or ""
+
+                    if url ~= "" and webhook.SetWebhook then
+                        pcall(function()
+                            webhook.SetWebhook(url)
+                        end)
+                    end
+
+                    if webhook.Start then
+                        pcall(function()
+                            webhook.Start()
+                        end)
+                    end
+                end
+
+                StartAutoProgress()
+                SetAutoProgressStatus("Auto Progress Running - " .. (Globals.AutoFarmGatlingStrategy or "Win"))
+            else
+                StopAutoProgress()
+
+                if game.PlaceId == LOBBY_PLACE_ID then
+                    SetAutoProgressStatus("Auto Progress Turned Off")
+                else
+                    SetAutoProgressStatus("Auto Progress Turned Off - Teleporting to Lobby...")
+                end
+
+                local webhook = ProgressWebhook or shared.ProgressWebhook
+                if webhook and webhook.Stop then
+                    pcall(function()
+                        webhook.Stop()
+                    end)
+                end
+
+                task.delay(2, function()
+                    if Globals.AutoProgressEnabled ~= true then
+                        TeleportToLobby()
+                    end
+                end)
+            end
+        end
+    })
+
+    Automation:Textbox({
+        Title = "Progress Webhook",
+        Desc = "Discord webhook used for Auto Progress updates",
+        Placeholder = "Paste Discord webhook...",
+        Value = Globals.Webhook or "",
+        ClearTextOnFocus = false,
+        Callback = function(text)
+            text = tostring(text or "")
+            SetSetting("Webhook", text)
+
+            local webhook = LoadProgressWebhook()
+            if webhook and webhook.SetWebhook then
+                pcall(function()
+                    webhook.SetWebhook(text)
+                end)
+            end
+        end
+    })
+
+    Automation:Button({
+        Title = "Send Webhook",
+        Desc = "Sends a test/current Auto Progress webhook",
+        Callback = function()
+            local webhook = LoadProgressWebhook()
+            if not webhook then
+                return
+            end
+
+            local url = Globals.Webhook or ""
+
+            if url ~= "" and webhook.SetWebhook then
+                pcall(function()
+                    webhook.SetWebhook(url)
+                end)
+            end
+
+            if webhook.Send then
+                pcall(function()
+                    webhook.Send(true)
+                end)
+            end
+        end
+    })
+
+    Automation:Section({Title = "Utilities"})
+
+    Automation:Toggle({
+        Title = "Auto Collect Pickups",
+        Desc = "Collects Logbooks + Event currency",
+        Value = Globals.AutoPickups,
+        Callback = function(value)
+            SetSetting("AutoPickups", value)
+            if value then
+                StartAutoPickups()
+            end
+        end
+    })
+
+    Automation:Dropdown({
+        Title = "Pickup Method",
+        Desc = "",
+        List = {"Pathfinding", "Instant"},
+        Value = Globals.PickupMethod or "Pathfinding",
+        Callback = function(choice)
+            local selected = type(choice) == "table" and choice[1] or choice
+            if selected ~= "Instant" then
+                selected = "Pathfinding"
+            end
+            SetSetting("PickupMethod", selected)
+        end
+    })
+
+    Automation:Toggle({
+        Title = "Claim Rewards",
+        Desc = "Claims playtime rewards and uses spin tickets in Lobby",
+        Value = Globals.ClaimRewards,
+        Callback = function(value)
+            SetSetting("ClaimRewards", value)
+            if value then
+                StartClaimRewards()
+            end
+        end
+    })
+end
+
+local function FormatNumber(value)
+    local n = math.floor(tonumber(value) or 0)
+    local formatted = tostring(n)
+
+    while true do
+        local updated, count = formatted:gsub("^(-?%d+)(%d%d%d)", "%1,%2")
+        formatted = updated
+        if count == 0 then
+            break
+        end
+    end
+
+    return formatted
+end
+
+local function RefreshUserStats(snapshot)
+    snapshot = snapshot or {}
+
+    local level = tonumber(snapshot.Level) or 0
+    local coins = tonumber(snapshot.Coins) or 0
+    local gatlingOwned = snapshot.GatlingOwned == true
+
+    if LevelLabel and LevelLabel.SetTitle then
+        LevelLabel:SetTitle("Level: " .. FormatNumber(level))
+    end
+
+    if CoinsLabel and CoinsLabel.SetTitle then
+        if gatlingOwned then
+            CoinsLabel:SetTitle("Coins: " .. FormatNumber(coins))
+        else
+            CoinsLabel:SetTitle("Coins: " .. FormatNumber(coins) .. " / 35,000")
+        end
+    end
+
+    if GatlingLabel and GatlingLabel.SetTitle then
+        GatlingLabel:SetTitle("Gatling Gun: " .. (gatlingOwned and "Owned" or "Not Owned"))
+    end
+end
+
+if Globals.AutoProgressEnabled then
     task.spawn(function()
-        WaitForGame()
+        task.wait(1)
 
-        if not Running then
-            StartTaskRunning = false
-            return
-        end
+        local webhook = LoadProgressWebhook()
+        if webhook then
+            local url = Globals.Webhook or ""
 
-        if Stats.IsGatlingOwned() then
-            Running = false
-            Config.AutoFarmRunning = false
-            SaveConfig()
+            if url ~= "" and webhook.SetWebhook then
+                pcall(function()
+                    webhook.SetWebhook(url)
+                end)
+            end
 
-            StartTaskRunning = false
-            Refresh()
-
-            return
-        end
-        local farm =
-            LoadAutoFarm()
-
-        if not Running then
-            StartTaskRunning = false
-            return
-        end
-
-        if not farm
-            or not farm.Start then
-
-            Running = false
-            Config.AutoFarmRunning = false
-            SaveConfig()
-
-            Toggle.Text = "START"
-            StartTaskRunning = false
-
-            return
-        end
-
-        local webhook =
-            LoadProgressWebhook()
-
-        if webhook
-            and WebhookBox.Text ~= ""
-            and webhook.SetWebhook then
-
-            Config.Webhook =
-                WebhookBox.Text
-
-            SaveConfig()
-
-            webhook.SetWebhook(
-                WebhookBox.Text
-            )
-        end
-
-        if webhook
-            and webhook.Start then
-
-            webhook.Start()
-        end
-
-        local alreadyRunning = false
-
-        if shared.AutoProgress
-            and shared.AutoProgress.GetStatus then
-
-            local ok, state =
-                pcall(
-                    shared.AutoProgress.GetStatus
-                )
-
-            if ok and state then
-                local stateText =
-                    tostring(state)
-
-                alreadyRunning =
-                    stateText ~= ""
-                    and stateText ~= "Disabled"
-                    and stateText
-                        ~= "Status: Disabled"
+            if webhook.Start then
+                pcall(function()
+                    webhook.Start()
+                end)
             end
         end
 
-        if not alreadyRunning
-            and Running then
+        StartAutoProgress()
+    end)
+end
 
-            farm.Start()
+if Stats then
+    pcall(function()
+        RefreshUserStats(Stats.GetSnapshot and Stats.GetSnapshot() or nil)
+    end)
+
+    if Stats.Start then
+        pcall(function()
+            Stats.Start(function(snapshot)
+                RefreshUserStats(snapshot)
+            end)
+        end)
+    end
+else
+    if LevelLabel and LevelLabel.SetTitle then
+        LevelLabel:SetTitle("Level: Unavailable")
+    end
+    if CoinsLabel and CoinsLabel.SetTitle then
+        CoinsLabel:SetTitle("Coins: Unavailable")
+    end
+    if GatlingLabel and GatlingLabel.SetTitle then
+        GatlingLabel:SetTitle("Gatling Gun: Unavailable")
+    end
+end
+
+task.spawn(function()
+    while task.wait(1) do
+        if Globals.AutoPickups and not AutoPickupsRunning then
+            StartAutoPickups()
         end
 
-        StartTaskRunning = false
-        Refresh()
-    end)
-end
-
-local function StopFarm()
-    Running = false
-    Config.AutoFarmRunning = false
-    SaveConfig()
-
-    if AutoFarm
-        and AutoFarm.Stop then
-
-        AutoFarm.Stop()
-    elseif shared.AutoProgress
-        and shared.AutoProgress.Stop then
-
-        shared.AutoProgress.Stop()
-    end
-
-    Refresh()
-end
-
-local function ToggleFarm()
-    if Stats.IsGatlingOwned() then
-        Refresh()
-        return
-    end
-
-    if Running then
-        StopFarm()
-    else
-        StartFarm()
-    end
-end
-
-local function SendProgressWebhook()
-    if not GameReady then
-
-        return
-    end
-
-    local module =
-        LoadProgressWebhook()
-
-    if not module then
-
-        return
-    end
-
-    if WebhookBox.Text ~= ""
-        and module.SetWebhook then
-
-        Config.Webhook =
-            WebhookBox.Text
-
-        SaveConfig()
-
-        module.SetWebhook(
-            WebhookBox.Text
-        )
-    end
-
-    if module.Send then
-        local ok, result =
-            module.Send(true)
-    else
-    end
-end
-
-Toggle.MouseButton1Click:Connect(
-    ToggleFarm
-)
-
-SendWebhook.MouseButton1Click:Connect(
-    SendProgressWebhook
-)
-
-WebhookBox.FocusLost:Connect(function()
-    Config.Webhook =
-        WebhookBox.Text
-
-    SaveConfig()
-
-    if WebhookBox.Text ~= "" then
-        SetWebhook()
+        if Globals.ClaimRewards and not AutoClaimRewards and IsLobby() then
+            StartClaimRewards()
+        end
     end
 end)
 
-Stats.Start(function(snapshot)
-    Refresh(snapshot)
-end)
+local GuiBase = {
+    Window = Window,
+    Library = Library,
+    LevelLabel = LevelLabel,
+    CoinsLabel = CoinsLabel,
+    GatlingLabel = GatlingLabel,
+    Stats = Stats,
+    LoadProgressWebhook = LoadProgressWebhook,
+    LoadAutoProgressFarm = LoadAutoProgressFarm,
+    StartAutoProgress = StartAutoProgress,
+    StopAutoProgress = StopAutoProgress,
+    TeleportToLobby = TeleportToLobby,
+    WaitForGame = WaitForGame,
+    RefreshUserStats = RefreshUserStats,
+    StartAutoPickups = StartAutoPickups,
+    StartClaimRewards = StartClaimRewards,
+    SetSetting = SetSetting,
+    GetSetting = function(name)
+        return Globals[name]
+    end
+}
 
-Gui.Destroying:Connect(function()
-    Stats.Stop()
-end)
-
-if Running then
-    ShowFarm()
-
-    task.defer(function()
-        StartFarm(true)
-    end)
-else
-    ShowHome()
-
-    task.spawn(function()
-        WaitForGame()
-        Refresh()
-    end)
-end
-
-Refresh(LastSnapshot)
+shared.AutoProgressGuiBase = GuiBase
+return GuiBase
