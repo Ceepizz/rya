@@ -14,36 +14,101 @@ local function isMyCharacter(obj)
 		or obj:IsDescendantOf(currentCharacter)
 end
 
-local function nukeVisual(obj)
+local function hideTowerObject(obj)
+	if obj:IsA("BasePart") then
+		obj.LocalTransparencyModifier = 1
+		obj.Transparency = 1
+		obj.CastShadow = false
+		obj.Reflectance = 0
 
-	-- KEEP YOUR AVATAR COMPLETELY NORMAL
+	elseif obj:IsA("Decal")
+		or obj:IsA("Texture")
+		or obj:IsA("SurfaceAppearance") then
+
+		pcall(function()
+			obj:Destroy()
+		end)
+
+	elseif obj:IsA("ParticleEmitter")
+		or obj:IsA("Trail")
+		or obj:IsA("Beam")
+		or obj:IsA("Smoke")
+		or obj:IsA("Fire")
+		or obj:IsA("Sparkles") then
+
+		obj.Enabled = false
+
+	elseif obj:IsA("PointLight")
+		or obj:IsA("SpotLight")
+		or obj:IsA("SurfaceLight") then
+
+		obj.Enabled = false
+
+	elseif obj:IsA("BillboardGui")
+		or obj:IsA("SurfaceGui") then
+
+		obj.Enabled = false
+
+	elseif obj:IsA("Highlight") then
+		obj.Enabled = false
+	end
+end
+
+local function hideTower(tower)
+	for _, obj in ipairs(tower:GetDescendants()) do
+		pcall(function()
+			hideTowerObject(obj)
+		end)
+	end
+
+	tower.DescendantAdded:Connect(function(obj)
+		task.defer(function()
+			pcall(function()
+				hideTowerObject(obj)
+			end)
+		end)
+	end)
+end
+
+local function setupTowerHider()
+	local towers = Workspace:FindFirstChild("Towers")
+
+	if not towers then
+		towers = Workspace:WaitForChild("Towers", 30)
+	end
+
+	if not towers then
+		return
+	end
+
+	for _, tower in ipairs(towers:GetChildren()) do
+		hideTower(tower)
+	end
+
+	towers.ChildAdded:Connect(function(tower)
+		task.defer(function()
+			hideTower(tower)
+		end)
+	end)
+end
+
+local function nukeVisual(obj)
 	if isMyCharacter(obj) then
 		return
 	end
 
-	-- KEEP THESE CONTAINERS
 	if obj:IsA("Folder")
 		or obj:IsA("Model") then
 		return
 	end
 
-	-- =========================================
-	-- PARTS
-	-- =========================================
-
 	if obj:IsA("BasePart") then
-
 		obj.Transparency = 1
+		obj.LocalTransparencyModifier = 1
 		obj.CastShadow = false
 		obj.Reflectance = 0
-
-		-- keep collision/data intact
 		return
 	end
-
-	-- =========================================
-	-- DELETE TEXTURES / MESH VISUALS
-	-- =========================================
 
 	if obj:IsA("Decal")
 		or obj:IsA("Texture")
@@ -54,10 +119,6 @@ local function nukeVisual(obj)
 		obj:Destroy()
 		return
 	end
-
-	-- =========================================
-	-- PARTICLES / EFFECTS
-	-- =========================================
 
 	if obj:IsA("ParticleEmitter")
 		or obj:IsA("Trail")
@@ -75,10 +136,6 @@ local function nukeVisual(obj)
 		return
 	end
 
-	-- =========================================
-	-- LIGHTS
-	-- =========================================
-
 	if obj:IsA("PointLight")
 		or obj:IsA("SpotLight")
 		or obj:IsA("SurfaceLight") then
@@ -92,10 +149,6 @@ local function nukeVisual(obj)
 		return
 	end
 
-	-- =========================================
-	-- GUI
-	-- =========================================
-
 	if obj:IsA("BillboardGui")
 		or obj:IsA("SurfaceGui") then
 
@@ -108,10 +161,6 @@ local function nukeVisual(obj)
 		return
 	end
 
-	-- =========================================
-	-- HIGHLIGHTS
-	-- =========================================
-
 	if obj:IsA("Highlight") then
 		obj.Enabled = false
 
@@ -123,10 +172,6 @@ local function nukeVisual(obj)
 	end
 end
 
--- =========================================
--- MAXIMUM POTATO GRAPHICS
--- =========================================
-
 pcall(function()
 	settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
 end)
@@ -137,12 +182,7 @@ Lighting.FogEnd = 1000000
 Lighting.EnvironmentDiffuseScale = 0
 Lighting.EnvironmentSpecularScale = 0
 
--- =========================================
--- DESTROY LIGHTING VISUAL EFFECTS
--- =========================================
-
 for _, obj in ipairs(Lighting:GetChildren()) do
-
 	if obj:IsA("PostEffect")
 		or obj:IsA("Atmosphere")
 		or obj:IsA("Sky") then
@@ -152,10 +192,6 @@ for _, obj in ipairs(Lighting:GetChildren()) do
 		end)
 	end
 end
-
--- =========================================
--- DELETE TERRAIN CONTENT
--- =========================================
 
 pcall(function()
 	Workspace.Terrain:Clear()
@@ -168,26 +204,16 @@ pcall(function()
 	Workspace.Terrain.WaterTransparency = 1
 end)
 
--- =========================================
--- NUKE CURRENT VISUALS
--- =========================================
+task.spawn(setupTowerHider)
 
 for _, obj in ipairs(Workspace:GetDescendants()) do
-
 	pcall(function()
 		nukeVisual(obj)
 	end)
-
 end
 
--- =========================================
--- NUKE NEW VISUALS FOREVER
--- =========================================
-
 Workspace.DescendantAdded:Connect(function(obj)
-
 	task.defer(function()
-
 		if isMyCharacter(obj) then
 			return
 		end
@@ -195,17 +221,10 @@ Workspace.DescendantAdded:Connect(function(obj)
 		pcall(function()
 			nukeVisual(obj)
 		end)
-
 	end)
-
 end)
 
--- =========================================
--- INVISIBLE PLATFORM
--- =========================================
-
 local function makePlatform(character)
-
 	currentCharacter = character
 
 	local root =
@@ -239,25 +258,20 @@ local function makePlatform(character)
 	platform.CanQuery = false
 
 	platform.Transparency = 1
+	platform.LocalTransparencyModifier = 1
 	platform.CastShadow = false
 
 	platform.Parent = Workspace
 end
-
--- =========================================
--- CHARACTER
--- =========================================
 
 if player.Character then
 	makePlatform(player.Character)
 end
 
 player.CharacterAdded:Connect(function(character)
-
 	currentCharacter = character
 
 	task.wait(0.25)
 
 	makePlatform(character)
-
 end)
