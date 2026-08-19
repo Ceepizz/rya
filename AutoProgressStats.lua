@@ -13,10 +13,7 @@ local LOBBY_PLACE_ID = 3260590327
 local Stats = {}
 
 local SETTINGS_FILE =
-    "AutoProgressStats_" .. tostring(Player.UserId) .. ".json"
-
-local BACKEND_SETTINGS_FILE =
-    "AutoProgression_" .. tostring(Player.UserId) .. ".json"
+    "AutoProgress_" .. tostring(Player.Name) .. ".json"
 
 local Saved = {
     SavedLevel = 0,
@@ -62,10 +59,25 @@ local function Save()
         return
     end
 
+    local data = {}
+
+    if isfile and readfile and isfile(SETTINGS_FILE) then
+        pcall(function()
+            local existing = HttpService:JSONDecode(readfile(SETTINGS_FILE))
+            if type(existing) == "table" then
+                data = existing
+            end
+        end)
+    end
+
+    for key, value in pairs(Saved) do
+        data[key] = value
+    end
+
     pcall(function()
         writefile(
             SETTINGS_FILE,
-            HttpService:JSONEncode(Saved)
+            HttpService:JSONEncode(data)
         )
     end)
 end
@@ -103,13 +115,13 @@ end
 local function ReadBackendSettings()
     if not isfile
         or not readfile
-        or not isfile(BACKEND_SETTINGS_FILE) then
+        or not isfile(SETTINGS_FILE) then
         return nil
     end
 
     local ok, data = pcall(function()
         return HttpService:JSONDecode(
-            readfile(BACKEND_SETTINGS_FILE)
+            readfile(SETTINGS_FILE)
         )
     end)
 
