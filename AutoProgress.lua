@@ -61,6 +61,7 @@ local Defaults = {
     AutoPickups = false,
     PickupMethod = "Pathfinding",
     ClaimRewards = false,
+    AntiLag = true,
     AutoFarmGatlingStrategy = "Win",
     AutoProgressEnabled = false,
     Webhook = ""
@@ -906,6 +907,38 @@ local Automation = Window:Tab({Title = "Automation", Icon = "bot"}) do
             end
         end
     })
+end
+
+
+local Settings = Window:Tab({Title = "Settings", Icon = "settings"}) do
+    Settings:Section({Title = "Performance"})
+
+    Settings:Toggle({
+        Title = "Anti Lag",
+        Desc = "Reduces visual effects for better performance",
+        Value = Globals.AntiLag ~= false,
+        Callback = function(value)
+            SetSetting("AntiLag", value)
+
+            if value then
+                pcall(function()
+                    loadstring(game:HttpGet(
+                        "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/antilag"
+                    ))()
+                end)
+            end
+        end
+    })
+end
+
+if Globals.AntiLag ~= false then
+    task.spawn(function()
+        pcall(function()
+            loadstring(game:HttpGet(
+                "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/antilag"
+            ))()
+        end)
+    end)
 end
 
 local function FormatNumber(value)
