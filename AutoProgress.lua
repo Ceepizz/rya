@@ -6,9 +6,13 @@ local PathfindingService = game:GetService("PathfindingService")
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local GuiService = game:GetService("GuiService")
+local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local platform = UserInputService:GetPlatform()
+local IsMobile = platform == Enum.Platform.IOS or platform == Enum.Platform.Android
 
 local CONFIG_FILE = "AutoProgress_" .. tostring(LocalPlayer.Name) .. ".json"
 local LOBBY_PLACE_ID = 3260590327
@@ -63,7 +67,8 @@ local Defaults = {
     ClaimRewards = false,
     AutoFarmGatlingStrategy = "Win",
     AutoProgressEnabled = false,
-    Webhook = ""
+    Webhook = "",
+    PrivateCode = ""
 }
 
 local function SaveSettings()
@@ -432,10 +437,20 @@ local function TeleportToLobby()
     end
 
     pcall(function()
-        TeleportService:Teleport(
-            LOBBY_PLACE_ID,
-            LocalPlayer
-        )
+        if not IsMobile
+            and Globals.PrivateCode
+            and Globals.PrivateCode ~= "" then
+
+            game:GetService("ExperienceService"):LaunchExperience({
+                placeId = LOBBY_PLACE_ID,
+                linkCode = Globals.PrivateCode
+            })
+        else
+            TeleportService:Teleport(
+                LOBBY_PLACE_ID,
+                LocalPlayer
+            )
+        end
     end)
 
     return true
@@ -906,6 +921,39 @@ local Automation = Window:Tab({Title = "Automation", Icon = "bot"}) do
             end
         end
     })
+end
+
+
+local Settings = Window:Tab({Title = "Settings", Icon = "settings"}) do
+    Settings:Section({Title = "Private Server"})
+
+    Settings:Label({
+        Title = "Private Server Code",
+        Desc = "PC only. Paste your private server code below to return to your private server instead of a public lobby."
+    })
+
+    if not IsMobile then
+        Settings:Textbox({
+            Title = "Private Server Code",
+            Desc = "PC only",
+            Placeholder = "Example: 16055572089259659857100802598629",
+            Value = Globals.PrivateCode or "",
+            ClearTextOnFocus = false,
+            Callback = function(text)
+                text = tostring(text or "")
+
+                local validated = text
+
+                if text ~= ""
+                    and not text:match("^%d+$") then
+
+                    validated = ""
+                end
+
+                SetSetting("PrivateCode", validated)
+            end
+        })
+    end
 end
 
 
