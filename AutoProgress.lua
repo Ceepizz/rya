@@ -1101,7 +1101,8 @@ local function RefreshUserStats(snapshot)
         if gatlingOwned then
             CoinsLabel:SetTitle("Coins: " .. FormatNumber(coins))
         else
-            CoinsLabel:SetTitle("Coins: " .. FormatNumber(coins) .. " / 35,000")
+            local displayedCoins = math.min(coins, 35000)
+            CoinsLabel:SetTitle("Coins: " .. FormatNumber(displayedCoins) .. " / 35,000")
         end
     end
 
