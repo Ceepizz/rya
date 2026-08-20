@@ -280,6 +280,16 @@ local function SaveTrackedCoins(value)
     return value
 end
 
+function Stats.GetGems()
+    local liveGems = ReadNumberStat("Gems")
+
+    if liveGems ~= nil then
+        return math.max(tonumber(liveGems) or 0, 0)
+    end
+
+    return 0
+end
+
 function Stats.GetCoins()
     local liveCoins = Stats.GetLiveCoins()
 
@@ -442,6 +452,7 @@ function Stats.GetSnapshot()
     return {
         Level = Stats.GetLevel(),
         Coins = Stats.GetCoins(),
+        Gems = Stats.GetGems(),
         GatlingOwned = Stats.IsGatlingOwned()
     }
 end
@@ -466,6 +477,7 @@ function Stats.Start(callback)
     task.spawn(function()
         local lastLevel = nil
         local lastCoins = nil
+        local lastGems = nil
         local lastGatling = nil
         local lastSnapshotAt = 0
 
@@ -524,11 +536,13 @@ function Stats.Start(callback)
                 local changed =
                     snapshot.Level ~= lastLevel
                     or snapshot.Coins ~= lastCoins
+                    or snapshot.Gems ~= lastGems
                     or snapshot.GatlingOwned ~= lastGatling
 
                 if changed then
                     lastLevel = snapshot.Level
                     lastCoins = snapshot.Coins
+                    lastGems = snapshot.Gems
                     lastGatling = snapshot.GatlingOwned
 
                     if callback then
