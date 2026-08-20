@@ -68,7 +68,9 @@ local Defaults = {
     AutoFarmGatlingStrategy = "Win",
     AutoProgressEnabled = false,
     Webhook = "",
-    PrivateCode = ""
+    PrivateCode = "",
+    PrivateTeleportPending = false,
+    AntiLag = true
 }
 
 local function SaveSettings()
@@ -130,6 +132,15 @@ local function SetSetting(name, value)
 end
 
 LoadSettings()
+
+-- Prevent the Start toggle from teleporting again after the script
+-- re-executes in the destination lobby.
+local SkipPrivateTeleportOnce = Globals.PrivateTeleportPending == true
+
+if SkipPrivateTeleportOnce then
+    SetSetting("PrivateTeleportPending", false)
+end
+
 shared.AutoProgressStrategy = Globals.AutoFarmGatlingStrategy == "Lose" and "Lose" or "Win"
 
 local function IsLobby()
@@ -558,17 +569,11 @@ local function IsLoading()
 end
 
 local function WaitUntilLoaded()
-    print(
-        "[AUTO PROGRESS GUI] Waiting for loading screen..."
-    )
 
     while IsLoading() do
         task.wait(1)
     end
 
-    print(
-        "[AUTO PROGRESS GUI] Loaded!"
-    )
 end
 
 local function WaitForGame()
@@ -580,9 +585,6 @@ local function WaitForGame()
 
     local startedAt = os.clock()
 
-    print(
-        "[AUTO PROGRESS GUI] Waiting for loading screen..."
-    )
 
     while IsLoading() do
         if os.clock() - startedAt >= 60 then
@@ -598,9 +600,6 @@ local function WaitForGame()
         task.wait(1)
     end
 
-    print(
-        "[AUTO PROGRESS GUI] Loaded!"
-    )
 
     GameReady = true
     return true
@@ -791,6 +790,36 @@ local Automation = Window:Tab({Title = "Automation", Icon = "bot"}) do
             SetSetting("AutoProgressEnabled", value)
 
             if value then
+                if game.PlaceId == LOBBY_PLACE_ID
+                    and not IsMobile
+                    and Globals.PrivateCode
+                    and Globals.PrivateCode ~= ""
+                    and not SkipPrivateTeleportOnce
+                    and Globals.PrivateTeleportPending ~= true
+                    and (game.PrivateServerId == nil or game.PrivateServerId == "") then
+
+                    SetAutoProgressStatus("Private Server Code Found - Teleporting...")
+                    SetSetting("PrivateTeleportPending", true)
+
+                    task.wait(3)
+
+                    local ok, err = pcall(function()
+                        game:GetService("ExperienceService"):LaunchExperience({
+                            placeId = LOBBY_PLACE_ID,
+                            linkCode = Globals.PrivateCode
+                        })
+                    end)
+
+                    if not ok then
+                        SetSetting("PrivateTeleportPending", false)
+                        warn("[PRIVATE SERVER] Failed to teleport:", err)
+                    end
+
+                    return
+                end
+
+                SkipPrivateTeleportOnce = false
+
                 SetAutoProgressStatus("Auto Progress Turned On - Starting...")
 
                 local webhook = LoadProgressWebhook()
@@ -924,6 +953,75 @@ local Automation = Window:Tab({Title = "Automation", Icon = "bot"}) do
 end
 
 
+
+local AntiLagRunning = false
+
+local function StartAntiLag()
+    if AntiLagRunning or not Globals.AntiLag then
+        return
+    end
+
+    AntiLagRunning = true
+
+    pcall(function()
+        settings().Rendering.QualityLevel =
+            Enum.QualityLevel.Level01
+    end)
+
+    task.spawn(function()
+        while Globals.AntiLag do
+            local towersFolder =
+                workspace:FindFirstChild("Towers")
+
+            local clientUnits =
+                workspace:FindFirstChild("ClientUnits")
+
+            if towersFolder then
+                for _, tower in ipairs(
+                    towersFolder:GetChildren()
+                ) do
+                    local animations =
+                        tower:FindFirstChild("Animations")
+
+                    local weapon =
+                        tower:FindFirstChild("Weapon")
+
+                    local projectiles =
+                        tower:FindFirstChild("Projectiles")
+
+                    if animations then
+                        animations:Destroy()
+                    end
+
+                    if projectiles then
+                        projectiles:Destroy()
+                    end
+
+                    if weapon then
+                        weapon:Destroy()
+                    end
+                end
+            end
+
+            if clientUnits then
+                for _, unit in ipairs(
+                    clientUnits:GetChildren()
+                ) do
+                    unit:Destroy()
+                end
+            end
+
+            task.wait(0.5)
+        end
+
+        AntiLagRunning = false
+    end)
+end
+
+if Globals.AntiLag then
+    StartAntiLag()
+end
+
 local Settings = Window:Tab({Title = "Settings", Icon = "settings"}) do
     Settings:Section({Title = "Private Server"})
 
@@ -954,6 +1052,22 @@ local Settings = Window:Tab({Title = "Settings", Icon = "settings"}) do
             end
         })
     end
+
+    Settings:Section({Title = "Performance"})
+
+    Settings:Toggle({
+        Title = "Anti-Lag",
+        Desc = "Reduces tower effects and client units to improve FPS.",
+        Value = Globals.AntiLag or false,
+        Callback = function(value)
+            SetSetting("AntiLag", value)
+
+            if value then
+                StartAntiLag()
+            end
+        end
+    })
+
 end
 
 
