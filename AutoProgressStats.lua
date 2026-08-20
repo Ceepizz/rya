@@ -314,11 +314,6 @@ function Stats.RecordMatchStartCoins()
 
     SaveTrackedCoins(MatchStartCoins)
 
-    print(
-        "[AUTO PROGRESS STATS] Match start coins:",
-        MatchStartCoins
-    )
-
     return MatchStartCoins
 end
 
@@ -376,21 +371,6 @@ function Stats.UpdateCoinsFromReward()
             newTotal,
             tonumber(liveCoins) or 0
         )
-    )
-
-    print(
-        "[AUTO PROGRESS STATS] Start:",
-        MatchStartCoins
-    )
-
-    print(
-        "[AUTO PROGRESS STATS] Reward:",
-        reward
-    )
-
-    print(
-        "[AUTO PROGRESS STATS] New total:",
-        CurrentTrackedCoins
     )
 
     return CurrentTrackedCoins, reward
