@@ -34,4 +34,4 @@ while IsLoading() do
     task.wait(1)
 end
 
-loadstring(game:HttpGet("https://api.jnkie.com/api/v1/luascripts/public/b6f94e11cee9f4f5d02f2d41490f2370afdbed8b345834b3b383decb2c386acc/download"))()
+loadstring(game:HttpGet("https://api.jnkie.com/api/v1/luascripts/public/7c7a4c329222a36ff1e2107aedb7ae0bc4d1335c1479b644061ff4fb056f5ce6/download"))()
