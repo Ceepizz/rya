@@ -2167,28 +2167,41 @@ end
 Window:Line()
 
 local Progression = Window:Tab({Title = "Progression", Icon = "settings"}) do
+    local RyaLoaderToggle
 
-    Progression:Toggle({
+    RyaLoaderToggle = Progression:Toggle({
         Title = "Auto Progression - Rya (Temporary, uses diff key system)",
-        Desc = "Loads the Auto Progress script",
+        Desc = "Loads the Rya Auto Progress loader",
         Value = Globals.AutoProgressionLoader or false,
         Callback = function(v)
             SetSetting("AutoProgressionLoader", v)
 
             if v then
                 task.spawn(function()
-                    pcall(function()
+                    local ok, err = pcall(function()
                         loadstring(
                             game:HttpGet(
                                 "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/AutoProgressV1.lua"
                             )
                         )()
                     end)
+
+                    if not ok then
+                        warn("[Rya Loader] " .. tostring(err))
+                    end
                 end)
             end
         end
-    }) 
-    
+    })
+
+    getgenv().TurnOffRyaLoaderToggle = function()
+        SetSetting("AutoProgressionLoader", false)
+
+        if RyaLoaderToggle and RyaLoaderToggle.SetValue then
+            RyaLoaderToggle:SetValue(false)
+        end
+    end
+
     Progression:Section({Title = "Account Statistics"})
 
     Progression:Label({Title = "Coins: " .. tostring(game.Players.LocalPlayer.Coins.Value)})
