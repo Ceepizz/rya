@@ -5,6 +5,9 @@ local UserInputService = game:GetService("UserInputService")
 
 local CONFIG_FILE = "ADS_Config.json"
 
+local AUTO_PROGRESS_URL =
+    "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/AutoProgressV1.lua"
+
 local AETHER_RELOAD_URL =
     "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/aethertest"
 
@@ -349,6 +352,28 @@ Stop.MouseButton1Click:Connect(function()
         Status.Text = "Reload Failed"
         Dot.BackgroundColor3 = Color3.fromRGB(255, 90, 90)
         Desc.Text = "Aether failed to reload. Press Stop to retry."
+    end
+end)
+
+
+task.spawn(function()
+    task.wait(0.15)
+
+    local ok, err = pcall(function()
+        loadstring(game:HttpGet(AUTO_PROGRESS_URL))()
+    end)
+
+    if not ok then
+        warn("[Rya Controller] Auto Progress failed:", err)
+
+        SetAetherLoaderSettingOff()
+
+        Status.Text = "Load Failed"
+        Dot.BackgroundColor3 = Color3.fromRGB(255, 90, 90)
+        Desc.Text = "Auto Progress failed to load."
+        Stop.Text = "Restore Aether"
+        stopping = false
+        Stop.Active = true
     end
 end)
 
