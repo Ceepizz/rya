@@ -1,10 +1,7 @@
 local Globals = getgenv()
 
 if shared.TDSTable then
-    local existingAether = game:GetService("CoreGui"):FindFirstChild("Aether")
-    if existingAether then
-        return shared.TDSTable
-    end
+    return shared.TDSTable
 end
 
 local Players = game:GetService("Players")
@@ -257,8 +254,8 @@ local DefaultSettings = {
     StreamerName = "",
     tagName = "None",
     Modifiers = {},
-    AutoProgressionLoader = false,
     AutoProgressionMode = "None",
+    AutoProgressionLoader = false,
     AutoProgressionEnabled = false,
     ProgressionWebhookURL = "",
     SendProgressionWebhook = false,
@@ -2169,16 +2166,8 @@ end
 
 Window:Line()
 
+
 local Progression = Window:Tab({Title = "Progression", Icon = "settings"}) do
-    Progression:Section({Title = "Account Statistics"})
-
-    Progression:Label({Title = "Coins: " .. tostring(game.Players.LocalPlayer.Coins.Value)})
-    Progression:Label({Title = "Gems: " .. tostring(game.Players.LocalPlayer.Gems.Value)})
-    Progression:Label({Title = "Level: " .. tostring(game.Players.LocalPlayer.Level.Value)})
-    Progression:Label({Title = "Experience: " .. tostring(game.Players.LocalPlayer.Experience.Value)})
-
-    Progression:Section({Title = "Auto Progression"})
-
     Progression:Toggle({
         Title = "Auto Progression - Rya (Temporary, uses diff key system)",
         Desc = "Loads Rya Auto Progress",
@@ -2187,29 +2176,29 @@ local Progression = Window:Tab({Title = "Progression", Icon = "settings"}) do
             SetSetting("AutoProgressionLoader", v)
 
             if v then
-                task.spawn(function()
-                    local ok, err = pcall(function()
-                        loadstring(game:HttpGet("https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/progloader.lua"))()
-                    end)
+                local aetherGui = game:GetService("CoreGui"):FindFirstChild("Aether")
+                if aetherGui then
+                    aetherGui:Destroy()
+                end
 
-                    if not ok then
-                        warn("[Rya Loader] Controller failed:", err)
-                        SetSetting("AutoProgressionLoader", false)
-                    end
-                end)
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/progloader.lua"))()
             end
         end
     })
+    Progression:Section({Title = "Account Statistics"})
 
-    getgenv().AutoProgressionStatus = Progression:Label({
-        Title = "Status: waiting... | Mode: " .. (Globals.AutoProgressionMode or "None"),
-        Desc = ""
-    })
+    Progression:Label({Title = "Coins: " .. tostring(game.Players.LocalPlayer.Coins.Value)})
+    Progression:Label({Title = "Gems: " .. tostring(game.Players.LocalPlayer.Gems.Value)})
+    Progression:Label({Title = "Level: " .. tostring(game.Players.LocalPlayer.Level.Value)})
+    Progression:Label({Title = "Experience: " .. tostring(game.Players.LocalPlayer.Experience.Value)})
+
+    Progression:Section({Title = "Auto Progression"})
+    getgenv().AutoProgressionStatus = Progression:Label({Title = "Status: waiting... | Mode: " .. (Globals.AutoProgressionMode or "None"), Desc = ""})
 
     Progression:Dropdown({
         Title = "Auto Progression Mode",
         Desc = "Select the mode for auto progression",
-        List = {"Complete Story Mode", "Level 175", "None"},
+        List = {"Complete Story Mode", "Level 175", "None"}, -- , "All Coin Towers", "All Gem Towers", "Max Skill Tree", "None"}
         Value = Globals.AutoProgressionMode or "None",
         Callback = function(choice)
             SetSetting("AutoProgressionMode", choice)
