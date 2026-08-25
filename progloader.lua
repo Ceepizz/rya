@@ -1,7 +1,3 @@
--- Rya Auto Progress Controller
--- Tiny standalone controller GUI.
--- Intentionally does NOT use the Aether UI library.
-
 local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
@@ -9,17 +5,11 @@ local UserInputService = game:GetService("UserInputService")
 
 local CONFIG_FILE = "ADS_Config.json"
 
-local AUTO_PROGRESS_GUI_NAMES = {
-    "RyaAutoProgress",
-    "Aether", -- fallback in case the current Auto Progress UI still uses the old name
-}
-
 local AETHER_RELOAD_URL =
     "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/aethertest"
 
 local CONTROLLER_NAME = "RyaProgressController"
 
--- Remove an older controller copy only.
 local oldController = CoreGui:FindFirstChild(CONTROLLER_NAME)
 if oldController then
     oldController:Destroy()
@@ -179,7 +169,6 @@ end
 Main:GetPropertyChangedSignal("Position"):Connect(SyncShadow)
 Main:GetPropertyChangedSignal("Size"):Connect(SyncShadow)
 
--- Dragging
 do
     local dragging = false
     local dragStart
@@ -300,26 +289,6 @@ local function StopRyaBackendIfAvailable()
         getgenv().AutoProgressionProtectionActive = false
         getgenv().AutoProgressProtectionActive = false
     end)
-end
-
-local function RemoveAutoProgressUI()
-    for _, name in ipairs(AUTO_PROGRESS_GUI_NAMES) do
-        local gui = CoreGui:FindFirstChild(name)
-
-        -- Do NOT destroy Aether if it has already been reloaded.
-        -- "Aether" is only a fallback for older Auto Progress UI builds.
-        if gui then
-            if name ~= "Aether" then
-                gui:Destroy()
-            else
-                local titleText = gui:FindFirstChild("Shadow", true)
-                if titleText then
-                    -- We leave Aether alone here. The aethertest loader below
-                    -- is responsible for replacing/restoring the actual hub.
-                end
-            end
-        end
-    end
 end
 
 local function ReloadAether()
