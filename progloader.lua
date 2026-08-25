@@ -295,6 +295,9 @@ local function StopRyaBackendIfAvailable()
 end
 
 local function ReloadAether()
+    shared.TDSTable = nil
+    shared["TDS_Table"] = nil
+
     local ok, result = pcall(function()
         local source = game:HttpGet(AETHER_RELOAD_URL)
         return loadstring(source)()
