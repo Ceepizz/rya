@@ -457,7 +457,7 @@ task.spawn(function()
     end)
 
     if ok then
-        Status.Text = "Running - Press Stop to return to Aether."
+        Status.Text = "Running • Stop = Aether"
         Desc.Text = ""
     else
         warn("[Rya Controller] Auto Progress failed:", err)
