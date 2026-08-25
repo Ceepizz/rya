@@ -4,6 +4,7 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local CONFIG_FILE = "ADS_Config.json"
+local BACKUP_FILE = "ADS_ConfigBackup.json"
 
 local AUTO_PROGRESS_URL =
     "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/AutoProgressV1.lua"
@@ -271,6 +272,89 @@ local function SetAetherLoaderSettingOff()
     getgenv().AutoProgressionLoader = false
 end
 
+local function DisableAetherToggles()
+    if not (isfile and readfile and writefile) then
+        return
+    end
+
+    if not isfile(CONFIG_FILE) then
+        return
+    end
+
+    local ok, data = pcall(function()
+        return HttpService:JSONDecode(readfile(CONFIG_FILE))
+    end)
+
+    if not ok or type(data) ~= "table" then
+        return
+    end
+
+    if not isfile(BACKUP_FILE) then
+        local backup = {}
+
+        for key, value in pairs(data) do
+            backup[key] = value
+        end
+
+        backup.AutoProgressionLoader = false
+
+        pcall(function()
+            writefile(BACKUP_FILE, HttpService:JSONEncode(backup))
+        end)
+    end
+
+    for key, value in pairs(data) do
+        if type(value) == "boolean" then
+            data[key] = false
+            getgenv()[key] = false
+        end
+    end
+
+    data.AutoProgressionLoader = true
+    getgenv().AutoProgressionLoader = true
+
+    pcall(function()
+        writefile(CONFIG_FILE, HttpService:JSONEncode(data))
+    end)
+end
+
+local function RestoreAetherConfig()
+    if not (isfile and readfile and writefile) then
+        getgenv().AutoProgressionLoader = false
+        return
+    end
+
+    if not isfile(BACKUP_FILE) then
+        SetAetherLoaderSettingOff()
+        return
+    end
+
+    local ok, backup = pcall(function()
+        return HttpService:JSONDecode(readfile(BACKUP_FILE))
+    end)
+
+    if not ok or type(backup) ~= "table" then
+        SetAetherLoaderSettingOff()
+        return
+    end
+
+    backup.AutoProgressionLoader = false
+
+    for key, value in pairs(backup) do
+        getgenv()[key] = value
+    end
+
+    pcall(function()
+        writefile(CONFIG_FILE, HttpService:JSONEncode(backup))
+    end)
+
+    if delfile then
+        pcall(function()
+            delfile(BACKUP_FILE)
+        end)
+    end
+end
+
 local function StopRyaBackendIfAvailable()
     pcall(function()
         if type(shared.AutoProgress) == "table" then
@@ -323,7 +407,7 @@ Stop.MouseButton1Click:Connect(function()
     Dot.BackgroundColor3 = Color3.fromRGB(255, 190, 90)
     Desc.Text = "Stopping Auto Progress and restoring Aether..."
 
-    SetAetherLoaderSettingOff()
+    RestoreAetherConfig()
     StopRyaBackendIfAvailable()
 
     local ryaGui = CoreGui:FindFirstChild("RyaAutoProgress")
@@ -358,6 +442,7 @@ Stop.MouseButton1Click:Connect(function()
     end
 end)
 
+DisableAetherToggles()
 
 task.spawn(function()
     task.wait(0.15)
@@ -369,7 +454,7 @@ task.spawn(function()
     if not ok then
         warn("[Rya Controller] Auto Progress failed:", err)
 
-        SetAetherLoaderSettingOff()
+        RestoreAetherConfig()
 
         Status.Text = "Load Failed"
         Dot.BackgroundColor3 = Color3.fromRGB(255, 90, 90)
