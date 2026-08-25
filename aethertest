@@ -1,7 +1,10 @@
 local Globals = getgenv()
 
 if shared.TDSTable then
-    return shared.TDSTable
+    local existingAether = game:GetService("CoreGui"):FindFirstChild("Aether")
+    if existingAether then
+        return shared.TDSTable
+    end
 end
 
 local Players = game:GetService("Players")
