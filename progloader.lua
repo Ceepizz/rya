@@ -10,7 +10,7 @@ local AUTO_PROGRESS_URL =
     "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/AutoProgressV1.lua"
 
 local AETHER_RELOAD_URL =
-    "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/aethertest"
+    "https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Library.lua"
 
 local CONTROLLER_NAME = "RyaProgressController"
 
