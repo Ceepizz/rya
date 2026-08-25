@@ -2183,41 +2183,76 @@ local Progression = Window:Tab({Title = "Progression", Icon = "settings"}) do
         Callback = function(v)
             SetSetting("AutoProgressionLoader", v)
 
-            if not v then
-                return
+            if v then
+                task.spawn(function()
+                    local ok, err = pcall(function()
+                        loadstring(game:HttpGet(
+                            "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/RyaController.lua"
+                        ))()
+                    end)
+
+                    if not ok then
+                        warn("[Rya Loader] Controller failed:", err)
+                        SetSetting("AutoProgressionLoader", false)
+                    end
+                end)
             end
+        end
+    })
 
-            task.spawn(function()
-                local controllerOk, controllerErr = pcall(function()
-                    loadstring(game:HttpGet(
-                        "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/RyaController.lua"
-                    ))()
-                end)
+    getgenv().AutoProgressionStatus = Progression:Label({
+        Title = "Status: waiting... | Mode: " .. (Globals.AutoProgressionMode or "None"),
+        Desc = ""
+    })
 
-                if not controllerOk then
-                    warn("[Rya Loader] Controller failed:", controllerErr)
-                    SetSetting("AutoProgressionLoader", false)
-                    return
-                end
+    Progression:Dropdown({
+        Title = "Auto Progression Mode",
+        Desc = "Select the mode for auto progression",
+        List = {"Complete Story Mode", "Level 175", "None"},
+        Value = Globals.AutoProgressionMode or "None",
+        Callback = function(choice)
+            SetSetting("AutoProgressionMode", choice)
+        end
+    })
 
-                local progressOk, progressErr = pcall(function()
-                    loadstring(game:HttpGet(
-                        "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/AutoProgressV1.lua"
-                    ))()
-                end)
+    Progression:Toggle({
+        Title = "Enable Auto Progression",
+        Desc = "Automatically progresses your account based on the selected mode",
+        Value = Globals.AutoProgressionEnabled or false,
+        Callback = function(v)
+            SetSetting("AutoProgressionEnabled", v)
 
-                if not progressOk then
-                    warn("[Rya Loader] Auto Progress failed:", progressErr)
-                    SetSetting("AutoProgressionLoader", false)
+            if v then
+                SetSetting("AutoRejoin", false)
+                SetSetting("AutoRestart", false)
+                SetSetting("AutoReady", false)
+                SetSetting("AutoSkip", false)
+                SetSetting("AutoPremium", false)
 
-                    local controller =
-                        game:GetService("CoreGui"):FindFirstChild("RyaProgressController")
+                local success = TDS:Addons(true)
 
-                    if controller then
-                        controller:Destroy()
+                if success then
+                    Window:Notify({
+                        Title = "ADS",
+                        Desc = "Premium Unlocked!",
+                        Time = 5,
+                        Type = "normal"
+                    })
+
+                    task.wait(1)
+
+                    if type(TDS.StartAutoProgression) == "function" then
+                        TDS:StartAutoProgression()
+                    else
+                        Window:Notify({
+                            Title = "ADS",
+                            Desc = "Auto Progression is not available!",
+                            Time = 5,
+                            Type = "error"
+                        })
                     end
                 end
-            end)
+            end
         end
     })
 
