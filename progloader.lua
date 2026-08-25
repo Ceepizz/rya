@@ -58,7 +58,7 @@ end
 local Main = Instance.new("Frame")
 Main.Name = "Main"
 Main.AnchorPoint = Vector2.new(0.5, 0.5)
-Main.Position = UDim2.new(0.5, 0, 0.18, 0)
+Main.Position = UDim2.new(0.5, 0, 0.5, 0)
 Main.Size = UDim2.new(0, 255, 0, 145)
 Main.BackgroundColor3 = Colors.Background
 Main.BorderSizePixel = 0
@@ -102,13 +102,27 @@ TopbarFix.Parent = Topbar
 local Title = Instance.new("TextLabel")
 Title.BackgroundTransparency = 1
 Title.Position = UDim2.new(0, 12, 0, 0)
-Title.Size = UDim2.new(1, -24, 1, 0)
+Title.Size = UDim2.new(1, -60, 1, 0)
 Title.Font = Enum.Font.GothamBold
 Title.Text = "Rya Auto Progress"
 Title.TextColor3 = Colors.Text
 Title.TextSize = 13
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = Topbar
+
+local Minimize = Instance.new("TextButton")
+Minimize.Name = "Minimize"
+Minimize.AnchorPoint = Vector2.new(1, 0.5)
+Minimize.Position = UDim2.new(1, -10, 0.5, 0)
+Minimize.Size = UDim2.fromOffset(26, 26)
+Minimize.BackgroundTransparency = 1
+Minimize.BorderSizePixel = 0
+Minimize.AutoButtonColor = false
+Minimize.Font = Enum.Font.GothamBold
+Minimize.Text = "−"
+Minimize.TextColor3 = Colors.Muted
+Minimize.TextSize = 18
+Minimize.Parent = Topbar
 
 local StatusRow = Instance.new("Frame")
 StatusRow.BackgroundTransparency = 1
@@ -161,6 +175,31 @@ Stop.TextColor3 = Colors.Text
 Stop.TextSize = 11
 Stop.Parent = Main
 MakeCorner(Stop, 8)
+
+local expandedSize = Main.Size
+local minimizedSize = UDim2.new(0, 255, 0, 38)
+local minimized = false
+
+local function SetMinimized(value)
+    minimized = value
+
+    StatusRow.Visible = not value
+    Desc.Visible = not value
+    Stop.Visible = not value
+    TopbarFix.Visible = not value
+
+    if value then
+        Main.Size = minimizedSize
+        Minimize.Text = "+"
+    else
+        Main.Size = expandedSize
+        Minimize.Text = "−"
+    end
+end
+
+Minimize.MouseButton1Click:Connect(function()
+    SetMinimized(not minimized)
+end)
 
 local function SyncShadow()
     if Main.Parent and Shadow.Parent then
