@@ -2189,9 +2189,7 @@ local Progression = Window:Tab({Title = "Progression", Icon = "settings"}) do
             if v then
                 task.spawn(function()
                     local ok, err = pcall(function()
-                        loadstring(game:HttpGet(
-                            "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/RyaController.lua"
-                        ))()
+                        loadstring(game:HttpGet("https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/progloader.lua"))()
                     end)
 
                     if not ok then
