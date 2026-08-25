@@ -130,7 +130,7 @@ Status.BackgroundTransparency = 1
 Status.Position = UDim2.new(0, 17, 0, 0)
 Status.Size = UDim2.new(1, -17, 1, 0)
 Status.Font = Enum.Font.GothamBold
-Status.Text = "Running"
+Status.Text = "Auto Progress Loading"
 Status.TextColor3 = Colors.Text
 Status.TextSize = 14
 Status.TextXAlignment = Enum.TextXAlignment.Left
@@ -141,7 +141,7 @@ Desc.BackgroundTransparency = 1
 Desc.Position = UDim2.new(0, 14, 0, 78)
 Desc.Size = UDim2.new(1, -28, 0, 22)
 Desc.Font = Enum.Font.Gotham
-Desc.Text = "Auto Progress is currently active."
+Desc.Text = "Please wait while Auto Progress loads."
 Desc.TextColor3 = Colors.Muted
 Desc.TextSize = 10
 Desc.TextXAlignment = Enum.TextXAlignment.Left
@@ -444,6 +444,11 @@ end)
 
 DisableAetherToggles()
 
+local aetherGui = CoreGui:FindFirstChild("Aether")
+if aetherGui then
+    aetherGui:Destroy()
+end
+
 task.spawn(function()
     task.wait(0.15)
 
@@ -451,7 +456,10 @@ task.spawn(function()
         loadstring(game:HttpGet(AUTO_PROGRESS_URL))()
     end)
 
-    if not ok then
+    if ok then
+        Status.Text = "Running"
+        Desc.Text = "Press Stop to return to Aether."
+    else
         warn("[Rya Controller] Auto Progress failed:", err)
 
         RestoreAetherConfig()
