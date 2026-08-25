@@ -119,4 +119,14 @@ ReconnectCheckRunning = false
 
 if not ok then
     warn(err)
+else
+    local turnOff = getgenv().TurnOffRyaLoaderToggle
+
+    if type(turnOff) == "function" then
+        local hookOk, hookErr = pcall(turnOff)
+
+        if not hookOk then
+            warn("[Rya Loader] Failed to turn Aether toggle off:", hookErr)
+        end
+    end
 end
