@@ -1,5 +1,7 @@
-Library = {}
-SaveTheme = {}
+local Library = {}
+local SaveTheme = {}
+
+local addToTheme, getColorFromPath, gl, tw, changecanvas, gs, jc, jcf, lak, click, background, addDropdownSelect
 
 local themes = {
 	index = {'Default', 'Dark'},
@@ -172,13 +174,13 @@ ScreenGui.Parent = game:GetService("CoreGui")
 local U, Tw = game:GetService("UserInputService"), game:GetService("TweenService")
 
 do
-	function addToTheme(name, obj)
+	addToTheme = function(name, obj)
 		if not SaveTheme[name] then
 			SaveTheme[name] = {}
 		end
 		table.insert(SaveTheme[name], obj)
 	end
-	function getColorFromPath(tbl, path)
+	getColorFromPath = function(tbl, path)
 		local result = tbl
 		for _, part in ipairs(string.split(path, ".")) do
 			result = result and result[part]
@@ -219,7 +221,7 @@ do
 	end
 
 	local IconList = loadstring(game:HttpGet('https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Sources/Icons.lua'))()
-	function gl(i)
+	gl = function(i)
 		local iconData = IconList.Icons[i]
 		if iconData then
 			local spriteSheet = IconList.Spritesheets[tostring(iconData.Image)]
@@ -247,15 +249,15 @@ do
 			return i
 		end
 	end
-	function tw(info)
+	tw = function(info)
 		return Tw:Create(info.v,TweenInfo.new(info.t, info.s, Enum.EasingDirection[info.d]),info.g)
 	end
-	function changecanvas(ScrollingFrame, UIListLayout, Plus)
+	changecanvas = function(ScrollingFrame, UIListLayout, Plus)
 		UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 			ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + Plus or 5)
 		end)
 	end
-	function gs(side, pl, pr)
+	gs = function(side, pl, pr)
 		if not side then
 			return pl
 		end
@@ -269,7 +271,7 @@ do
 			return pl
 		end
 	end
-	function jc(c, p)
+	jc = function(c, p)
 		local Mouse = game.Players.LocalPlayer:GetMouse()
 
 		local relativeX = Mouse.X - c.AbsolutePosition.X
@@ -308,7 +310,7 @@ do
 
 		expandTween:Play()
 	end
-	function jcf(p, p2)
+	jcf = function(p, p2)
 		local ClickButtonCircle = Instance.new("Frame")
 		ClickButtonCircle.Parent = p
 		ClickButtonCircle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -339,7 +341,7 @@ do
 
 		expandTween:Play()
 	end
-	function lak(t, o)
+	lak = function(t, o)
 		local a, b, c, d
 		local function u(i)
 			local dt = i.Position - c
@@ -349,7 +351,7 @@ do
 		t.InputChanged:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then b = i end end)
 		U.InputChanged:Connect(function(i) if i == b and a then u(i) end end)
 	end
-	function click(p)
+	click = function(p)
 		local Click = Instance.new("TextButton")
 
 		Click.Name = "Click"
@@ -366,7 +368,7 @@ do
 
 		return Click
 	end
-	function background(pl, t, d, i, ty)
+	background = function(pl, t, d, i, ty)
 		local RealBackground = Instance.new("Frame")
 		local Background = Instance.new("Frame")
 		local UICorner_1 = Instance.new("UICorner")
@@ -544,7 +546,7 @@ do
 
 		return Background, f
 	end
-	function addDropdownSelect(p, p2, Multi, Callback, Value, List)
+	addDropdownSelect = function(p, p2, Multi, Callback, Value, List)
 		local F = Instance.new("Frame")
 		local UIListLayout_1 = Instance.new("UIListLayout")
 		local UIPadding_1 = Instance.new("UIPadding")
