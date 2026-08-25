@@ -157,13 +157,13 @@ local themes = {
 	},
 }
 
-local existingUI = game:GetService("CoreGui"):FindFirstChild("Aether")
+local existingUI = game:GetService("CoreGui"):FindFirstChild("RyaAutoProgress")
 if existingUI then
 	existingUI:Destroy()
 end
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Aether"
+ScreenGui.Name = "RyaAutoProgress"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.DisplayOrder = 999
