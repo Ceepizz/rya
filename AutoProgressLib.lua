@@ -1099,23 +1099,6 @@ function Library:Window(p)
 	local Size = p.Config.Size or UDim2.new(0, 530,0, 400)
 	local DiscordLink = p.DiscordLink or nil
 	local Version = p.Version or nil
-
-	-- Capture the caller environment (the Jnkie-loaded main script).
-	local CallerEnv = nil
-
-	if getfenv then
-		for level = 2, 12 do
-			local ok, env = pcall(getfenv, level)
-
-			if ok and type(env) == "table" then
-				if rawget(env, "JD_IS_PREMIUM") ~= nil
-					or rawget(env, "JD_EXPIRES_AT") ~= nil then
-					CallerEnv = env
-					break
-				end
-			end
-		end
-	end
 	
 	local keybindConnection = nil
 
@@ -1310,41 +1293,20 @@ function Library:Window(p)
 	TypeLabel.Size = UDim2.new(1, 0, 0, 12)
 	TypeLabel.Font = Enum.Font.Gotham
 	TypeLabel.TextSize = 12
-	local function ReadCallerPremium()
-		if type(CallerEnv) == "table" then
-			return rawget(CallerEnv, "JD_IS_PREMIUM") == true
-		end
-
-		return false
+	local function IsPremium()
+		return shared.JD_IS_PREMIUM == true
 	end
 
-	local function ReadCallerExpiry()
-		if type(CallerEnv) == "table" then
-			return tonumber(
-				rawget(CallerEnv, "JD_EXPIRES_AT")
-			)
-		end
-
-		return nil
+	local function GetExpiresAt()
+		return tonumber(shared.JD_EXPIRES_AT)
 	end
 
-	warn(
-		"[Aether UI] Caller JD_IS_PREMIUM:",
-		type(CallerEnv) == "table"
-			and rawget(CallerEnv, "JD_IS_PREMIUM")
-			or nil
-	)
-
-	warn(
-		"[Aether UI] Caller JD_EXPIRES_AT:",
-		type(CallerEnv) == "table"
-			and rawget(CallerEnv, "JD_EXPIRES_AT")
-			or nil
-	)
+	warn("[Aether UI] Premium:", shared.JD_IS_PREMIUM)
+	warn("[Aether UI] Expires At:", shared.JD_EXPIRES_AT)
 
 	TypeLabel.Text =
 		"Type: "
-		.. (ReadCallerPremium() and "Premium" or "Free")
+		.. (IsPremium() and "Premium" or "Free")
 	TypeLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	TypeLabel.TextXAlignment = Enum.TextXAlignment.Left
 	TypeLabel.TextWrapped = true
@@ -1388,8 +1350,7 @@ function Library:Window(p)
 
 	task.spawn(function()
 		while task.wait(1) do
-			local expires = ReadCallerExpiry()
-			local isPremium = ReadCallerPremium()
+			local expires = GetExpiresAt()
 			local remaining = nil
 
 			if type(expires) == "number" then
@@ -1406,7 +1367,7 @@ function Library:Window(p)
 
 			TypeLabel.Text =
 				"Type: "
-				.. (isPremium and "Premium" or "Free")
+				.. (IsPremium() and "Premium" or "Free")
 		end
 	end)
 
