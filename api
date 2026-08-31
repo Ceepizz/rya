@@ -594,7 +594,17 @@ local function StartChain()
     end)
 end
 
-function TDS:MedicChain(targetIndexes)
+function TDS:MedicChain(...)
+    local args = {...}
+
+    local targetIndexes
+
+    if #args == 1 and type(args[1]) == "table" then
+        targetIndexes = args[1]
+    else
+        targetIndexes = args
+    end
+
     local newIndexes = NormalizeIndexes(targetIndexes)
 
     if not SameArray(State.TargetIndexes, newIndexes) then
