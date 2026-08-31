@@ -512,10 +512,6 @@ local function StartChain()
             local medic = medics[State.NextMedic]
             State.NextMedic += 1
 
-            if State.NextMedic > #medics then
-                State.NextMedic = 1
-            end
-
             local success = RunMedic(medic)
 
             if success then
