@@ -103,13 +103,27 @@ local function NormalizeIndexes(indexes)
     end
 
     for _, value in ipairs(indexes) do
-        local index = tonumber(value)
-        if index then
-            index = math.floor(index)
-            if index >= 1 and not seen[index] then
-                seen[index] = true
-                result[#result + 1] = index
+        local normalized
+
+        if type(value) == "string"
+            and string.lower(value) == "hologram" then
+
+            normalized = "Hologram"
+        else
+            local index = tonumber(value)
+
+            if index then
+                index = math.floor(index)
+
+                if index >= 1 then
+                    normalized = index
+                end
             end
+        end
+
+        if normalized ~= nil and not seen[normalized] then
+            seen[normalized] = true
+            result[#result + 1] = normalized
         end
     end
 
@@ -142,6 +156,45 @@ local function GetMedics()
     return medics
 end
 
+local function GetHolograms()
+    local holograms = {}
+    local towersFolder = workspace:FindFirstChild("Towers")
+
+    if not towersFolder then
+        return holograms
+    end
+
+    for _, tower in ipairs(towersFolder:GetChildren()) do
+        local rep = GetReplicator(tower)
+
+        if rep
+            and rep:GetAttribute("Hologram") == true
+            and tonumber(rep:GetAttribute("OwnerId")) == LocalPlayer.UserId then
+
+            holograms[#holograms + 1] = tower
+        end
+    end
+
+    table.sort(holograms, function(a, b)
+        local repA = GetReplicator(a)
+        local repB = GetReplicator(b)
+
+        local createdA = repA and tonumber(repA:GetAttribute("CreatedAt")) or 0
+        local createdB = repB and tonumber(repB:GetAttribute("CreatedAt")) or 0
+
+        if createdA == createdB then
+            local uidA = repA and tostring(repA:GetAttribute("UID") or "") or ""
+            local uidB = repB and tostring(repB:GetAttribute("UID") or "") or ""
+
+            return uidA < uidB
+        end
+
+        return createdA < createdB
+    end)
+
+    return holograms
+end
+
 local function ResolveTargets(medic, indexes)
     local targets = {}
     local seen = {}
@@ -151,12 +204,10 @@ local function ResolveTargets(medic, indexes)
         return targets
     end
 
-    for _, index in ipairs(indexes) do
+    local function AddTarget(tower)
         if #targets >= capacity then
-            break
+            return false
         end
-
-        local tower = TDS.PlacedTowers[index]
 
         if IsAlive(tower)
             and tower ~= medic
@@ -165,6 +216,24 @@ local function ResolveTargets(medic, indexes)
 
             seen[tower] = true
             targets[#targets + 1] = tower
+        end
+
+        return #targets < capacity
+    end
+
+    for _, selector in ipairs(indexes) do
+        if #targets >= capacity then
+            break
+        end
+
+        if selector == "Hologram" then
+            for _, hologram in ipairs(GetHolograms()) do
+                if not AddTarget(hologram) then
+                    break
+                end
+            end
+        else
+            AddTarget(TDS.PlacedTowers[selector])
         end
     end
 
