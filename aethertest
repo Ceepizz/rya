@@ -1,4 +1,3 @@
-
 local Globals = getgenv()
 
 if shared.TDSTable then
