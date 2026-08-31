@@ -3803,9 +3803,18 @@ local MedicChainAPI
 
 function TDS:MedicChain(targetIndexes)
     if not MedicChainAPI then
-        MedicChainAPI = loadstring(game:HttpGet(
+        local loaded = loadstring(game:HttpGet(
             "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/api"
         ))()
+
+        if type(loaded) == "table" and type(loaded.MedicChain) == "function" then
+            MedicChainAPI = loaded.MedicChain
+        elseif type(loaded) == "function" then
+            MedicChainAPI = loaded
+        else
+            warn("[MedicChain] Failed to load API")
+            return false
+        end
     end
 
     return MedicChainAPI(self, targetIndexes)
