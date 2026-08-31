@@ -1099,6 +1099,8 @@ function Library:Window(p)
 	local Size = p.Config.Size or UDim2.new(0, 530,0, 400)
 	local DiscordLink = p.DiscordLink or nil
 	local Version = p.Version or nil
+	local Premium = p.Premium
+	local ExpiresAt = p.ExpiresAt
 	
 	local keybindConnection = nil
 
@@ -1293,43 +1295,9 @@ function Library:Window(p)
 	TypeLabel.Size = UDim2.new(1, 0, 0, 12)
 	TypeLabel.Font = Enum.Font.Gotham
 	TypeLabel.TextSize = 12
-	local function GetRuntimePremium()
-		local env = getgenv and getgenv() or nil
-
-		if type(env) == "table"
-			and env.JD_IS_PREMIUM ~= nil then
-			return env.JD_IS_PREMIUM == true
-		end
-
-		local ok, value = pcall(function()
-			return JD_IS_PREMIUM
-		end)
-
-		return ok and value == true
-	end
-
-	local function GetRuntimeExpiry()
-		local env = getgenv and getgenv() or nil
-
-		if type(env) == "table"
-			and env.JD_EXPIRES_AT ~= nil then
-			return tonumber(env.JD_EXPIRES_AT)
-		end
-
-		local ok, value = pcall(function()
-			return JD_EXPIRES_AT
-		end)
-
-		if ok then
-			return tonumber(value)
-		end
-
-		return nil
-	end
-
 	TypeLabel.Text =
 		"Type: "
-		.. (GetRuntimePremium() and "Premium" or "Free")
+		.. (Premium == true and "Premium" or "Free")
 	TypeLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	TypeLabel.TextXAlignment = Enum.TextXAlignment.Left
 	TypeLabel.TextWrapped = true
@@ -1373,12 +1341,10 @@ function Library:Window(p)
 
 	task.spawn(function()
 		while task.wait(1) do
-			local expires = GetRuntimeExpiry()
-			local isPremium = GetRuntimePremium()
 			local remaining = nil
 
-			if type(expires) == "number" then
-				remaining = expires - os.time()
+			if type(ExpiresAt) == "number" then
+				remaining = ExpiresAt - os.time()
 			end
 
 			if remaining and remaining > 0 then
@@ -1391,7 +1357,7 @@ function Library:Window(p)
 
 			TypeLabel.Text =
 				"Type: "
-				.. (isPremium and "Premium" or "Free")
+				.. (Premium == true and "Premium" or "Free")
 		end
 	end)
 
