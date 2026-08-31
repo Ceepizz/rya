@@ -1,3 +1,4 @@
+
 local Globals = getgenv()
 
 if shared.TDSTable then
@@ -194,7 +195,6 @@ local GatlifyExecuted = false
 local IsCurrentlyLoading = false
 local LastLoadTime = 0
 local AutoPremiumRunning = false
-local StackerErrorShown = false
 local PremiumLoaded = false
 
 local MaxPathDistance = 300 -- default
@@ -292,8 +292,6 @@ end
 
 local StartTimeScale
 local ApplyTimeScaleOnce
-
-local LastState = {}
 
 -- // icon item ids ill add more soon arghh
 local ItemNames = {
@@ -1138,6 +1136,8 @@ local function RunVoteSkip()
     end
 end
 
+AutoReadyRunning = false
+
 local function StartAutoReady()
     if AutoReadyRunning or not Globals.AutoReady or GameState ~= "GAME" then return end
     AutoReadyRunning = true
@@ -1791,7 +1791,7 @@ local Interactive = Window:Tab({Title = "Interactive", Icon = "mouse-pointer-cli
         end
     })
     
-    local UnlockBtn = Interactive:Button({
+    Interactive:Button({
         Title = "Unlock Premium Features",
         Desc = "Required Key System to access Premium features",
         Callback = function()
@@ -2123,6 +2123,8 @@ local Configuration = Window:Tab({Title = "Configuration", Icon = "sliders-horiz
 
     Configuration:Section({Title = "Experimental Features"})
     
+    local StickerSpam = false
+
     Configuration:Toggle({
         Title = "Sticker Spam",
         Desc = "This will drop everyones FPS to like 5 (you will not be able to see this unless you have an alt)",
@@ -3801,29 +3803,33 @@ end
 
 local MedicChainAPI
 
-function TDS:MedicChain(targetIndexes)
+function TDS:MedicChain(...)
     if not MedicChainAPI then
         local loaded = loadstring(game:HttpGet(
             "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/api"
         ))()
 
-        if type(loaded) == "table" and type(loaded.MedicChain) == "function" then
+        if type(loaded) == "table"
+            and type(loaded.MedicChain) == "function" then
+
             MedicChainAPI = loaded.MedicChain
+
         elseif type(loaded) == "function" then
             MedicChainAPI = loaded
+
         else
             warn("[MedicChain] Failed to load API")
             return false
         end
     end
 
-    return MedicChainAPI(self, targetIndexes)
+    return MedicChainAPI(self, ...)
 end
 
 local function strategyRecordingSetup()
     local originalMethods = {}
     local recordableMethods = {
-        "Mode", "Place", "Upgrade", "SetTarget", "Sell", "SellAll", "Ability", "SetOption", "MedicSelect", "Ready", "VoteSkip", "WaitForWave", "UnlockTimeScale", "TimeScale"
+        "Mode", "Place", "Upgrade", "SetTarget", "Sell", "SellAll", "Ability", "SetOption", "MedicSelect", "MedicChain", "Ready", "VoteSkip", "WaitForWave", "UnlockTimeScale", "TimeScale"
     }
 
     for _, methodName in ipairs(recordableMethods) do
