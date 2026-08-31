@@ -20,6 +20,12 @@ local RemoteFunc = ReplicatedStorage:WaitForChild("RemoteFunction")
 
 local MEDIC_ABILITY_ICON = "rbxassetid://231100685"
 
+local MEDIC_UBER_DATA = {
+    [3] = { DamageBuff = 20, Duration = 7.5 },
+    [4] = { DamageBuff = 27.5, Duration = 10 },
+    [5] = { DamageBuff = 35, Duration = 10 }
+}
+
 local State = {
     Running = false,
     Thread = nil,
@@ -50,12 +56,20 @@ local function IsMedic(tower)
     return GetTowerName(tower) == "Medic"
 end
 
-local function IsUberUnlocked(medic)
+local function GetMedicUpgrade(medic)
     local rep = GetReplicator(medic)
     if not rep then
-        return false
+        return 0
     end
-    return (tonumber(rep:GetAttribute("Upgrade")) or 0) >= 3
+    return tonumber(rep:GetAttribute("Upgrade")) or 0
+end
+
+local function GetMedicUberData(medic)
+    return MEDIC_UBER_DATA[GetMedicUpgrade(medic)]
+end
+
+local function IsUberUnlocked(medic)
+    return GetMedicUberData(medic) ~= nil
 end
 
 local function GetMedicCapacity(medic)
@@ -233,12 +247,36 @@ local function GetDamageBuff(target)
     return tonumber(rep:GetAttribute("DamageBuff")) or 0
 end
 
-local function AnyBuffed(targets)
+local function CaptureDamageBuffs(targets)
+    local baseline = {}
+
     for _, target in ipairs(targets) do
-        if IsAlive(target) and GetDamageBuff(target) > 0 then
-            return true
+        if IsAlive(target) then
+            baseline[target] = GetDamageBuff(target)
         end
     end
+
+    return baseline
+end
+
+local function HasMedicDamageSignal(target, baselineValue, expectedBuff)
+    local current = GetDamageBuff(target)
+
+    if current <= baselineValue + 0.001 then
+        return false
+    end
+
+    -- Covers both common behaviors:
+    -- 1) strongest buff wins: current becomes Medic's 20/27.5/35
+    -- 2) buffs stack: current rises by roughly the Medic amount
+    if current >= expectedBuff - 0.001 then
+        return true
+    end
+
+    if current - baselineValue >= expectedBuff - 0.001 then
+        return true
+    end
+
     return false
 end
 
@@ -277,63 +315,131 @@ local function ActivateUbercharge(medic)
     end)
 end
 
-local function WaitForBuffStart(targets, version)
+local function WaitForUberStart(medic, targets, baseline, uberData, version)
     local startedAt = os.clock()
 
     while State.Running and os.clock() - startedAt < 1.5 do
-        if AnyBuffed(targets) then
-            return true
+        if State.TargetVersion ~= version then
+            return false, false
         end
 
-        if State.TargetVersion ~= version then
-            return false
+        local sawDamageIncrease = false
+
+        for _, target in ipairs(targets) do
+            if IsAlive(target) then
+                local before = baseline[target] or 0
+                if HasMedicDamageSignal(target, before, uberData.DamageBuff) then
+                    sawDamageIncrease = true
+                    break
+                end
+            end
+        end
+
+        -- If another tower already has an equal/stronger DamageBuff, Medic's
+        -- percentage can be completely hidden. Cooldown starting still proves
+        -- the Ubercharge activation was accepted.
+        if not IsMedicReady() then
+            return true, sawDamageIncrease
+        end
+
+        if sawDamageIncrease then
+            return true, true
         end
 
         task.wait(0.05)
     end
 
-    return AnyBuffed(targets)
+    return not IsMedicReady(), false
 end
 
-local function WaitForBuffEnd(targets)
+local function WaitForUberEnd(targets, baseline, uberData, activationAt, sawDamageIncrease)
+    local fallbackEnd = activationAt + uberData.Duration + 0.35
+    local observed = {}
+
+    for _, target in ipairs(targets) do
+        if IsAlive(target) then
+            local before = baseline[target] or 0
+            observed[target] = sawDamageIncrease and HasMedicDamageSignal(target, before, uberData.DamageBuff)
+        end
+    end
+
     while State.Running do
-        if not AnyBuffed(targets) then
+        if os.clock() >= fallbackEnd then
             return
         end
+
+        local anyObserved = false
+        local allObservedReturned = true
+
+        for _, target in ipairs(targets) do
+            if IsAlive(target) then
+                local before = baseline[target] or 0
+                local current = GetDamageBuff(target)
+
+                if HasMedicDamageSignal(target, before, uberData.DamageBuff) then
+                    observed[target] = true
+                end
+
+                if observed[target] then
+                    anyObserved = true
+
+                    -- Only finish early when the visible Medic increase has
+                    -- actually returned to its pre-Uber value. Random changes
+                    -- from Mercenary/DJ/etc. cannot end the chain early.
+                    if current > before + 0.001 then
+                        allObservedReturned = false
+                    end
+                end
+            end
+        end
+
+        if anyObserved and allObservedReturned then
+            return
+        end
+
         task.wait(0.05)
     end
 end
 
 local function TryStartUber(medic, targets, version)
+    local uberData = GetMedicUberData(medic)
+    if not uberData then
+        return false, nil, nil, nil, false
+    end
+
     while State.Running and IsAlive(medic) do
         if State.TargetVersion ~= version then
-            return false
+            return false, nil, nil, nil, false
         end
 
         if not WaitForReady(medic, version) then
-            return false
+            return false, nil, nil, nil, false
         end
 
+        local baseline = CaptureDamageBuffs(targets)
+        local activationAt = os.clock()
         ActivateUbercharge(medic)
 
-        if WaitForBuffStart(targets, version) then
-            return true
+        local started, sawDamageIncrease = WaitForUberStart(
+            medic,
+            targets,
+            baseline,
+            uberData,
+            version
+        )
+
+        if started then
+            return true, baseline, uberData, activationAt, sawDamageIncrease
         end
 
         if State.TargetVersion ~= version then
-            return false
-        end
-
-        -- Ability went on cooldown but none of our selected targets got buffed.
-        -- Move on instead of waiting through the whole cooldown.
-        if not IsMedicReady() then
-            return false
+            return false, nil, nil, nil, false
         end
 
         task.wait(0.2)
     end
 
-    return false
+    return false, nil, nil, nil, false
 end
 
 local function RunMedic(medic)
@@ -356,14 +462,22 @@ local function RunMedic(medic)
         return false
     end
 
-    local started = TryStartUber(medic, targets, version)
+    local started, baseline, uberData, activationAt, sawDamageIncrease = TryStartUber(
+        medic,
+        targets,
+        version
+    )
 
-    if started then
-        -- Once Uber starts, keep THESE targets selected until their real buff ends.
-        WaitForBuffEnd(targets)
+    if started and baseline and uberData and activationAt then
+        WaitForUberEnd(
+            targets,
+            baseline,
+            uberData,
+            activationAt,
+            sawDamageIncrease
+        )
     end
 
-    -- Same remote = unselect. Always detach the exact snapshot used above.
     ToggleTargets(medic, targets)
 
     return started
