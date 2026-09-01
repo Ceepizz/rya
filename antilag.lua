@@ -10,6 +10,14 @@ local function StartAntiLag()
     AntiLagRunning = true
 
     pcall(function()
+        local userGameSettings =
+            UserSettings():GetService("UserGameSettings")
+
+        userGameSettings.SavedQualityLevel =
+            Enum.SavedQualitySetting.QualityLevel1
+    end)
+
+    pcall(function()
         settings().Rendering.QualityLevel =
             Enum.QualityLevel.Level01
     end)
@@ -65,4 +73,3 @@ local function StartAntiLag()
 end
 
 return StartAntiLag
-
