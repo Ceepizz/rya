@@ -1301,12 +1301,9 @@ function Library:Window(p)
 		return tonumber(shared.JD_EXPIRES_AT)
 	end
 
-	warn("[Aether UI] Premium:", shared.JD_IS_PREMIUM)
-	warn("[Aether UI] Expires At:", shared.JD_EXPIRES_AT)
-
 	TypeLabel.Text =
 		"Type: "
-		.. (IsPremium() and "Premium" or "Free")
+		.. (IsPremium() and "Premium" or "Standard")
 	TypeLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	TypeLabel.TextXAlignment = Enum.TextXAlignment.Left
 	TypeLabel.TextWrapped = true
@@ -1367,7 +1364,7 @@ function Library:Window(p)
 
 			TypeLabel.Text =
 				"Type: "
-				.. (IsPremium() and "Premium" or "Free")
+				.. (IsPremium() and "Premium" or "Standard")
 		end
 	end)
 
