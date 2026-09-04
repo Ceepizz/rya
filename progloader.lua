@@ -25,7 +25,7 @@ local ADS_CONFIG_FILE = "ADS_Config.json"
 local ADS_BACKUP_FILE = "ADS_ConfigBackup.json"
 
 local MAIN_SCRIPT_URL =
-    "https://api.jnkie.com/api/v1/luascripts/public/ae2ea57b4cd5f98d9b0b503177071f4a01abda37bb24001bcff6a46add690b2e/download"
+    "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/AutoProgressV1.lua"
 
 local AETHER_RELOAD_URL =
     "https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Library.lua"
