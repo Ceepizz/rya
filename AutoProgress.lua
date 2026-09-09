@@ -29,6 +29,11 @@ local SavedState = {
     Mode = "survival"
 }
 
+local Executor = identifyexecutor and identifyexecutor()
+if Executor == "Solara" or Executor == "Xeno" then
+    game:GetService("Players").LocalPlayer:Kick("Unsupported executor: " .. Executor)
+end
+
 local function GetRep()
     local stateReplicators =
         ReplicatedStorage:FindFirstChild("StateReplicators")
