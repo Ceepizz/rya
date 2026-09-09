@@ -34,32 +34,6 @@ if Executor == "Solara" or Executor == "Xeno" then
     game:GetService("Players").LocalPlayer:Kick("Unsupported executor: " .. Executor)
 end
 
-local CoreGui = game:GetService("CoreGui")
-
-local function DestroyLuna(Child)
-    if Child.Name == "Luna UI" then
-        Child:Destroy()
-    end
-end
-
-local function DestroyLuna(Object)
-    if Object.Name == "Luna UI" then
-        task.defer(function()
-            if Object and Object.Parent then
-                Object:Destroy()
-            end
-        end)
-    end
-end
-
-for _, Object in ipairs(CoreGui:GetDescendants()) do
-    DestroyLuna(Object)
-end
-
-CoreGui.DescendantAdded:Connect(function(Object)
-    DestroyLuna(Object)
-end)
-
 local function GetRep()
     local stateReplicators =
         ReplicatedStorage:FindFirstChild("StateReplicators")
