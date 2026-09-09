@@ -34,21 +34,46 @@ if Executor == "Solara" or Executor == "Xeno" then
     game:GetService("Players").LocalPlayer:Kick("Unsupported executor: " .. Executor)
 end
 
-local CoreGui = game:GetService("CoreGui")
+local function HideLuna(Object)
+    if Object.Name ~= "Luna UI" then
+        return
+    end
 
-local function DestroyLuna(Child)
-    if Child.Name == "Luna UI" then
-        Child:Destroy()
+    if Object:IsA("ScreenGui") then
+        Object.Enabled = false
+    elseif Object:IsA("GuiObject") then
+        Object.Visible = false
+    end
+
+    for _, Child in ipairs(Object:GetDescendants()) do
+        if Child:IsA("ScreenGui") then
+            Child.Enabled = false
+        elseif Child:IsA("GuiObject") then
+            Child.Visible = false
+        end
     end
 end
 
-local RobloxGui = CoreGui:WaitForChild("RobloxGui")
+task.spawn(function()
+    local RobloxGui = CoreGui:WaitForChild("RobloxGui")
+    local LunaUI = RobloxGui:WaitForChild("Luna UI")
 
-for _, Child in ipairs(RobloxGui:GetChildren()) do
-    DestroyLuna(Child)
-end
+    LunaUI:WaitForChild("Gradients")
 
-RobloxGui.ChildAdded:Connect(DestroyLuna)
+    task.wait()
+
+    HideLuna(LunaUI)
+end)
+
+CoreGui.DescendantAdded:Connect(function(Object)
+    if Object.Name == "Luna UI" then
+        task.spawn(function()
+            Object:WaitForChild("Gradients")
+            task.wait()
+            HideLuna(Object)
+        end)
+    end
+end)
 
 local function GetRep()
     local stateReplicators =
