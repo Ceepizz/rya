@@ -42,13 +42,23 @@ local function DestroyLuna(Child)
     end
 end
 
-local RobloxGui = CoreGui:WaitForChild("RobloxGui")
-
-for _, Child in ipairs(RobloxGui:GetChildren()) do
-    DestroyLuna(Child)
+local function DestroyLuna(Object)
+    if Object.Name == "Luna UI" then
+        task.defer(function()
+            if Object and Object.Parent then
+                Object:Destroy()
+            end
+        end)
+    end
 end
 
-RobloxGui.ChildAdded:Connect(DestroyLuna)
+for _, Object in ipairs(CoreGui:GetDescendants()) do
+    DestroyLuna(Object)
+end
+
+CoreGui.DescendantAdded:Connect(function(Object)
+    DestroyLuna(Object)
+end)
 
 local function GetRep()
     local stateReplicators =
