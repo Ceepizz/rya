@@ -1252,11 +1252,44 @@ function Library:Window(p)
 	LogoText.Position = UDim2.new(0, 35, 0.5, 0)
 	LogoText.Size = UDim2.new(1, -50, 0, 22)
 	LogoText.Font = Enum.Font.GothamBold
-	LogoText.Text = "ORE - v1.0"
+	LogoText.Text = "ORE"
 	LogoText.TextColor3 = Color3.fromRGB(255, 255, 255)
 	LogoText.TextSize = 16
 	LogoText.TextXAlignment = Enum.TextXAlignment.Left
 	LogoText.TextYAlignment = Enum.TextYAlignment.Center
+	LogoText.Size = UDim2.new(0, 34, 0, 22)
+
+	local LogoTextGradient = Instance.new("UIGradient")
+	LogoTextGradient.Name = "LogoTextGradient"
+	LogoTextGradient.Color = ColorSequence.new{
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 42, 66)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+	}
+	LogoTextGradient.Rotation = 0
+	LogoTextGradient.Offset = Vector2.new(-1, 0)
+	LogoTextGradient.Parent = LogoText
+
+	local LogoTextGradientTween = Tw:Create(
+		LogoTextGradient,
+		TweenInfo.new(3, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, false),
+		{Offset = Vector2.new(1, 0)}
+	)
+	LogoTextGradientTween:Play()
+
+	local LogoVersionText = Instance.new("TextLabel")
+	LogoVersionText.Name = "LogoVersionText"
+	LogoVersionText.Parent = LogoFrame
+	LogoVersionText.AnchorPoint = Vector2.new(0, 0.5)
+	LogoVersionText.BackgroundTransparency = 1
+	LogoVersionText.Position = UDim2.new(0, 69, 0.5, 0)
+	LogoVersionText.Size = UDim2.new(1, -84, 0, 22)
+	LogoVersionText.Font = Enum.Font.GothamBold
+	LogoVersionText.Text = " - v1.0"
+	LogoVersionText.TextColor3 = Color3.fromRGB(255, 255, 255)
+	LogoVersionText.TextSize = 16
+	LogoVersionText.TextXAlignment = Enum.TextXAlignment.Left
+	LogoVersionText.TextYAlignment = Enum.TextYAlignment.Center
 
 	-- TAB LIST CONTAINER
 	local TabListFrame = Instance.new("ScrollingFrame")
