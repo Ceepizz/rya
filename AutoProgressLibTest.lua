@@ -1263,7 +1263,8 @@ function Library:Window(p)
 	LogoTextGradient.Name = "LogoTextGradient"
 	LogoTextGradient.Color = ColorSequence.new{
 		ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 42, 66)),
+		ColorSequenceKeypoint.new(0.28, Color3.fromRGB(255, 42, 66)),
+		ColorSequenceKeypoint.new(0.72, Color3.fromRGB(255, 42, 66)),
 		ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
 	}
 	LogoTextGradient.Rotation = 0
