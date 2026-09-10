@@ -1262,10 +1262,11 @@ function Library:Window(p)
 	local LogoTextGradient = Instance.new("UIGradient")
 	LogoTextGradient.Name = "LogoTextGradient"
 	LogoTextGradient.Color = ColorSequence.new{
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-		ColorSequenceKeypoint.new(0.28, Color3.fromRGB(255, 42, 66)),
-		ColorSequenceKeypoint.new(0.72, Color3.fromRGB(255, 42, 66)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 42, 66)),
+		ColorSequenceKeypoint.new(0.25, Color3.fromRGB(0, 0, 0)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 42, 66)),
+		ColorSequenceKeypoint.new(0.75, Color3.fromRGB(0, 0, 0)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 42, 66))
 	}
 	LogoTextGradient.Rotation = 0
 	LogoTextGradient.Offset = Vector2.new(-1, 0)
@@ -1628,7 +1629,7 @@ function Library:Window(p)
 		tw({v = UIStroke_Win, t = 0.25, g = {Color = isLight and Color3.fromRGB(218, 222, 232) or Color3.fromRGB(48, 48, 60)}}):Play()
 		tw({v = Sidebar, t = 0.25, g = {BackgroundColor3 = isLight and Color3.fromRGB(250, 251, 253) or Color3.fromRGB(15, 15, 18)}}):Play()
 		tw({v = SidebarBorder, t = 0.25, g = {BackgroundColor3 = isLight and Color3.fromRGB(222, 226, 236) or Color3.fromRGB(30, 30, 38)}}):Play()
-		tw({v = LogoText, t = 0.25, g = {TextColor3 = isLight and Color3.fromRGB(20, 24, 33) or Color3.fromRGB(255, 255, 255)}}):Play()
+		tw({v = LogoText, t = 0.25, g = {TextColor3 = Color3.fromRGB(255, 255, 255)}}):Play()
 		tw({v = BreadcrumbHeader, t = 0.25, g = {TextColor3 = isLight and Color3.fromRGB(20, 24, 33) or Color3.fromRGB(250, 250, 255)}}):Play()
 		tw({v = SessionHeader, t = 0.25, g = {TextColor3 = isLight and Color3.fromRGB(110, 115, 130) or Color3.fromRGB(155, 155, 170)}}):Play()
 		tw({v = Close_1, t = 0.25, g = {ImageColor3 = isLight and Color3.fromRGB(80, 85, 95) or Color3.fromRGB(150, 150, 160)}}):Play()
