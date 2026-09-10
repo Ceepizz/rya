@@ -1466,6 +1466,7 @@ function Library:Window(p)
 	WinLayout.FillDirection = Enum.FillDirection.Horizontal
 	WinLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
 	WinLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	WinLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	WinLayout.Padding = UDim.new(0, 10)
 
 	local DiscordBtn = Instance.new("ImageButton")
