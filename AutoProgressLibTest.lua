@@ -1261,24 +1261,29 @@ function Library:Window(p)
 
 	local LogoTextGradient = Instance.new("UIGradient")
 	LogoTextGradient.Name = "LogoTextGradient"
+	-- Clean repeating blood-red / black title gradient.
+	-- Start and end on the same color so the loop reset is visually seamless.
+	local BloodRed = Color3.fromRGB(170, 0, 0)
 	LogoTextGradient.Color = ColorSequence.new{
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 42, 66)),
-		ColorSequenceKeypoint.new(0.249, Color3.fromRGB(255, 42, 66)),
+		ColorSequenceKeypoint.new(0, BloodRed),
+		ColorSequenceKeypoint.new(0.249, BloodRed),
 		ColorSequenceKeypoint.new(0.25, Color3.fromRGB(0, 0, 0)),
 		ColorSequenceKeypoint.new(0.499, Color3.fromRGB(0, 0, 0)),
-		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 42, 66)),
-		ColorSequenceKeypoint.new(0.749, Color3.fromRGB(255, 42, 66)),
+		ColorSequenceKeypoint.new(0.5, BloodRed),
+		ColorSequenceKeypoint.new(0.749, BloodRed),
 		ColorSequenceKeypoint.new(0.75, Color3.fromRGB(0, 0, 0)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+		ColorSequenceKeypoint.new(0.999, Color3.fromRGB(0, 0, 0)),
+		ColorSequenceKeypoint.new(1, BloodRed)
 	}
 	LogoTextGradient.Rotation = 0
-	LogoTextGradient.Offset = Vector2.new(-1, 0)
+	LogoTextGradient.Offset = Vector2.new(-0.5, 0)
 	LogoTextGradient.Parent = LogoText
 
+	-- Move exactly one repeating pattern-width, then restart at the same visual phase.
 	local LogoTextGradientTween = Tw:Create(
 		LogoTextGradient,
-		TweenInfo.new(3, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, false),
-		{Offset = Vector2.new(1, 0)}
+		TweenInfo.new(1.5, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, false),
+		{Offset = Vector2.new(0.5, 0)}
 	)
 	LogoTextGradientTween:Play()
 
