@@ -1264,9 +1264,9 @@ function Library:Window(p)
 
 	-- One soft black/blood-red gradient for ORE.
 	-- Near-black edges stay visible while still reading as black.
-	local NearBlack = Color3.fromRGB(8, 0, 0)
-	local DarkBloodRed = Color3.fromRGB(75, 0, 0)
-	local BloodRed = Color3.fromRGB(190, 0, 0)
+	local NearBlack = Color3.fromRGB(128, 0, 0)
+	local DarkBloodRed = Color3.fromRGB(170, 0, 0)
+	local BloodRed = Color3.fromRGB(255, 0, 0)
 
 	LogoTextGradient.Color = ColorSequence.new{
 		ColorSequenceKeypoint.new(0.00, NearBlack),
