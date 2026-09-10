@@ -1262,26 +1262,27 @@ function Library:Window(p)
 	local LogoTextGradient = Instance.new("UIGradient")
 	LogoTextGradient.Name = "LogoTextGradient"
 
-	-- One smooth blood-red highlight only: no repeated/double stripes.
-	local BloodRed = Color3.fromRGB(190, 0, 0)
+	-- One soft black/blood-red gradient for ORE.
+	-- Near-black edges stay visible while still reading as black.
+	local NearBlack = Color3.fromRGB(8, 0, 0)
 	local DarkBloodRed = Color3.fromRGB(75, 0, 0)
+	local BloodRed = Color3.fromRGB(190, 0, 0)
 
 	LogoTextGradient.Color = ColorSequence.new{
-		ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 0, 0)),
+		ColorSequenceKeypoint.new(0.00, NearBlack),
 		ColorSequenceKeypoint.new(0.25, DarkBloodRed),
 		ColorSequenceKeypoint.new(0.50, BloodRed),
 		ColorSequenceKeypoint.new(0.75, DarkBloodRed),
-		ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 0, 0))
+		ColorSequenceKeypoint.new(1.00, NearBlack)
 	}
 	LogoTextGradient.Rotation = 0
 	LogoTextGradient.Offset = Vector2.new(-1, 0)
 	LogoTextGradient.Parent = LogoText
 
-	-- Smoothly travels left -> right -> left forever.
-	-- Reversing avoids a visible reset/jump while keeping only one stripe.
+	-- Simple left-to-right sweep, then restart.
 	local LogoTextGradientTween = Tw:Create(
 		LogoTextGradient,
-		TweenInfo.new(2.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		TweenInfo.new(3, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, false),
 		{Offset = Vector2.new(1, 0)}
 	)
 	LogoTextGradientTween:Play()
