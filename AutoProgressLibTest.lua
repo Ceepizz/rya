@@ -1261,29 +1261,28 @@ function Library:Window(p)
 
 	local LogoTextGradient = Instance.new("UIGradient")
 	LogoTextGradient.Name = "LogoTextGradient"
-	-- Clean repeating blood-red / black title gradient.
-	-- Start and end on the same color so the loop reset is visually seamless.
-	local BloodRed = Color3.fromRGB(170, 0, 0)
+
+	-- One smooth blood-red highlight only: no repeated/double stripes.
+	local BloodRed = Color3.fromRGB(190, 0, 0)
+	local DarkBloodRed = Color3.fromRGB(75, 0, 0)
+
 	LogoTextGradient.Color = ColorSequence.new{
-		ColorSequenceKeypoint.new(0, BloodRed),
-		ColorSequenceKeypoint.new(0.249, BloodRed),
-		ColorSequenceKeypoint.new(0.25, Color3.fromRGB(0, 0, 0)),
-		ColorSequenceKeypoint.new(0.499, Color3.fromRGB(0, 0, 0)),
-		ColorSequenceKeypoint.new(0.5, BloodRed),
-		ColorSequenceKeypoint.new(0.749, BloodRed),
-		ColorSequenceKeypoint.new(0.75, Color3.fromRGB(0, 0, 0)),
-		ColorSequenceKeypoint.new(0.999, Color3.fromRGB(0, 0, 0)),
-		ColorSequenceKeypoint.new(1, BloodRed)
+		ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 0, 0)),
+		ColorSequenceKeypoint.new(0.25, DarkBloodRed),
+		ColorSequenceKeypoint.new(0.50, BloodRed),
+		ColorSequenceKeypoint.new(0.75, DarkBloodRed),
+		ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 0, 0))
 	}
 	LogoTextGradient.Rotation = 0
-	LogoTextGradient.Offset = Vector2.new(-0.5, 0)
+	LogoTextGradient.Offset = Vector2.new(-1, 0)
 	LogoTextGradient.Parent = LogoText
 
-	-- Move exactly one repeating pattern-width, then restart at the same visual phase.
+	-- Smoothly travels left -> right -> left forever.
+	-- Reversing avoids a visible reset/jump while keeping only one stripe.
 	local LogoTextGradientTween = Tw:Create(
 		LogoTextGradient,
-		TweenInfo.new(1.5, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, false),
-		{Offset = Vector2.new(0.5, 0)}
+		TweenInfo.new(2.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{Offset = Vector2.new(1, 0)}
 	)
 	LogoTextGradientTween:Play()
 
