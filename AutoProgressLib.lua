@@ -1,7 +1,7 @@
 Library = {}
 SaveTheme = {}
 
-local _themes = {
+local themes = {
 	index = {'Default', 'Dark', 'CoreRed'},
 	Default = {
 		['Shadow'] = Color3.fromRGB(255, 35, 55),
@@ -592,6 +592,7 @@ do
 		task.delay(0.05, updateSize)
 		UIListLayout_2:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateSize)
 
+		-- Premium subtle card hover highlight
 		Background.MouseEnter:Connect(function()
 			if currentWindowTheme.isLightMode then
 				tw({v = Background, t = 0.15, g = {BackgroundColor3 = Color3.fromRGB(236, 240, 248)}}):Play()
@@ -1106,8 +1107,8 @@ function Library:Window(p)
 	local Version = p.Version or nil
 
 	local keybindConnection = nil
-	local R, _HAA = false, false
-	local _IsTheme = Theme
+	local R, HAA = false, false
+	local IsTheme = Theme
 
 	currentWindowTheme.isLightMode = false
 	currentWindowTheme.cards = {}
@@ -1159,6 +1160,7 @@ function Library:Window(p)
 	UIStroke_Win.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	UIStroke_Win.Parent = Background_1
 
+	-- Top accent ambient glow line
 	local TopGlowLine = Instance.new("Frame")
 	TopGlowLine.Name = "TopGlowLine"
 	TopGlowLine.Parent = Background_1
@@ -1184,7 +1186,7 @@ function Library:Window(p)
 	addToTheme('Shadow', Shadow_1)
 	addToTheme('Background', Background_1)
 
-	local _savedCloseSize = Background_1.Size
+	local savedCloseSize = Background_1.Size
 	local org = Background_1.Size
 	Background_1.Size = org - UDim2.fromOffset(6, 6)
 	tw({
@@ -1198,6 +1200,7 @@ function Library:Window(p)
 		}
 	}):Play()
 
+	-- SIDEBAR (Left Column: Logo + Tabs + Account Profile)
 	local Sidebar = Instance.new("Frame")
 	local SidebarCorner = Instance.new("UICorner")
 	local SidebarBorder = Instance.new("Frame")
@@ -1220,6 +1223,7 @@ function Library:Window(p)
 	SidebarBorder.Size = UDim2.new(0, 1, 1, 0)
 	SidebarBorder.ZIndex = 4
 
+	-- LOGO SECTION (Top Left)
 	local LogoFrame = Instance.new("Frame")
 	local LogoIcon = Instance.new("ImageLabel")
 	local LogoText = Instance.new("TextLabel")
@@ -1294,6 +1298,7 @@ function Library:Window(p)
 	LogoVersionText.TextXAlignment = Enum.TextXAlignment.Left
 	LogoVersionText.TextYAlignment = Enum.TextYAlignment.Center
 
+	-- TAB LIST CONTAINER
 	local TabListFrame = Instance.new("ScrollingFrame")
 	local TabListLayout = Instance.new("UIListLayout")
 	local TabListPadding = Instance.new("UIPadding")
@@ -1318,6 +1323,7 @@ function Library:Window(p)
 
 	changecanvas(TabListFrame, TabListLayout, 5)
 
+	-- ACCOUNT / PROFILE (Bottom of Sidebar)
 	local AccountInfo = Instance.new("Frame")
 	local AvatarFrame = Instance.new("Frame")
 	local AvatarImage = Instance.new("ImageLabel")
@@ -1439,6 +1445,7 @@ function Library:Window(p)
 	TypeLabel.TextXAlignment = Enum.TextXAlignment.Center
 	TypeLabel.TextYAlignment = Enum.TextYAlignment.Center
 
+	-- TOPBAR (Breadcrumb / Section Header + Controls)
 	local Topbar = Instance.new("Frame")
 	local BreadcrumbHeader = Instance.new("TextLabel")
 	local SessionHeader = Instance.new("TextLabel")
@@ -1446,7 +1453,7 @@ function Library:Window(p)
 	local WinLayout = Instance.new("UIListLayout")
 	local Minisize_1 = Instance.new("ImageButton")
 	local Close_1 = Instance.new("ImageButton")
-	local _ChSize_1 = Instance.new("ImageButton")
+	local ChSize_1 = Instance.new("ImageButton")
 
 	Topbar.Name = "Topbar"
 	Topbar.Parent = Background_1
@@ -1595,6 +1602,7 @@ function Library:Window(p)
 		tw({v = Close_1, t = 0.15, g = {ImageColor3 = currentWindowTheme.isLightMode and Color3.fromRGB(80, 85, 95) or Color3.fromRGB(150, 150, 160)}}):Play()
 	end)
 
+	-- Animated Theme Toggle (Moon / Sun) using Icons.lua
 	local ThemeToggleBtn = Instance.new("ImageButton")
 	ThemeToggleBtn.Name = "ThemeToggleBtn"
 	ThemeToggleBtn.Parent = WindowControls
@@ -1620,6 +1628,7 @@ function Library:Window(p)
 	end)
 
 	local function applyTheme(isLight)
+		-- Window & topbar
 		tw({v = Background_1, t = 0.25, g = {BackgroundColor3 = isLight and Color3.fromRGB(242, 244, 248) or Color3.fromRGB(15, 15, 18)}}):Play()
 		tw({v = UIStroke_Win, t = 0.25, g = {Color = isLight and Color3.fromRGB(218, 222, 232) or Color3.fromRGB(48, 48, 60)}}):Play()
 		tw({v = Sidebar, t = 0.25, g = {BackgroundColor3 = isLight and Color3.fromRGB(250, 251, 253) or Color3.fromRGB(15, 15, 18)}}):Play()
@@ -1633,6 +1642,7 @@ function Library:Window(p)
 		tw({v = FloatingLogoStroke, t = 0.25, g = {Color = isLight and Color3.fromRGB(218, 222, 232) or Color3.fromRGB(48, 48, 60)}}):Play()
 		tw({v = DiscordBtn, t = 0.25, g = {ImageColor3 = isLight and Color3.fromRGB(80, 85, 95) or Color3.fromRGB(150, 150, 160)}}):Play()
 
+		-- Account / Profile
 		tw({v = AccountInfo, t = 0.25, g = {BackgroundColor3 = isLight and Color3.fromRGB(238, 240, 247) or Color3.fromRGB(20, 20, 26)}}):Play()
 		tw({v = AccountStroke, t = 0.25, g = {Color = isLight and Color3.fromRGB(215, 219, 232) or Color3.fromRGB(38, 38, 50)}}):Play()
 		tw({v = UsernameLabel, t = 0.25, g = {TextColor3 = isLight and Color3.fromRGB(20, 24, 33) or Color3.fromRGB(255, 255, 255)}}):Play()
@@ -1641,6 +1651,7 @@ function Library:Window(p)
 		tw({v = TypeBadgeStroke, t = 0.25, g = {Color = isLight and (isPremium and Color3.fromRGB(255, 90, 110) or Color3.fromRGB(195, 200, 215)) or (isPremium and Color3.fromRGB(255, 42, 66) or Color3.fromRGB(55, 55, 75))}}):Play()
 		tw({v = TypeLabel, t = 0.25, g = {TextColor3 = isLight and (isPremium and Color3.fromRGB(220, 30, 50) or Color3.fromRGB(75, 80, 95)) or (isPremium and Color3.fromRGB(255, 70, 90) or Color3.fromRGB(170, 170, 190))}}):Play()
 
+		-- Sidebar Tabs
 		if Tabs and Tabs.List then
 			for _, item in ipairs(Tabs.List) do
 				if item.Page and item.Page.Visible then
@@ -1653,6 +1664,7 @@ function Library:Window(p)
 			end
 		end
 
+		-- Sections
 		for _, sec in ipairs(currentWindowTheme.sections) do
 			if sec.Frame and sec.Frame.Parent then
 				tw({v = sec.Frame, t = 0.25, g = {BackgroundColor3 = isLight and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(20, 20, 26)}}):Play()
@@ -1661,6 +1673,7 @@ function Library:Window(p)
 			end
 		end
 
+		-- Cards (Backgrounds)
 		for _, card in ipairs(currentWindowTheme.cards) do
 			if card.Background and card.Background.Parent then
 				tw({v = card.Background, t = 0.25, g = {BackgroundColor3 = isLight and Color3.fromRGB(246, 248, 252) or Color3.fromRGB(22, 22, 28)}}):Play()
@@ -1670,6 +1683,7 @@ function Library:Window(p)
 			end
 		end
 
+		-- Controls
 		for _, ctrl in ipairs(currentWindowTheme.controls) do
 			if ctrl.type == "slider" and ctrl.Track and ctrl.Track.Parent then
 				tw({v = ctrl.Track, t = 0.25, g = {BackgroundColor3 = isLight and Color3.fromRGB(215, 220, 230) or Color3.fromRGB(36, 36, 46)}}):Play()
@@ -1715,6 +1729,7 @@ function Library:Window(p)
 		currentWindowTheme.isLightMode = not currentWindowTheme.isLightMode
 		local isLight = currentWindowTheme.isLightMode
 
+		-- Animate rotation & scale punch
 		tw({v = ThemeToggleBtn, t = 0.12, s = Enum.EasingStyle.Quad, d = "Out", g = {Rotation = 90, Size = UDim2.new(0, 11, 0, 11), ImageTransparency = 0.5}}):Play()
 		task.delay(0.12, function()
 			updateThemeButtonIcon(isLight)
@@ -1724,6 +1739,7 @@ function Library:Window(p)
 		applyTheme(isLight)
 	end)
 
+	-- CONTENT AREA (Right Side)
 	local Page_1 = Instance.new("Frame")
 	Page_1.Name = "Page"
 	Page_1.Parent = Background_1
@@ -1842,6 +1858,7 @@ function Library:Window(p)
 		TabSubLabel.TextXAlignment = Enum.TextXAlignment.Left
 		TabSubLabel.LayoutOrder = 2
 
+		-- PAGE CONTENT CONTAINER
 		local InPage_1 = Instance.new("Frame")
 		local PageScroll = Instance.new("ScrollingFrame")
 		local PageLayout = Instance.new("UIListLayout")
@@ -1909,6 +1926,7 @@ function Library:Window(p)
 			end)
 			tw({v = TabTitleLabel, t = 0.18, g = {TextColor3 = isLight and Color3.fromRGB(20, 24, 33) or Color3.fromRGB(255, 255, 255)}}):Play()
 
+			-- Dynamically update topbar breadcrumb to match current tab (e.g. CORE // START, CORE // MODULES)
 			BreadcrumbHeader.Text = string.format("%s // %s", Title:upper(), TabTitle:upper())
 		end
 
@@ -2054,7 +2072,7 @@ function Library:Window(p)
 			local UICorner_2 = Instance.new("UICorner")
 			local Frame_2 = Instance.new("Frame")
 			local UICorner_3 = Instance.new("UICorner")
-			local _GlowEffect = Instance.new("ImageLabel")
+			local GlowEffect = Instance.new("ImageLabel")
 
 			F_1.Name = "F"
 			F_1.Parent = Toggle
@@ -3101,6 +3119,7 @@ function Library:Window(p)
 		return Func
 	end
 
+	-- NOTIFICATIONS
 	local Notification = Instance.new("Frame")
 	local UIPaddingNotif = Instance.new("UIPadding")
 	local UIListLayoutNotif = Instance.new("UIListLayout")
@@ -3329,7 +3348,9 @@ function Library:Window(p)
 		})
 	end)
 
+	-- WINDOW RESIZE & MINIMIZE CONTROLS
 	do
+		-- Bottom-right dynamic resizer handle
 		local ResizeHandle = Instance.new("ImageButton")
 		ResizeHandle.Name = "ResizeHandle"
 		ResizeHandle.Parent = Background_1
@@ -3518,6 +3539,7 @@ function Library:Window(p)
 		end
 	end
 
+	-- DEFAULT START TAB (System & Account Telemetry)
 	local DashTab = Tabs:Tab({
 		Title = "START",
 		Subtitle = "Overview & System",
@@ -3585,6 +3607,7 @@ function Library:Window(p)
 	local TiersSec = DashTab:Section({ Title = "License Keys" })
 	local tiersContainer = TiersSec:GetContainer()
 
+	-- Interactive Tier Comparison Card with Segmented Tabs
 	do
 		local isLight = currentWindowTheme.isLightMode
 
@@ -3613,6 +3636,7 @@ function Library:Window(p)
 		CardPadding.PaddingLeft = UDim.new(0, 12)
 		CardPadding.PaddingRight = UDim.new(0, 12)
 
+		-- Segmented Tab Switcher at the top
 		local SwitcherBar = Instance.new("Frame")
 		local SwitcherCorner = Instance.new("UICorner")
 		local SwitcherStroke = Instance.new("UIStroke")
@@ -3705,6 +3729,7 @@ function Library:Window(p)
 			}
 		}
 
+		-- Active Tier Header & Details Frame
 		local DetailsFrame = Instance.new("Frame")
 		DetailsFrame.Name = "Details"
 		DetailsFrame.Parent = Card
@@ -3748,6 +3773,7 @@ function Library:Window(p)
 		PriceLabel.TextColor3 = Color3.fromRGB(255, 42, 66)
 		PriceLabel.TextSize = 10
 
+		-- Perks Container
 		local PerksList = Instance.new("Frame")
 		local PerksLayout = Instance.new("UIListLayout")
 
@@ -3761,6 +3787,7 @@ function Library:Window(p)
 		PerksLayout.SortOrder = Enum.SortOrder.LayoutOrder
 		PerksLayout.Padding = UDim.new(0, 4)
 
+		-- Action CTA Button at the bottom
 		local ActionBtn = Instance.new("TextButton")
 		local ActionCorner = Instance.new("UICorner")
 		local ActionStroke = Instance.new("UIStroke")
@@ -3835,18 +3862,21 @@ function Library:Window(p)
 			ActionBtn.Text = data.btnText
 
 			if idx == 1 then
+				-- Free
 				PriceLabel.TextColor3 = Color3.fromRGB(130, 140, 155)
 				PriceBadge.BackgroundColor3 = currentWindowTheme.isLightMode and Color3.fromRGB(230, 233, 240) or Color3.fromRGB(30, 30, 38)
 				ActionBtn.BackgroundColor3 = currentWindowTheme.isLightMode and Color3.fromRGB(225, 228, 238) or Color3.fromRGB(34, 34, 44)
 				ActionBtn.TextColor3 = currentWindowTheme.isLightMode and Color3.fromRGB(50, 55, 70) or Color3.fromRGB(200, 200, 215)
 				ActionStroke.Color = currentWindowTheme.isLightMode and Color3.fromRGB(200, 205, 218) or Color3.fromRGB(45, 45, 56)
 			elseif idx == 2 then
+				-- Premium
 				PriceLabel.TextColor3 = Color3.fromRGB(255, 60, 85)
 				PriceBadge.BackgroundColor3 = currentWindowTheme.isLightMode and Color3.fromRGB(255, 232, 236) or Color3.fromRGB(48, 18, 24)
 				ActionBtn.BackgroundColor3 = Color3.fromRGB(255, 42, 66)
 				ActionBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 				ActionStroke.Color = Color3.fromRGB(255, 75, 95)
 			else
+				-- Booster
 				PriceLabel.TextColor3 = Color3.fromRGB(175, 115, 255)
 				PriceBadge.BackgroundColor3 = currentWindowTheme.isLightMode and Color3.fromRGB(245, 235, 255) or Color3.fromRGB(38, 20, 56)
 				ActionBtn.BackgroundColor3 = Color3.fromRGB(140, 75, 235)
@@ -3863,6 +3893,7 @@ function Library:Window(p)
 				end
 			end
 
+			-- Update tab button visuals
 			for i, tb in ipairs(tabButtons) do
 				if i == idx then
 					tw({v = tb.Button, t = 0.15, g = {
@@ -3931,8 +3962,9 @@ function Library:Window(p)
 			tw({v = ActionBtn, t = 0.12, g = {BackgroundTransparency = 0}}):Play()
 		end)
 
-		renderTier(2)
+		renderTier(2) -- Default to Premium
 
+		-- Register custom theme updating for this comparison card
 		table.insert(currentWindowTheme.controls, {
 			type = "custom",
 			update = function(light)
@@ -3963,6 +3995,7 @@ function Library:Window(p)
 		Image = "zap"
 	})
 
+	-- Live updates for Dashboard metrics
 	task.spawn(function()
 		local startTime = tick()
 		local RunService = game:GetService("RunService")
