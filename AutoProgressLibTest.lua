@@ -1314,7 +1314,7 @@ local function UpdateTabDisplay(TabIndex)
 
 	if HasStatus then
 		Window.TabDisplay.Text = EscapeTabRichText(Tab.Name)
-			.. " \n<font size=\"13\">STATUS: "
+			.. "\n<font size=\"13\">STATUS: "
 			.. EscapeTabRichText(Status)
 			.. "</font>"
 	else
@@ -2188,22 +2188,21 @@ return function(Config)
 
 	Window.TabDisplayMultiline = false
 
-	function Window:SetTabDisplayMultiline(Enabled)
-		Window.TabDisplayMultiline = Enabled == true
-
+	local function UpdateTabDisplayWrappedLayout()
 		local CurrentLayout = ComputeLayout(Window.Alignment)
-		local ExtraHeight = Window.TabDisplayMultiline and 18 or 0
+		local BaseHeight = CurrentLayout.TabDisplaySize.Y.Offset
+		local DisplayHeight = BaseHeight
 
-		Window.TabDisplay.Size = UDim2.new(
-			CurrentLayout.TabDisplaySize.X.Scale,
-			CurrentLayout.TabDisplaySize.X.Offset,
-			CurrentLayout.TabDisplaySize.Y.Scale,
-			CurrentLayout.TabDisplaySize.Y.Offset + ExtraHeight
-		)
+		if Window.TabDisplayMultiline then
+			DisplayHeight = math.max(
+				BaseHeight,
+				Window.TabDisplay.AbsoluteSize.Y
+			)
+		end
+
+		local ExtraHeight = math.max(0, DisplayHeight - BaseHeight)
+
 		Window.TabDisplay.Position = CurrentLayout.TabDisplayPos
-		Window.TabDisplay.TextYAlignment = Window.TabDisplayMultiline
-			and Enum.TextYAlignment.Top
-			or Enum.TextYAlignment.Center
 
 		Window.ContainerCanvas.Position = UDim2.new(
 			CurrentLayout.ContainerPos.X.Scale,
@@ -2218,6 +2217,45 @@ return function(Config)
 			CurrentLayout.ContainerSize.Y.Offset - ExtraHeight
 		)
 	end
+
+	function Window:SetTabDisplayMultiline(Enabled)
+		Window.TabDisplayMultiline = Enabled == true
+
+		local CurrentLayout = ComputeLayout(Window.Alignment)
+
+		Window.TabDisplay.Position = CurrentLayout.TabDisplayPos
+		Window.TabDisplay.TextYAlignment = Window.TabDisplayMultiline
+			and Enum.TextYAlignment.Top
+			or Enum.TextYAlignment.Center
+
+		-- Status text wraps automatically when it is too long.
+		-- The title stays on the first line and the status can grow to
+		-- as many extra lines as needed without changing any status strings.
+		Window.TabDisplay.TextWrapped = Window.TabDisplayMultiline
+		Window.TabDisplay.AutomaticSize = Window.TabDisplayMultiline
+			and Enum.AutomaticSize.Y
+			or Enum.AutomaticSize.None
+
+		Window.TabDisplay.Size = CurrentLayout.TabDisplaySize
+
+		if not Window.TabDisplayMultiline then
+			UpdateTabDisplayWrappedLayout()
+			return
+		end
+
+		-- AutomaticSize updates after the text/layout pass, so refresh the
+		-- content area on the next task step using the real wrapped height.
+		task.defer(UpdateTabDisplayWrappedLayout)
+	end
+
+	Creator.AddSignal(
+		Window.TabDisplay:GetPropertyChangedSignal("AbsoluteSize"),
+		function()
+			if Window.TabDisplayMultiline then
+				UpdateTabDisplayWrappedLayout()
+			end
+		end
+	)
 
 	--// ============================================================
 	--// ONE CLEAN ROTATING NEON SWEEP
