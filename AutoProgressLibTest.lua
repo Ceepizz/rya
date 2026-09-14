@@ -1309,12 +1309,25 @@ local function UpdateTabDisplay(TabIndex)
 		return
 	end
 
-	local Status = tostring(Tab.Status or "")
+	local Status = tostring(Window.AutomationStatus or Tab.Status or "")
 	local HasStatus = Status ~= ""
 
 	if HasStatus then
+		local StatusColor = "#A0A0A0"
+
+		if Status:find("Searching", 1, true)
+			or Status:find("Waiting", 1, true)
+			or Status:find("Returning to Lobby", 1, true) then
+
+			StatusColor = "#FACC15"
+		elseif Status:match("^Running")
+			or Status:find("Map Found!", 1, true) then
+
+			StatusColor = "#4ADE80"
+		end
+
 		Window.TabDisplay.Text = EscapeTabRichText(Tab.Name)
-			.. "\n<font size=\"13\">STATUS: "
+			.. "\n<font size=\"13\" color=\"" .. StatusColor .. "\">STATUS: "
 			.. EscapeTabRichText(Status)
 			.. "</font>"
 	else
@@ -1483,7 +1496,10 @@ function TabModule:New(Title, Icon, Parent)
 	function Tab:SetStatus(Status)
 		self.Status = tostring(Status or "")
 
-		if self.Selected then
+		if self.Name == "Automation" then
+			Window.AutomationStatus = self.Status
+			UpdateTabDisplay(TabModule.SelectedTab or TabIndex)
+		elseif self.Selected then
 			UpdateTabDisplay(TabIndex)
 		end
 	end
