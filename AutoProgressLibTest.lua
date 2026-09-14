@@ -1327,7 +1327,7 @@ local function UpdateTabDisplay(TabIndex)
 		end
 
 		Window.TabDisplay.Text = EscapeTabRichText(Tab.Name)
-			.. "\n<font size=\"13\" color=\"" .. StatusColor .. "\">STATUS: "
+			.. "\n<font size=\"13\" color=\"#FFFFFF\">STATUS: </font><font size=\"13\" color=\"" .. StatusColor .. "\">"
 			.. EscapeTabRichText(Status)
 			.. "</font>"
 	else
