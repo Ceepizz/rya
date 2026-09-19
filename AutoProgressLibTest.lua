@@ -1309,13 +1309,12 @@ local function UpdateTabDisplay(TabIndex)
 		return
 	end
 
-	local Status
-
-	if Tab.Name == "Automation" then
-		Status = tostring(Window.AutomationStatus or Tab.Status or "")
-	else
-		Status = tostring(Tab.Status or "")
-	end
+	local Status = tostring(
+		Window.GlobalStatus
+		or Window.AutomationStatus
+		or Tab.Status
+		or ""
+	)
 	local HasStatus = Status ~= ""
 
 	if HasStatus then
@@ -1501,13 +1500,13 @@ function TabModule:New(Title, Icon, Parent)
 
 	function Tab:SetStatus(Status)
 		self.Status = tostring(Status or "")
+		Window.GlobalStatus = self.Status
 
 		if self.Name == "Automation" then
 			Window.AutomationStatus = self.Status
-			UpdateTabDisplay(TabModule.SelectedTab or TabIndex)
-		elseif self.Selected then
-			UpdateTabDisplay(TabIndex)
 		end
+
+		UpdateTabDisplay(TabModule.SelectedTab or TabIndex)
 	end
 
 	function Tab:Section(SectionTitle)
