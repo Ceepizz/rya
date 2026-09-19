@@ -11,6 +11,9 @@ local AntiLagRunning = false
 local LockedGuiObjects =
     setmetatable({}, {__mode = "k"})
 
+local WatchedLunaRoots =
+    setmetatable({}, {__mode = "k"})
+
 local function LockGuiObject(object)
     if LockedGuiObjects[object] then
         return
@@ -18,8 +21,6 @@ local function LockGuiObject(object)
 
     if object:IsA("ScreenGui") then
         LockedGuiObjects[object] = true
-
-        object.Enabled = false
 
         object
             :GetPropertyChangedSignal("Enabled")
@@ -29,10 +30,10 @@ local function LockGuiObject(object)
                 end
             end)
 
+        object.Enabled = false
+
     elseif object:IsA("GuiObject") then
         LockedGuiObjects[object] = true
-
-        object.Visible = false
 
         object
             :GetPropertyChangedSignal("Visible")
@@ -41,10 +42,12 @@ local function LockGuiObject(object)
                     object.Visible = false
                 end
             end)
+
+        object.Visible = false
     end
 end
 
-local function HideLunaUI(LunaUI)
+local function HideLunaPass(LunaUI)
     LockGuiObject(LunaUI)
 
     for _, object in ipairs(
@@ -52,29 +55,49 @@ local function HideLunaUI(LunaUI)
     ) do
         LockGuiObject(object)
     end
+end
+
+local function HideLunaUI(LunaUI)
+    if WatchedLunaRoots[LunaUI] then
+        HideLunaPass(LunaUI)
+        return
+    end
+
+    WatchedLunaRoots[LunaUI] = true
 
     LunaUI.DescendantAdded:Connect(function(object)
-        task.defer(function()
-            LockGuiObject(object)
-        end)
+        LockGuiObject(object)
+    end)
+
+    HideLunaPass(LunaUI)
+
+    task.delay(1, function()
+        if LunaUI.Parent then
+            HideLunaPass(LunaUI)
+        end
     end)
 end
 
 local function WatchRobloxGui(RobloxGui)
-    local LunaUI =
-        RobloxGui:FindFirstChild("Luna UI")
-
-    if LunaUI then
-        HideLunaUI(LunaUI)
+    local function CheckLuna()
+        for _, child in ipairs(
+            RobloxGui:GetChildren()
+        ) do
+            if child.Name == "Luna UI" then
+                HideLunaUI(child)
+            end
+        end
     end
 
     RobloxGui.ChildAdded:Connect(function(child)
         if child.Name == "Luna UI" then
-            task.defer(function()
-                HideLunaUI(child)
-            end)
+            HideLunaUI(child)
         end
     end)
+
+    CheckLuna()
+
+    task.delay(1, CheckLuna)
 end
 
 local RobloxGui =
@@ -86,9 +109,7 @@ end
 
 CoreGui.ChildAdded:Connect(function(child)
     if child.Name == "RobloxGui" then
-        task.defer(function()
-            WatchRobloxGui(child)
-        end)
+        WatchRobloxGui(child)
     end
 end)
 
