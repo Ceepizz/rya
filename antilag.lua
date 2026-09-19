@@ -1,50 +1,94 @@
 local Globals = getgenv()
 
+local CoreGui = game:GetService("CoreGui")
+
 local AntiLagRunning = false
 
 --------------------------------------------------
 -- LUNA UI HIDER
 --------------------------------------------------
 
-task.spawn(function()
-    while true do
-        local hidden = false
+local LockedGuiObjects =
+    setmetatable({}, {__mode = "k"})
 
-        pcall(function()
-            local RobloxGui =
-                game:GetService("CoreGui"):FindFirstChild("RobloxGui")
+local function LockGuiObject(object)
+    if LockedGuiObjects[object] then
+        return
+    end
 
-            if RobloxGui then
-                local LunaUI =
-                    RobloxGui:FindFirstChild("Luna UI")
+    if object:IsA("ScreenGui") then
+        LockedGuiObjects[object] = true
 
-                if LunaUI then
-                    if LunaUI:IsA("ScreenGui") then
-                        LunaUI.Enabled = false
-                    elseif LunaUI:IsA("GuiObject") then
-                        LunaUI.Visible = false
-                    else
-                        for _, object in ipairs(
-                            LunaUI:GetDescendants()
-                        ) do
-                            if object:IsA("ScreenGui") then
-                                object.Enabled = false
-                            elseif object:IsA("GuiObject") then
-                                object.Visible = false
-                            end
-                        end
-                    end
+        object.Enabled = false
 
-                    hidden = true
+        object
+            :GetPropertyChangedSignal("Enabled")
+            :Connect(function()
+                if object.Enabled then
+                    object.Enabled = false
                 end
-            end
+            end)
+
+    elseif object:IsA("GuiObject") then
+        LockedGuiObjects[object] = true
+
+        object.Visible = false
+
+        object
+            :GetPropertyChangedSignal("Visible")
+            :Connect(function()
+                if object.Visible then
+                    object.Visible = false
+                end
+            end)
+    end
+end
+
+local function HideLunaUI(LunaUI)
+    LockGuiObject(LunaUI)
+
+    for _, object in ipairs(
+        LunaUI:GetDescendants()
+    ) do
+        LockGuiObject(object)
+    end
+
+    LunaUI.DescendantAdded:Connect(function(object)
+        task.defer(function()
+            LockGuiObject(object)
         end)
+    end)
+end
 
-        if hidden then
-            break
+local function WatchRobloxGui(RobloxGui)
+    local LunaUI =
+        RobloxGui:FindFirstChild("Luna UI")
+
+    if LunaUI then
+        HideLunaUI(LunaUI)
+    end
+
+    RobloxGui.ChildAdded:Connect(function(child)
+        if child.Name == "Luna UI" then
+            task.defer(function()
+                HideLunaUI(child)
+            end)
         end
+    end)
+end
 
-        task.wait(1)
+local RobloxGui =
+    CoreGui:FindFirstChild("RobloxGui")
+
+if RobloxGui then
+    WatchRobloxGui(RobloxGui)
+end
+
+CoreGui.ChildAdded:Connect(function(child)
+    if child.Name == "RobloxGui" then
+        task.defer(function()
+            WatchRobloxGui(child)
+        end)
     end
 end)
 
