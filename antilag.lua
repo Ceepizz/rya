@@ -1,6 +1,9 @@
 local Globals = getgenv()
 
+local CoreGui = game:GetService("CoreGui")
+
 local AntiLagRunning = false
+local LunaUIConnection = nil
 
 local function StartAntiLag()
     if AntiLagRunning or not Globals.AntiLag then
@@ -20,6 +23,34 @@ local function StartAntiLag()
     pcall(function()
         settings().Rendering.QualityLevel =
             Enum.QualityLevel.Level01
+    end)
+
+    pcall(function()
+        local RobloxGui =
+            CoreGui:WaitForChild("RobloxGui")
+
+        local function RemoveLunaUI()
+            local luna =
+                RobloxGui:FindFirstChild("Luna UI")
+
+            if luna then
+                luna:Destroy()
+            end
+        end
+
+        RemoveLunaUI()
+
+        if LunaUIConnection then
+            LunaUIConnection:Disconnect()
+            LunaUIConnection = nil
+        end
+
+        LunaUIConnection =
+            RobloxGui.ChildAdded:Connect(function(child)
+                if child.Name == "Luna UI" then
+                    child:Destroy()
+                end
+            end)
     end)
 
     task.spawn(function()
@@ -66,6 +97,11 @@ local function StartAntiLag()
             end
 
             task.wait(0.5)
+        end
+
+        if LunaUIConnection then
+            LunaUIConnection:Disconnect()
+            LunaUIConnection = nil
         end
 
         AntiLagRunning = false
