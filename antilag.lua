@@ -5,6 +5,30 @@ local CoreGui = game:GetService("CoreGui")
 local AntiLagRunning = false
 local LunaUIConnection = nil
 
+local function RemoveLunaUI()
+    local RobloxGui =
+        CoreGui:FindFirstChild("RobloxGui")
+
+    if not RobloxGui then
+        return
+    end
+
+    local direct =
+        RobloxGui:FindFirstChild("Luna UI")
+
+    if direct then
+        direct:Destroy()
+    end
+
+    for _, object in ipairs(
+        RobloxGui:GetDescendants()
+    ) do
+        if object.Name == "Luna UI" then
+            object:Destroy()
+        end
+    end
+end
+
 local function StartAntiLag()
     if AntiLagRunning or not Globals.AntiLag then
         return
@@ -25,36 +49,41 @@ local function StartAntiLag()
             Enum.QualityLevel.Level01
     end)
 
-    pcall(function()
-        local RobloxGui =
-            CoreGui:WaitForChild("RobloxGui")
+    RemoveLunaUI()
 
-        local function RemoveLunaUI()
-            local luna =
-                RobloxGui:FindFirstChild("Luna UI")
+    if LunaUIConnection then
+        LunaUIConnection:Disconnect()
+        LunaUIConnection = nil
+    end
 
-            if luna then
-                luna:Destroy()
-            end
-        end
+    LunaUIConnection =
+        CoreGui.DescendantAdded:Connect(function(object)
+            task.defer(function()
+                if not object
+                    or not object.Parent then
+                    return
+                end
 
-        RemoveLunaUI()
+                if object.Name == "Luna UI" then
+                    object:Destroy()
+                    return
+                end
 
-        if LunaUIConnection then
-            LunaUIConnection:Disconnect()
-            LunaUIConnection = nil
-        end
+                task.wait(0.1)
 
-        LunaUIConnection =
-            RobloxGui.ChildAdded:Connect(function(child)
-                if child.Name == "Luna UI" then
-                    child:Destroy()
+                if object
+                    and object.Parent
+                    and object.Name == "Luna UI" then
+
+                    object:Destroy()
                 end
             end)
-    end)
+        end)
 
     task.spawn(function()
         while Globals.AntiLag do
+            RemoveLunaUI()
+
             local towersFolder =
                 workspace:FindFirstChild("Towers")
 
@@ -96,7 +125,7 @@ local function StartAntiLag()
                 end
             end
 
-            task.wait(0.5)
+            task.wait(0.2)
         end
 
         if LunaUIConnection then
