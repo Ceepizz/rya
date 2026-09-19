@@ -1301,6 +1301,44 @@ local function EscapeTabRichText(Text)
 	return Text
 end
 
+local function IsInactiveStatus(Status)
+	Status = tostring(Status or "")
+	local Normalized = Status:lower()
+
+	return Status == ""
+		or Normalized == "idle"
+		or Normalized == "stopped"
+		or Normalized == "ready"
+		or Normalized == "disabled"
+		or Normalized == "turned off"
+end
+
+local function ResolveGlobalStatus()
+	local Window = TabModule.Window
+	local OwnerIndex = Window and Window.GlobalStatusOwner
+	local OwnerTab = OwnerIndex and TabModule.Tabs[OwnerIndex]
+
+	if OwnerTab and not IsInactiveStatus(OwnerTab.Status) then
+		return tostring(OwnerTab.Status)
+	end
+
+	if Window then
+		Window.GlobalStatusOwner = nil
+	end
+
+	for Index, TabObject in next, TabModule.Tabs do
+		if not IsInactiveStatus(TabObject.Status) then
+			if Window then
+				Window.GlobalStatusOwner = Index
+			end
+
+			return tostring(TabObject.Status)
+		end
+	end
+
+	return "Idle"
+end
+
 local function UpdateTabDisplay(TabIndex)
 	local Window = TabModule.Window
 	local Tab = TabModule.Tabs[TabIndex]
@@ -1309,12 +1347,7 @@ local function UpdateTabDisplay(TabIndex)
 		return
 	end
 
-	local Status = tostring(
-		Window.GlobalStatus
-		or Window.AutomationStatus
-		or Tab.Status
-		or ""
-	)
+	local Status = ResolveGlobalStatus()
 	local HasStatus = Status ~= ""
 
 	if HasStatus then
@@ -1500,10 +1533,15 @@ function TabModule:New(Title, Icon, Parent)
 
 	function Tab:SetStatus(Status)
 		self.Status = tostring(Status or "")
-		Window.GlobalStatus = self.Status
 
 		if self.Name == "Automation" then
 			Window.AutomationStatus = self.Status
+		end
+
+		if not IsInactiveStatus(self.Status) then
+			Window.GlobalStatusOwner = TabIndex
+		elseif Window.GlobalStatusOwner == TabIndex then
+			Window.GlobalStatusOwner = nil
 		end
 
 		UpdateTabDisplay(TabModule.SelectedTab or TabIndex)
