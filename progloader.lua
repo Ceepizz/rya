@@ -25,7 +25,7 @@ local ADS_CONFIG_FILE = "ADS_Config.json"
 local ADS_BACKUP_FILE = "ADS_ConfigBackup.json"
 
 local MAIN_SCRIPT_URL =
-    "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/AutoProgressV1.lua"
+    "https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/AutoProgressCore.lua"
 
 local AETHER_RELOAD_URL =
     "https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Library.lua"
