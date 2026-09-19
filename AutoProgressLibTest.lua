@@ -1309,7 +1309,13 @@ local function UpdateTabDisplay(TabIndex)
 		return
 	end
 
-	local Status = tostring(Window.AutomationStatus or Tab.Status or "")
+	local Status
+
+	if Tab.Name == "Automation" then
+		Status = tostring(Window.AutomationStatus or Tab.Status or "")
+	else
+		Status = tostring(Tab.Status or "")
+	end
 	local HasStatus = Status ~= ""
 
 	if HasStatus then
