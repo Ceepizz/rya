@@ -8,6 +8,8 @@ local AntiLagRunning = false
 
 task.spawn(function()
     while true do
+        local destroyed = false
+
         pcall(function()
             local RobloxGui =
                 game:GetService("CoreGui"):FindFirstChild("RobloxGui")
@@ -18,11 +20,16 @@ task.spawn(function()
 
                 if LunaUI then
                     LunaUI:Destroy()
+                    destroyed = true
                 end
             end
         end)
 
-        task.wait(0.1)
+        if destroyed then
+            break
+        end
+
+        task.wait(1)
     end
 end)
 
