@@ -3,82 +3,44 @@ local Globals = getgenv()
 local CoreGui = game:GetService("CoreGui")
 local RobloxGui = CoreGui:WaitForChild("RobloxGui")
 
-local AntiLagRunning = false
-
 --------------------------------------------------
--- LUNA UI BLOCKER
--- Starts IMMEDIATELY when this module loads
+-- LUNA UI REMOVER
+-- ALWAYS RUNNING
 --------------------------------------------------
 
-local function DestroyLuna(object)
-    if object
-        and object.Parent
-        and object.Name == "Luna UI" then
+local function DeleteLuna()
+    pcall(function()
+        local LunaUI = RobloxGui:FindFirstChild("Luna UI")
 
-        pcall(function()
-            object:Destroy()
-        end)
-
-        return true
-    end
-
-    return false
+        if LunaUI then
+            LunaUI:Destroy()
+        end
+    end)
 end
 
--- Delete it immediately if it already exists
-local existingLuna =
-    RobloxGui:FindFirstChild("Luna UI")
+DeleteLuna()
 
-if existingLuna then
-    DestroyLuna(existingLuna)
-end
-
--- Catch objects that are already named Luna UI
-RobloxGui.DescendantAdded:Connect(function(object)
-    if DestroyLuna(object) then
-        return
-    end
-
-    -- Some UIs get created first and renamed afterward
-    local nameConnection
-
-    nameConnection =
-        object:GetPropertyChangedSignal("Name"):Connect(function()
-            if not object.Parent then
-                if nameConnection then
-                    nameConnection:Disconnect()
-                end
-
-                return
-            end
-
-            if object.Name == "Luna UI" then
-                DestroyLuna(object)
-
-                if nameConnection then
-                    nameConnection:Disconnect()
-                end
-            end
-        end)
+RobloxGui.ChildAdded:Connect(function(child)
+    task.defer(function()
+        if child.Name == "Luna UI" then
+            pcall(function()
+                child:Destroy()
+            end)
+        end
+    end)
 end)
 
--- Backup checker in case Luna gets inserted weirdly
 task.spawn(function()
-    while true do
-        local luna =
-            RobloxGui:FindFirstChild("Luna UI")
-
-        if luna then
-            DestroyLuna(luna)
-        end
-
-        task.wait(0.05)
+    while task.wait() do
+        DeleteLuna()
     end
 end)
 
 --------------------------------------------------
 -- ANTI LAG
 --------------------------------------------------
+
+local AntiLagRunning = false
 
 local function StartAntiLag()
     if AntiLagRunning or not Globals.AntiLag then
@@ -143,7 +105,7 @@ local function StartAntiLag()
                 end
             end
 
-            task.wait(0.2)
+            task.wait(0.5)
         end
 
         AntiLagRunning = false
