@@ -2,19 +2,27 @@ local Globals = getgenv()
 
 local CoreGui = game:GetService("CoreGui")
 
+local AntiLagRunning = false
+
 --------------------------------------------------
--- PERMANENT LUNA UI KILLER
+-- LUNA UI DESTROYER
 --------------------------------------------------
 
 task.spawn(function()
-    while true do
-        pcall(function()
-            game:GetService("CoreGui")
-                .RobloxGui["Luna UI"]
-                :Destroy()
-        end)
+    local RobloxGui =
+        CoreGui:WaitForChild("RobloxGui")
 
-        task.wait(5)
+    while true do
+        local LunaUI =
+            RobloxGui:WaitForChild("Luna UI")
+
+        if LunaUI then
+            pcall(function()
+                LunaUI:Destroy()
+            end)
+        end
+
+        task.wait()
     end
 end)
 
@@ -22,24 +30,23 @@ end)
 -- ANTI LAG
 --------------------------------------------------
 
-local AntiLagRunning = false
-
 local function StartAntiLag()
-    if AntiLagRunning then
-        return
-    end
+    if AntiLagRunning
+        or not Globals.AntiLag then
 
-    if not Globals.AntiLag then
         return
     end
 
     AntiLagRunning = true
 
     pcall(function()
-        UserSettings()
-            :GetService("UserGameSettings")
-            .SavedQualityLevel =
-                Enum.SavedQualitySetting.QualityLevel1
+        local userGameSettings =
+            UserSettings():GetService(
+                "UserGameSettings"
+            )
+
+        userGameSettings.SavedQualityLevel =
+            Enum.SavedQualitySetting.QualityLevel1
     end)
 
     pcall(function()
@@ -51,6 +58,9 @@ local function StartAntiLag()
         while Globals.AntiLag do
             local towersFolder =
                 workspace:FindFirstChild("Towers")
+
+            local clientUnits =
+                workspace:FindFirstChild("ClientUnits")
 
             if towersFolder then
                 for _, tower in ipairs(
@@ -78,9 +88,6 @@ local function StartAntiLag()
                     end
                 end
             end
-
-            local clientUnits =
-                workspace:FindFirstChild("ClientUnits")
 
             if clientUnits then
                 for _, unit in ipairs(
