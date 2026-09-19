@@ -3,12 +3,12 @@ local Globals = getgenv()
 local AntiLagRunning = false
 
 --------------------------------------------------
--- LUNA UI DESTROYER
+-- LUNA UI HIDER
 --------------------------------------------------
 
 task.spawn(function()
     while true do
-        local destroyed = false
+        local hidden = false
 
         pcall(function()
             local RobloxGui =
@@ -19,13 +19,28 @@ task.spawn(function()
                     RobloxGui:FindFirstChild("Luna UI")
 
                 if LunaUI then
-                    LunaUI:Destroy()
-                    destroyed = true
+                    if LunaUI:IsA("ScreenGui") then
+                        LunaUI.Enabled = false
+                    elseif LunaUI:IsA("GuiObject") then
+                        LunaUI.Visible = false
+                    else
+                        for _, object in ipairs(
+                            LunaUI:GetDescendants()
+                        ) do
+                            if object:IsA("ScreenGui") then
+                                object.Enabled = false
+                            elseif object:IsA("GuiObject") then
+                                object.Visible = false
+                            end
+                        end
+                    end
+
+                    hidden = true
                 end
             end
         end)
 
-        if destroyed then
+        if hidden then
             break
         end
 
