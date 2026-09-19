@@ -1,7 +1,5 @@
 local Globals = getgenv()
 
-local CoreGui = game:GetService("CoreGui")
-
 local AntiLagRunning = false
 
 --------------------------------------------------
@@ -9,20 +7,22 @@ local AntiLagRunning = false
 --------------------------------------------------
 
 task.spawn(function()
-    local RobloxGui =
-        CoreGui:WaitForChild("RobloxGui")
-
     while true do
-        local LunaUI =
-            RobloxGui:WaitForChild("Luna UI")
+        pcall(function()
+            local RobloxGui =
+                game:GetService("CoreGui"):FindFirstChild("RobloxGui")
 
-        if LunaUI then
-            pcall(function()
-                LunaUI:Destroy()
-            end)
-        end
+            if RobloxGui then
+                local LunaUI =
+                    RobloxGui:FindFirstChild("Luna UI")
 
-        task.wait()
+                if LunaUI then
+                    LunaUI:Destroy()
+                end
+            end
+        end)
+
+        task.wait(0.1)
     end
 end)
 
