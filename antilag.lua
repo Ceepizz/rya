@@ -2,22 +2,16 @@ local Globals = getgenv()
 
 local CoreGui = game:GetService("CoreGui")
 
-local AntiLagRunning = false
-
 --------------------------------------------------
--- LUNA UI DESTROY LOOP
+-- PERMANENT LUNA UI KILLER
 --------------------------------------------------
 
 task.spawn(function()
     while true do
         pcall(function()
-            local LunaUI =
-                game:GetService("CoreGui")
-                    .RobloxGui["Luna UI"]
-
-            if LunaUI then
-                LunaUI:Destroy()
-            end
+            game:GetService("CoreGui")
+                .RobloxGui["Luna UI"]
+                :Destroy()
         end)
 
         task.wait(5)
@@ -28,23 +22,24 @@ end)
 -- ANTI LAG
 --------------------------------------------------
 
-local function StartAntiLag()
-    if AntiLagRunning
-        or not Globals.AntiLag then
+local AntiLagRunning = false
 
+local function StartAntiLag()
+    if AntiLagRunning then
+        return
+    end
+
+    if not Globals.AntiLag then
         return
     end
 
     AntiLagRunning = true
 
     pcall(function()
-        local userGameSettings =
-            UserSettings():GetService(
-                "UserGameSettings"
-            )
-
-        userGameSettings.SavedQualityLevel =
-            Enum.SavedQualitySetting.QualityLevel1
+        UserSettings()
+            :GetService("UserGameSettings")
+            .SavedQualityLevel =
+                Enum.SavedQualitySetting.QualityLevel1
     end)
 
     pcall(function()
@@ -57,43 +52,35 @@ local function StartAntiLag()
             local towersFolder =
                 workspace:FindFirstChild("Towers")
 
-            local clientUnits =
-                workspace:FindFirstChild(
-                    "ClientUnits"
-                )
-
             if towersFolder then
                 for _, tower in ipairs(
                     towersFolder:GetChildren()
                 ) do
                     local animations =
-                        tower:FindFirstChild(
-                            "Animations"
-                        )
+                        tower:FindFirstChild("Animations")
 
                     local weapon =
-                        tower:FindFirstChild(
-                            "Weapon"
-                        )
+                        tower:FindFirstChild("Weapon")
 
                     local projectiles =
-                        tower:FindFirstChild(
-                            "Projectiles"
-                        )
+                        tower:FindFirstChild("Projectiles")
 
                     if animations then
                         animations:Destroy()
                     end
 
-                    if projectiles then
-                        projectiles:Destroy()
-                    end
-
                     if weapon then
                         weapon:Destroy()
                     end
+
+                    if projectiles then
+                        projectiles:Destroy()
+                    end
                 end
             end
+
+            local clientUnits =
+                workspace:FindFirstChild("ClientUnits")
 
             if clientUnits then
                 for _, unit in ipairs(
