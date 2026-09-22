@@ -1497,13 +1497,13 @@ function TabModule:New(Title, Icon, Parent)
 			PaddingRight = UDim.new(0, 10),
 			PaddingLeft = UDim.new(0, 1),
 			PaddingTop = UDim.new(0, 1),
-			PaddingBottom = UDim.new(0, 1),
+			PaddingBottom = UDim.new(0, 10),
 		}),
 	})
 
 	Creator.AddSignal(ContainerLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-		if Tab.ContainerFrame.CanvasSize ~= UDim2.fromOffset(0, ContainerLayout.AbsoluteContentSize.Y + 2) then
-			Tab.ContainerFrame.CanvasSize = UDim2.fromOffset(0, ContainerLayout.AbsoluteContentSize.Y + 2)
+		if Tab.ContainerFrame.CanvasSize ~= UDim2.fromOffset(0, ContainerLayout.AbsoluteContentSize.Y + 11) then
+			Tab.ContainerFrame.CanvasSize = UDim2.fromOffset(0, ContainerLayout.AbsoluteContentSize.Y + 11)
 		end
 	end)
 
