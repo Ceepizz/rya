@@ -14,7 +14,7 @@ local LOBBY_PLACE_ID = 3260590327
 
 local LOADING_TIMEOUT = 10
 local GAMEOVER_STEP_TIMEOUT = 10
-local NO_GAMEOVER_TIMEOUT = 20 * 60
+local NO_GAMEOVER_TIMEOUT = 35 * 60
 
 local LoaderActive = true
 local ReconnectCheckRunning = false
