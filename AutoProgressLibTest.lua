@@ -4445,7 +4445,6 @@ function Element:New(Idx, Config)
 		Value = Config.Default or Config.Value or false,
 		Callback = Config.Callback or function(Value) end,
 		Type = "Toggle",
-		Disabled = false,
 	}
 
 local ToggleFrame = require(Components.Element)(Config.Title, Config.Description, self.Container, true)
@@ -4562,31 +4561,12 @@ ToggleFrame.DescLabel.Size = UDim2.new(1, -54, 0, 14)
 		end
 	end
 
-	function Toggle:SetDisabled(Disabled)
-		Disabled = Disabled == true
-		rawset(Toggle, "Disabled", Disabled)
-
-		ToggleFrame.Frame.AutoButtonColor = not Disabled
-		ToggleFrame.Frame.Selectable = not Disabled
-
-		ToggleFrame.TitleLabel.TextTransparency = Disabled and 0.45 or 0
-		ToggleFrame.DescLabel.TextTransparency = Disabled and 0.55 or 0
-		ToggleSlider.BackgroundTransparency =
-			Disabled and 0.65 or (Toggle.Value and 0 or 1)
-		ToggleCircle.ImageTransparency =
-			Disabled and 0.7 or (Toggle.Value and 0 or 0.5)
-	end
-
 	function Toggle:Destroy()
 		ToggleFrame:Destroy()
 		Library.Options[Idx] = nil
 	end
 
 	Creator.AddSignal(ToggleFrame.Frame.MouseButton1Click, function()
-		if Toggle.Disabled then
-			return
-		end
-
 		Toggle:SetValue(not Toggle.Value)
 	end)
 
