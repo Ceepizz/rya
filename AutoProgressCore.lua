@@ -13,6 +13,7 @@ local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local LOBBY_PLACE_ID = 3260590327
 
 local LOADING_TIMEOUT = 10
+local LOBBY_LOADING_TIMEOUT = 60
 local GAMEOVER_STEP_TIMEOUT = 10
 local NO_GAMEOVER_TIMEOUT = 35 * 60
 
@@ -297,7 +298,29 @@ local function IsLoading()
         or (content and content.Visible == true)
 end
 
-if IsInGame() then
+if game.PlaceId == LOBBY_PLACE_ID then
+    local startedAt = os.clock()
+
+    while IsLoading() do
+        if game.PlaceId ~= LOBBY_PLACE_ID then
+            break
+        end
+
+        if os.clock() - startedAt >= LOBBY_LOADING_TIMEOUT then
+            pcall(function()
+                TeleportService:Teleport(
+                    LOBBY_PLACE_ID,
+                    LocalPlayer
+                )
+            end)
+
+            return
+        end
+
+        task.wait(1)
+    end
+
+elseif IsInGame() then
     local startedAt = os.clock()
 
     while IsLoading() do
