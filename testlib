@@ -107,7 +107,7 @@ local Library = {
 	Unloaded = false,
 	Loaded = true,
 
-	Theme = "Royal_Purple",
+	Theme = "Electric_Blue",
 	DialogOpen = false,
 	UseAcrylic = false,
 	Acrylic = false,
@@ -328,7 +328,7 @@ function Library:Window(Config: {
 		end
 	end
 
-	Config.Theme = "Royal_Purple"
+	Config.Theme = "Electric_Blue"
 	Config.Icon = Config.Icon or 88505209802501
 
 	if not Config.Title then
@@ -349,7 +349,7 @@ function Library:Window(Config: {
 	Library.MinimizeKey = if typeof(Config.MinimizeKey) == "string" or typeof(Config.MinimizeKey) == "EnumItem" and Config.MinimizeKey.EnumType == Enum.KeyCode then Config.MinimizeKey else Enum.KeyCode.LeftControl
 	Library.UseAcrylic = if typeof(Config.Acrylic) == "boolean" then Config.Acrylic else false
 	Library.Acrylic = if typeof(Config.Acrylic) == "boolean" then Config.Acrylic else false
-	Library.Theme = "Royal_Purple"
+	Library.Theme = "Electric_Blue"
 
 	if Config.Acrylic then
 		Acrylic.init()
@@ -1301,6 +1301,44 @@ local function EscapeTabRichText(Text)
 	return Text
 end
 
+local function IsInactiveStatus(Status)
+	Status = tostring(Status or "")
+	local Normalized = Status:lower()
+
+	return Status == ""
+		or Normalized == "idle"
+		or Normalized == "stopped"
+		or Normalized == "ready"
+		or Normalized == "disabled"
+		or Normalized == "turned off"
+end
+
+local function ResolveGlobalStatus()
+	local Window = TabModule.Window
+	local OwnerIndex = Window and Window.GlobalStatusOwner
+	local OwnerTab = OwnerIndex and TabModule.Tabs[OwnerIndex]
+
+	if OwnerTab and not IsInactiveStatus(OwnerTab.Status) then
+		return tostring(OwnerTab.Status)
+	end
+
+	if Window then
+		Window.GlobalStatusOwner = nil
+	end
+
+	for Index, TabObject in next, TabModule.Tabs do
+		if not IsInactiveStatus(TabObject.Status) then
+			if Window then
+				Window.GlobalStatusOwner = Index
+			end
+
+			return tostring(TabObject.Status)
+		end
+	end
+
+	return "Idle"
+end
+
 local function UpdateTabDisplay(TabIndex)
 	local Window = TabModule.Window
 	local Tab = TabModule.Tabs[TabIndex]
@@ -1309,7 +1347,7 @@ local function UpdateTabDisplay(TabIndex)
 		return
 	end
 
-	local Status = tostring(Window.AutomationStatus or Tab.Status or "")
+	local Status = ResolveGlobalStatus()
 	local HasStatus = Status ~= ""
 
 	if HasStatus then
@@ -1327,7 +1365,7 @@ local function UpdateTabDisplay(TabIndex)
 		end
 
 		Window.TabDisplay.Text = EscapeTabRichText(Tab.Name)
-			.. "\n<font size=\"13\" color=\"" .. StatusColor .. "\">STATUS: "
+			.. "\n<font size=\"13\" color=\"#FFFFFF\">STATUS: </font><font size=\"13\" color=\"" .. StatusColor .. "\">"
 			.. EscapeTabRichText(Status)
 			.. "</font>"
 	else
@@ -1459,13 +1497,13 @@ function TabModule:New(Title, Icon, Parent)
 			PaddingRight = UDim.new(0, 10),
 			PaddingLeft = UDim.new(0, 1),
 			PaddingTop = UDim.new(0, 1),
-			PaddingBottom = UDim.new(0, 1),
+			PaddingBottom = UDim.new(0, 10),
 		}),
 	})
 
 	Creator.AddSignal(ContainerLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-		if Tab.ContainerFrame.CanvasSize ~= UDim2.fromOffset(0, ContainerLayout.AbsoluteContentSize.Y + 2) then
-			Tab.ContainerFrame.CanvasSize = UDim2.fromOffset(0, ContainerLayout.AbsoluteContentSize.Y + 2)
+		if Tab.ContainerFrame.CanvasSize ~= UDim2.fromOffset(0, ContainerLayout.AbsoluteContentSize.Y + 11) then
+			Tab.ContainerFrame.CanvasSize = UDim2.fromOffset(0, ContainerLayout.AbsoluteContentSize.Y + 11)
 		end
 	end)
 
@@ -1498,10 +1536,15 @@ function TabModule:New(Title, Icon, Parent)
 
 		if self.Name == "Automation" then
 			Window.AutomationStatus = self.Status
-			UpdateTabDisplay(TabModule.SelectedTab or TabIndex)
-		elseif self.Selected then
-			UpdateTabDisplay(TabIndex)
 		end
+
+		if not IsInactiveStatus(self.Status) then
+			Window.GlobalStatusOwner = TabIndex
+		elseif Window.GlobalStatusOwner == TabIndex then
+			Window.GlobalStatusOwner = nil
+		end
+
+		UpdateTabDisplay(TabModule.SelectedTab or TabIndex)
 	end
 
 	function Tab:Section(SectionTitle)
@@ -3739,6 +3782,7 @@ function Element:New(Idx, Config)
 			Enum.EasingStyle.Quart,
 			.2
 		)
+
 	end
 
 	function Dropdown:Close()
@@ -3747,6 +3791,7 @@ function Element:New(Idx, Config)
 		ScrollFrame.ScrollingEnabled = true
 		DropdownHolderFrame.Size = UDim2.fromScale(1, 0.6)
 		DropdownHolderCanvas.Visible = false
+
 	end
 
 	Creator.AddSignal(DropdownInner.MouseButton1Click, function()
@@ -5172,7 +5217,7 @@ function Creator.GetThemeProperty(Property)
 		return Themes[require(Root).Theme][Property]
 	end
 
-	return Themes["Royal_Purple"][Property]
+	return Themes["Electric_Blue"][Property]
 end
 
 function Creator.UpdateTheme(RegistryIndex: Instance?)
@@ -5405,7 +5450,7 @@ end)() end,
     [31] = function()local wax,script,require=ImportGlobals(31)local ImportGlobals return (function(...)
 local Themes = {
     Names = {
-        "Royal_Purple"
+        "Electric_Blue"
     }
 }
 
@@ -5416,49 +5461,49 @@ end
 return Themes
 end)() end,
     [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)return {
-	Accent = Color3.fromRGB(140, 60, 220),
+	Accent = Color3.fromRGB(0, 132, 255),
 
-	AcrylicMain = Color3.fromRGB(14, 10, 22),
-	AcrylicBorder = Color3.fromRGB(107, 79, 155),
-	AcrylicGradient = ColorSequence.new(Color3.fromRGB(58, 27, 91), Color3.fromRGB(9, 6, 14)),
+	AcrylicMain = Color3.fromRGB(4, 8, 18),
+	AcrylicBorder = Color3.fromRGB(24, 72, 145),
+	AcrylicGradient = ColorSequence.new(Color3.fromRGB(8, 38, 86), Color3.fromRGB(2, 5, 12)),
 	AcrylicNoise = 0.9,
 
-	TitleBarLine = Color3.fromRGB(69, 49, 105),
-	Tab = Color3.fromRGB(118, 92, 162),
+	TitleBarLine = Color3.fromRGB(17, 47, 96),
+	Tab = Color3.fromRGB(25, 64, 122),
 
-	Element = Color3.fromRGB(100, 70, 150),
-	ElementBorder = Color3.fromRGB(11, 8, 18),
-	InElementBorder = Color3.fromRGB(107, 79, 155),
+	Element = Color3.fromRGB(18, 48, 94),
+	ElementBorder = Color3.fromRGB(2, 6, 15),
+	InElementBorder = Color3.fromRGB(25, 78, 153),
 	ElementTransparency = 0.87,
 
-	ToggleSlider = Color3.fromRGB(100, 70, 150),
-	ToggleToggled = Color3.fromRGB(0, 0, 0),
+	ToggleSlider = Color3.fromRGB(22, 58, 112),
+	ToggleToggled = Color3.fromRGB(235, 248, 255),
 
-	SliderRail = Color3.fromRGB(100, 70, 150),
+	SliderRail = Color3.fromRGB(22, 58, 112),
 
-	DropdownFrame = Color3.fromRGB(131, 107, 171),
-	DropdownHolder = Color3.fromRGB(13, 9, 20),
-	DropdownBorder = Color3.fromRGB(11, 8, 17),
-	DropdownOption = Color3.fromRGB(100, 70, 150),
+	DropdownFrame = Color3.fromRGB(28, 73, 138),
+	DropdownHolder = Color3.fromRGB(4, 9, 20),
+	DropdownBorder = Color3.fromRGB(2, 6, 15),
+	DropdownOption = Color3.fromRGB(19, 50, 97),
 
-	Keybind = Color3.fromRGB(100, 70, 150),
+	Keybind = Color3.fromRGB(22, 58, 112),
 
-	Input = Color3.fromRGB(123, 97, 165),
-	InputFocused = Color3.fromRGB(9, 6, 14),
-	InputIndicator = Color3.fromRGB(138, 116, 176),
+	Input = Color3.fromRGB(27, 68, 129),
+	InputFocused = Color3.fromRGB(3, 7, 17),
+	InputIndicator = Color3.fromRGB(55, 145, 255),
 
-	Dialog = Color3.fromRGB(13, 9, 20),
-	DialogHolder = Color3.fromRGB(11, 8, 18),
-	DialogHolderLine = Color3.fromRGB(10, 7, 16),
-	DialogButton = Color3.fromRGB(13, 9, 20),
-	DialogButtonBorder = Color3.fromRGB(112, 84, 158),
-	DialogBorder = Color3.fromRGB(100, 70, 150),
-	DialogInput = Color3.fromRGB(32, 28, 38),
-	DialogInputLine = Color3.fromRGB(138, 116, 176),
+	Dialog = Color3.fromRGB(4, 9, 20),
+	DialogHolder = Color3.fromRGB(3, 8, 18),
+	DialogHolderLine = Color3.fromRGB(2, 6, 15),
+	DialogButton = Color3.fromRGB(6, 14, 28),
+	DialogButtonBorder = Color3.fromRGB(27, 86, 166),
+	DialogBorder = Color3.fromRGB(20, 68, 136),
+	DialogInput = Color3.fromRGB(14, 26, 46),
+	DialogInputLine = Color3.fromRGB(55, 145, 255),
 
-	Text = Color3.fromRGB(240, 240, 240),
-	SubText = Color3.fromRGB(170, 170, 170),
-	Hover = Color3.fromRGB(100, 70, 150),
+	Text = Color3.fromRGB(240, 248, 255),
+	SubText = Color3.fromRGB(155, 178, 205),
+	Hover = Color3.fromRGB(23, 60, 114),
 	HoverChange = 0.06
 }
 
@@ -6562,7 +6607,7 @@ local ObjectTree = {
                                                                                     109,
                                                                                     2,
                                                                                     {
-                                                                                                                "Royal_Purple"
+                                                                                                                "Electric_Blue"
                                                                                                             }
                                                                                 }
                                                         }
