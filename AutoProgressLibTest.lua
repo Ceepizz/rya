@@ -3549,9 +3549,7 @@ function Element:New(Idx, Config)
 		Value = Config.Default or Config.Value,
 		Multi = Config.Multi or false,
 		AutoDeselect = Config.AutoDeselect or false,
-		Searchable = Config.Searchable == nil or Config.Searchable,
-		FocusSearch = Config.FocusSearch or true,
-		SearchPlaceholder = Config.SearchPlaceholder or "Search...",
+		Searchable = false,
 		Displayer = typeof(Config.Displayer) == "function" and Config.Displayer or function(Value)
 			return typeof(Value) ~= "number" and tostring(Library.Utilities:Prettify(Value)) or Value
 		end,
@@ -3642,8 +3640,8 @@ function Element:New(Idx, Config)
 	})
 
 	local DropdownScrollFrame = New("ScrollingFrame", {
-		Size = UDim2.new(1, -5, 1, Dropdown.Searchable and -40 or -10),
-		Position = UDim2.fromOffset(5, Dropdown.Searchable and 40 or 5),
+		Size = UDim2.new(1, -5, 1, -10),
+		Position = UDim2.fromOffset(5, 5),
 		BackgroundTransparency = 1,
 		BottomImage = "rbxassetid://6889812791",
 		MidImage = "rbxassetid://6889812721",
@@ -3685,16 +3683,6 @@ function Element:New(Idx, Config)
 			ImageTransparency = 0.1,
 		}),
 	}) :: Frame
-
-	local SearchableTextbox = require(Components.Textbox)(DropdownHolderFrame, true)
-	SearchableTextbox.Frame.Visible = Dropdown.Searchable
-	SearchableTextbox.Frame.AnchorPoint = Vector2.new(0.5, 0)
-	SearchableTextbox.Frame.Position = UDim2.new(0.5, 0, 0, 5)
-	SearchableTextbox.Frame.Size = UDim2.new(1, -5, 0, 32)
-	SearchableTextbox.Input.PlaceholderText = Dropdown.SearchPlaceholder
-	SearchableTextbox.Input.Text = ""
-
-	local SearchBox = SearchableTextbox.Input
 
 	local ButtonSelector_BuildList = New("Frame", {
 		Size = UDim2.fromOffset(4, 14),
@@ -3770,25 +3758,17 @@ function Element:New(Idx, Config)
 
 	local ListSizeX = 0
 	local function RecalculateListSize()
-		local Subtract = Dropdown.Searchable and 42 or 0
-		local Add = Dropdown.Searchable and 35 or 0
-
-		DropdownHolderCanvas.Size = UDim2.fromOffset(ListSizeX, math.min(392 - Subtract, DropdownListLayout.AbsoluteContentSize.Y + 10 + Add))
+		DropdownHolderCanvas.Size = UDim2.fromOffset(ListSizeX, math.min(392, DropdownListLayout.AbsoluteContentSize.Y + 10))
 	end
 
 	local function RecalculateCanvasSize()
 		DropdownScrollFrame.CanvasSize = UDim2.fromOffset(0, DropdownListLayout.AbsoluteContentSize.Y)
 	end
 
-	local function RepopulateDropdownList()
-		Dropdown:BuildDropdownList()
-	end
-
 	RecalculateListPosition()
 	RecalculateListSize()
 
 	Creator.AddSignal(DropdownInner:GetPropertyChangedSignal("AbsolutePosition"), RecalculateListPosition)
-	Creator.AddSignal(SearchBox:GetPropertyChangedSignal("Text"), RepopulateDropdownList)
 
 	local ScrollFrame = self.ScrollFrame
 	function Dropdown:Open()
@@ -3803,13 +3783,6 @@ function Element:New(Idx, Config)
 			.2
 		)
 
-		if Dropdown.Searchable then
-			SearchBox.Text = ""
-
-			if Dropdown.FocusSearch then
-				SearchBox:CaptureFocus()
-			end
-		end
 	end
 
 	function Dropdown:Close()
@@ -3819,10 +3792,6 @@ function Element:New(Idx, Config)
 		DropdownHolderFrame.Size = UDim2.fromScale(1, 0.6)
 		DropdownHolderCanvas.Visible = false
 
-		if Dropdown.Searchable then
-			SearchBox.Text = ""
-			SearchBox:ReleaseFocus()
-		end
 	end
 
 	Creator.AddSignal(DropdownInner.MouseButton1Click, function()
@@ -3964,10 +3933,6 @@ function Element:New(Idx, Config)
 				if ThisGeneration ~= BuildGeneration then
 					return
 				end
-			end
-
-			if Dropdown.Searchable and SearchBox.Text ~= "" and not string.find(string.lower(Dropdown.Displayer(Value)), string.lower(SearchBox.Text), 1, true) then
-				continue
 			end
 
 			local Table = {}
