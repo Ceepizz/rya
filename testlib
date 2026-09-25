@@ -2710,7 +2710,7 @@ end)
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			Image = NeonGlowTexture,
-			ImageColor3 = Color3.fromRGB(198, 42, 255),
+			ImageColor3 = Color3.fromRGB(0, 157, 255),
 			ImageTransparency = 0.42,
 			ScaleType = Enum.ScaleType.Slice,
 			SliceCenter = Rect.new(99, 99, 99, 99),
