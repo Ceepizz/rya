@@ -31,7 +31,7 @@ local SavedState = {
 }
 
 local Executor = identifyexecutor and identifyexecutor()
-if Executor == "Solara" or Executor == "Xno" then
+if Executor == "Solara" or Executor == "Xeno" then
     game:GetService("Players").LocalPlayer:Kick("Unsupported executor: " .. Executor)
 end
 
