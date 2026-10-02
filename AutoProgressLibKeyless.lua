@@ -107,7 +107,7 @@ local Library = {
 	Unloaded = false,
 	Loaded = true,
 
-	Theme = "Royal_Purple",
+	Theme = "Electric_Blue",
 	DialogOpen = false,
 	UseAcrylic = false,
 	Acrylic = false,
@@ -328,7 +328,7 @@ function Library:Window(Config: {
 		end
 	end
 
-	Config.Theme = "Royal_Purple"
+	Config.Theme = "Electric_Blue"
 	Config.Icon = Config.Icon or 88505209802501
 
 	if not Config.Title then
@@ -349,7 +349,7 @@ function Library:Window(Config: {
 	Library.MinimizeKey = if typeof(Config.MinimizeKey) == "string" or typeof(Config.MinimizeKey) == "EnumItem" and Config.MinimizeKey.EnumType == Enum.KeyCode then Config.MinimizeKey else Enum.KeyCode.LeftControl
 	Library.UseAcrylic = if typeof(Config.Acrylic) == "boolean" then Config.Acrylic else false
 	Library.Acrylic = if typeof(Config.Acrylic) == "boolean" then Config.Acrylic else false
-	Library.Theme = "Royal_Purple"
+	Library.Theme = "Electric_Blue"
 
 	if Config.Acrylic then
 		Acrylic.init()
@@ -2325,15 +2325,15 @@ return function(Config)
 
 	local RunService = game:GetService("RunService")
 
-	-- Soft purple/pink/blue outline like the reference, but brighter and more
-	-- neon. The colors will also shift over time for a shiny animated look.
+	-- Electric blue gradient: bright cyan/sky blue into deep royal blue.
+	-- Keep the whole sweep inside the blue family so no purple/pink appears.
 	local NeonGradientColors = ColorSequence.new({
-		ColorSequenceKeypoint.new(0.00, Color3.fromRGB(110, 98, 238)),
-		ColorSequenceKeypoint.new(0.22, Color3.fromRGB(135, 83, 229)),
-		ColorSequenceKeypoint.new(0.48, Color3.fromRGB(179, 72, 232)),
-		ColorSequenceKeypoint.new(0.64, Color3.fromRGB(235, 92, 232)),
-		ColorSequenceKeypoint.new(0.82, Color3.fromRGB(189, 120, 226)),
-		ColorSequenceKeypoint.new(1.00, Color3.fromRGB(110, 98, 238)),
+		ColorSequenceKeypoint.new(0.00, Color3.fromRGB(88, 220, 255)),
+		ColorSequenceKeypoint.new(0.20, Color3.fromRGB(38, 190, 255)),
+		ColorSequenceKeypoint.new(0.44, Color3.fromRGB(0, 145, 255)),
+		ColorSequenceKeypoint.new(0.68, Color3.fromRGB(0, 91, 255)),
+		ColorSequenceKeypoint.new(0.86, Color3.fromRGB(0, 61, 204)),
+		ColorSequenceKeypoint.new(1.00, Color3.fromRGB(32, 151, 255)),
 	})
 
 	local function Wrap01(Value)
@@ -2341,15 +2341,9 @@ return function(Config)
 	end
 
 	local function BuildShiftedNeonGradient(Phase)
-		local Shift = Phase * 0.09
-		return ColorSequence.new({
-			ColorSequenceKeypoint.new(0.00, Color3.fromHSV(Wrap01(0.67 + Shift), 0.52, 1.00)),
-			ColorSequenceKeypoint.new(0.20, Color3.fromHSV(Wrap01(0.73 + Shift), 0.62, 1.00)),
-			ColorSequenceKeypoint.new(0.46, Color3.fromHSV(Wrap01(0.79 + Shift), 0.67, 1.00)),
-			ColorSequenceKeypoint.new(0.62, Color3.fromHSV(Wrap01(0.86 + Shift), 0.58, 1.00)),
-			ColorSequenceKeypoint.new(0.82, Color3.fromHSV(Wrap01(0.92 + Shift), 0.44, 1.00)),
-			ColorSequenceKeypoint.new(1.00, Color3.fromHSV(Wrap01(0.75 + Shift), 0.58, 1.00)),
-		})
+		-- The Offset animation below already makes the gradient move.
+		-- Keep the actual hues fixed to cyan -> electric blue -> deep blue.
+		return NeonGradientColors
 	end
 
 	local NeonGradientTransparency = NumberSequence.new({
@@ -2360,8 +2354,8 @@ return function(Config)
 		NumberSequenceKeypoint.new(1.00, 0.10),
 	})
 
-	-- Soft purple halo behind the window. This is what gives the
-	-- outline the same "lit from the edge" look as the neon hat.
+	-- Soft blue/cyan halo behind the window. This gives the
+	-- outline the same "lit from the edge" neon look.
 	local NeonGlowTexture = "rbxassetid://8992230677"
 	local NeonOuterExtra = 84
 	local NeonInnerExtra = 46
@@ -2397,14 +2391,14 @@ return function(Config)
 	Window.NeonGlowOuter = CreateNeonHalo(
 		"NeonGlowOuter",
 		NeonOuterExtra,
-		Color3.fromRGB(126, 24, 255),
+		Color3.fromRGB(0, 105, 255),
 		0.52
 	)
 
 	Window.NeonGlowInner = CreateNeonHalo(
 		"NeonGlowInner",
 		NeonInnerExtra,
-		Color3.fromRGB(224, 54, 255),
+		Color3.fromRGB(45, 205, 255),
 		0.40
 	)
 
@@ -2577,7 +2571,7 @@ TypeLabel.RichText = true
 LimitedLabel.Name = "Limited"
 LimitedLabel.Parent = InfoFrame
 LimitedLabel.BackgroundTransparency = 1
-LimitedLabel.Position = UDim2.new(0, 0, 0, 30)
+LimitedLabel.Position = UDim2.new(0, 0, 0, 33)
 LimitedLabel.Size = UDim2.new(1, 0, 0, 12)
 LimitedLabel.Font = Enum.Font.Gotham
 LimitedLabel.TextSize = 12
@@ -2662,7 +2656,7 @@ end)
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			Image = NeonGlowTexture,
-			ImageColor3 = Color3.fromRGB(198, 42, 255),
+			ImageColor3 = Color3.fromRGB(0, 157, 255),
 			ImageTransparency = 0.42,
 			ScaleType = Enum.ScaleType.Slice,
 			SliceCenter = Rect.new(99, 99, 99, 99),
@@ -2761,10 +2755,12 @@ end)
 		end
 
 		if Window.NeonGlowOuter then
-			Window.NeonGlowOuter.ImageColor3 = Color3.fromHSV(Wrap01(0.76 + Phase * 0.08), 0.74, 1.00)
+			-- Cyan -> sky-blue pulse only.
+			Window.NeonGlowOuter.ImageColor3 = Color3.fromHSV(0.53 + Phase * 0.03, 0.78, 1.00)
 		end
 		if Window.NeonGlowInner then
-			Window.NeonGlowInner.ImageColor3 = Color3.fromHSV(Wrap01(0.84 + Phase * 0.08), 0.62, 1.00)
+			-- Sky-blue -> royal-blue pulse only.
+			Window.NeonGlowInner.ImageColor3 = Color3.fromHSV(0.59 + Phase * 0.03, 0.72, 1.00)
 		end
 	end)
 
@@ -4391,7 +4387,7 @@ ToggleFrame.DescLabel.Size = UDim2.new(1, -54, 0, 14)
 		LineJoinMode = Enum.LineJoinMode.Round,
 		Thickness = 7,
 		Transparency = 1,
-		Color = Color3.fromRGB(126, 24, 255),
+		Color = Color3.fromRGB(0, 105, 255),
 	})
 
 	local ToggleGlowInner = New("UIStroke", {
@@ -4400,7 +4396,7 @@ ToggleFrame.DescLabel.Size = UDim2.new(1, -54, 0, 14)
 		LineJoinMode = Enum.LineJoinMode.Round,
 		Thickness = 4,
 		Transparency = 1,
-		Color = Color3.fromRGB(226, 58, 255),
+		Color = Color3.fromRGB(45, 205, 255),
 	})
 
 	local ToggleSlider = New("Frame", {
@@ -5163,7 +5159,7 @@ function Creator.GetThemeProperty(Property)
 		return Themes[require(Root).Theme][Property]
 	end
 
-	return Themes["Royal_Purple"][Property]
+	return Themes["Electric_Blue"][Property]
 end
 
 function Creator.UpdateTheme(RegistryIndex: Instance?)
@@ -5396,7 +5392,7 @@ end)() end,
     [31] = function()local wax,script,require=ImportGlobals(31)local ImportGlobals return (function(...)
 local Themes = {
     Names = {
-        "Royal_Purple"
+        "Electric_Blue"
     }
 }
 
@@ -5407,49 +5403,49 @@ end
 return Themes
 end)() end,
     [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)return {
-	Accent = Color3.fromRGB(140, 60, 220),
+	Accent = Color3.fromRGB(0, 157, 255),
 
-	AcrylicMain = Color3.fromRGB(14, 10, 22),
-	AcrylicBorder = Color3.fromRGB(107, 79, 155),
-	AcrylicGradient = ColorSequence.new(Color3.fromRGB(58, 27, 91), Color3.fromRGB(9, 6, 14)),
+	AcrylicMain = Color3.fromRGB(4, 8, 18),
+	AcrylicBorder = Color3.fromRGB(18, 92, 180),
+	AcrylicGradient = ColorSequence.new(Color3.fromRGB(8, 38, 86), Color3.fromRGB(2, 5, 12)),
 	AcrylicNoise = 0.9,
 
-	TitleBarLine = Color3.fromRGB(69, 49, 105),
-	Tab = Color3.fromRGB(118, 92, 162),
+	TitleBarLine = Color3.fromRGB(12, 72, 140),
+	Tab = Color3.fromRGB(25, 64, 122),
 
-	Element = Color3.fromRGB(100, 70, 150),
-	ElementBorder = Color3.fromRGB(11, 8, 18),
-	InElementBorder = Color3.fromRGB(107, 79, 155),
+	Element = Color3.fromRGB(18, 48, 94),
+	ElementBorder = Color3.fromRGB(2, 6, 15),
+	InElementBorder = Color3.fromRGB(25, 78, 153),
 	ElementTransparency = 0.87,
 
-	ToggleSlider = Color3.fromRGB(100, 70, 150),
-	ToggleToggled = Color3.fromRGB(0, 0, 0),
+	ToggleSlider = Color3.fromRGB(22, 58, 112),
+	ToggleToggled = Color3.fromRGB(235, 248, 255),
 
-	SliderRail = Color3.fromRGB(100, 70, 150),
+	SliderRail = Color3.fromRGB(22, 58, 112),
 
-	DropdownFrame = Color3.fromRGB(131, 107, 171),
-	DropdownHolder = Color3.fromRGB(13, 9, 20),
-	DropdownBorder = Color3.fromRGB(11, 8, 17),
-	DropdownOption = Color3.fromRGB(100, 70, 150),
+	DropdownFrame = Color3.fromRGB(28, 73, 138),
+	DropdownHolder = Color3.fromRGB(4, 9, 20),
+	DropdownBorder = Color3.fromRGB(2, 6, 15),
+	DropdownOption = Color3.fromRGB(19, 50, 97),
 
-	Keybind = Color3.fromRGB(100, 70, 150),
+	Keybind = Color3.fromRGB(22, 58, 112),
 
-	Input = Color3.fromRGB(123, 97, 165),
-	InputFocused = Color3.fromRGB(9, 6, 14),
-	InputIndicator = Color3.fromRGB(138, 116, 176),
+	Input = Color3.fromRGB(27, 68, 129),
+	InputFocused = Color3.fromRGB(3, 7, 17),
+	InputIndicator = Color3.fromRGB(48, 190, 255),
 
-	Dialog = Color3.fromRGB(13, 9, 20),
-	DialogHolder = Color3.fromRGB(11, 8, 18),
-	DialogHolderLine = Color3.fromRGB(10, 7, 16),
-	DialogButton = Color3.fromRGB(13, 9, 20),
-	DialogButtonBorder = Color3.fromRGB(112, 84, 158),
-	DialogBorder = Color3.fromRGB(100, 70, 150),
-	DialogInput = Color3.fromRGB(32, 28, 38),
-	DialogInputLine = Color3.fromRGB(138, 116, 176),
+	Dialog = Color3.fromRGB(4, 9, 20),
+	DialogHolder = Color3.fromRGB(3, 8, 18),
+	DialogHolderLine = Color3.fromRGB(2, 6, 15),
+	DialogButton = Color3.fromRGB(6, 14, 28),
+	DialogButtonBorder = Color3.fromRGB(27, 86, 166),
+	DialogBorder = Color3.fromRGB(20, 68, 136),
+	DialogInput = Color3.fromRGB(14, 26, 46),
+	DialogInputLine = Color3.fromRGB(48, 190, 255),
 
-	Text = Color3.fromRGB(240, 240, 240),
-	SubText = Color3.fromRGB(170, 170, 170),
-	Hover = Color3.fromRGB(100, 70, 150),
+	Text = Color3.fromRGB(240, 248, 255),
+	SubText = Color3.fromRGB(155, 178, 205),
+	Hover = Color3.fromRGB(23, 60, 114),
 	HoverChange = 0.06
 }
 
@@ -6553,7 +6549,7 @@ local ObjectTree = {
                                                                                     109,
                                                                                     2,
                                                                                     {
-                                                                                                                "Royal_Purple"
+                                                                                                                "Electric_Blue"
                                                                                                             }
                                                                                 }
                                                         }
