@@ -2567,6 +2567,7 @@ TypeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 TypeLabel.TextXAlignment = Enum.TextXAlignment.Left
 TypeLabel.TextWrapped = true
 TypeLabel.RichText = true
+TypeLabel.Text = '<font color="rgb(255,200,70)"><b>Premium</b></font>'
 
 LimitedLabel.Name = "Limited"
 LimitedLabel.Parent = InfoFrame
@@ -2579,25 +2580,6 @@ LimitedLabel.Text = "Limited"
 LimitedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 LimitedLabel.TextXAlignment = Enum.TextXAlignment.Left
 LimitedLabel.TextWrapped = true
-
-local function IsPremium()
-    return shared.JD_IS_PREMIUM == true
-end
-
-task.spawn(function()
-    while AccountInfo.Parent do
-        if IsPremium() then
-            -- Keep the label readable, but make the Premium value gold.
-            TypeLabel.Text = '<font color="rgb(255,200,70)"><b>Premium</b></font>'
-            TypeLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-        else
-            TypeLabel.Text = "Standard"
-            TypeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        end
-
-        task.wait(1)
-    end
-end)
 
 	Window.HideButton = New("ImageButton", {
 		Visible = false,
