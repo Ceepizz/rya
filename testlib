@@ -2536,7 +2536,7 @@ InfoFrame.Name = "Info"
 InfoFrame.Parent = AccountInfo
 InfoFrame.BackgroundTransparency = 1
 InfoFrame.AnchorPoint = Vector2.new(0, 0.5)
-InfoFrame.Position = UDim2.new(0, 48, 0.5, 0)
+InfoFrame.Position = UDim2.new(0, 48, 0.5, 8)
 InfoFrame.Size = UDim2.new(1, -52, 1, 0)
 
 UsernameLabel.Name = "Username"
@@ -2575,7 +2575,7 @@ ExpiryLabel.Position = UDim2.new(0, 0, 0, 33)
 ExpiryLabel.Size = UDim2.new(1, 0, 0, 30)
 ExpiryLabel.Font = Enum.Font.Gotham
 ExpiryLabel.TextSize = 12
-ExpiryLabel.Text = "Key expires: --"
+ExpiryLabel.Text = "--"
 ExpiryLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 ExpiryLabel.TextXAlignment = Enum.TextXAlignment.Left
 ExpiryLabel.TextWrapped = true
@@ -2595,24 +2595,23 @@ local function FormatDuration(sec)
         return "Expired"
     end
 
-    local days = math.floor(sec / 86400)
-    sec = sec - days * 86400
-
     local hours = math.floor(sec / 3600)
-    sec = sec - hours * 3600
 
-    local mins = math.floor(sec / 60)
-    local secs = math.floor(sec - mins * 60)
-
-    if days > 0 then
-        return string.format("%dd %dh", days, hours)
-    elseif hours > 0 then
-        return string.format("%dh %dm", hours, mins)
-    elseif mins > 0 then
-        return string.format("%dm %ds", mins, secs)
-    else
-        return string.format("%ds", secs)
+    if hours >= 1 then
+        return string.format(
+            "%d %s",
+            hours,
+            hours == 1 and "Hour" or "Hours"
+        )
     end
+
+    local mins = math.max(1, math.floor(sec / 60))
+
+    return string.format(
+        "%d %s",
+        mins,
+        mins == 1 and "Minute" or "Minutes"
+    )
 end
 
 task.spawn(function()
@@ -2640,7 +2639,7 @@ task.spawn(function()
         elseif remaining and remaining > 0 then
             -- Temporary key: countdown is red.
             ExpiryLabel.Text =
-                'Key expires in: <font color="rgb(255,90,90)"><b>'
+                '<font color="rgb(255,90,90)"><b>'
                 .. FormatDuration(remaining)
                 .. '</b></font>'
             ExpiryLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
