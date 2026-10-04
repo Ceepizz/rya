@@ -1592,24 +1592,39 @@ function TabModule:SelectTab(Tab)
 	end
 
 	task.spawn(function()
-		Window.ContainerHolder.Parent = Window.ContainerAnim
+		local holderAlive = pcall(function()
+			Window.ContainerHolder.Parent = Window.ContainerAnim
+		end)
+
+		if not holderAlive then
+			return
+		end
 
 		Window.ContainerPosMotor:setGoal(Spring(15, { frequency = 10 }))
 		Window.ContainerBackMotor:setGoal(Spring(1, { frequency = 10 }))
 
 		task.wait(0.12)
 
-		for _, Container in next, TabModule.Containers do
-			Container.Visible = false
+		local containersAlive = pcall(function()
+			for _, Container in next, TabModule.Containers do
+				Container.Visible = false
+			end
+
+			TabModule.Containers[Tab].Visible = true
+		end)
+
+		if not containersAlive then
+			return
 		end
 
-		TabModule.Containers[Tab].Visible = true
 		Window.ContainerPosMotor:setGoal(Spring(0, { frequency = 5 }))
 		Window.ContainerBackMotor:setGoal(Spring(0, { frequency = 8 }))
 
 		task.wait(0.12)
 
-		Window.ContainerHolder.Parent = Window.ContainerCanvas
+		pcall(function()
+			Window.ContainerHolder.Parent = Window.ContainerCanvas
+		end)
 	end)
 end
 
