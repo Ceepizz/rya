@@ -2115,6 +2115,7 @@ return function(Config)
 	local Layout = ComputeLayout(Alignment)
 
 	local Selector = New("Frame", {
+		Visible = false,
 		Size = Horizontal and UDim2.fromOffset(0, 3) or UDim2.fromOffset(3, 0),
 		BackgroundColor3 = Color3.fromRGB(76, 194, 255),
 		AnchorPoint = Horizontal and Vector2.new(0.5, Reversed and 0 or 1) or Vector2.new(Reversed and 1 or 0, 0.5),
