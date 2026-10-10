@@ -1588,8 +1588,16 @@ function TabModule:SelectTab(Tab)
 		local isSelected = TabObject == TabModule.Tabs[Tab]
 		TabObject.Selected = isSelected
 		TabObject.SetTransparency(isSelected and 0.78 or 1)
-		TabObject.TitleLabel.TextColor3 = isSelected and TabObject.SelectedAccent or Color3.fromRGB(255, 255, 255)
-		TabObject.IconLabel.ImageColor3 = isSelected and TabObject.SelectedAccent or Color3.fromRGB(255, 255, 255)
+		local accent = Color3.fromRGB(255, 145, 45)
+		local titleLabel = TabObject.Frame:FindFirstChild("TabTitleLabel")
+		local iconLabel = TabObject.Frame:FindFirstChild("IconLabel")
+		if titleLabel then
+			titleLabel.TextColor3 = isSelected and accent or Color3.fromRGB(255, 255, 255)
+		end
+		if iconLabel then
+			iconLabel.ImageColor3 = isSelected and accent or Color3.fromRGB(255, 255, 255)
+		end
+		TabObject.Frame.BackgroundColor3 = accent
 		local outline = TabObject.Frame:FindFirstChild("TabOutline")
 		if outline then
 			outline.Transparency = isSelected and 0.38 or 1
