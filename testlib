@@ -1579,10 +1579,21 @@ function TabModule:SelectTab(Tab)
 	for _, TabObject in next, TabModule.Tabs do
 		TabObject.SetTransparency(1)
 		TabObject.Selected = false
+		local outline = TabObject.Frame:FindFirstChild("TabOutline")
+		if outline then
+			outline.Transparency = 0.65
+			outline.Thickness = 1
+		end
 	end
 
-	TabModule.Tabs[Tab].SetTransparency(0.89)
-	TabModule.Tabs[Tab].Selected = true
+	local activeTab = TabModule.Tabs[Tab]
+	activeTab.SetTransparency(0.80)
+	activeTab.Selected = true
+	local activeOutline = activeTab.Frame:FindFirstChild("TabOutline")
+	if activeOutline then
+		activeOutline.Transparency = 0
+		activeOutline.Thickness = 2.5
+	end
 
 	UpdateTabDisplay(Tab)
 	Window.SelectorPosMotor:setGoal(Spring(TabModule:GetCurrentTabPos(), { frequency = 6 }))
