@@ -1460,8 +1460,8 @@ function TabModule:New(Title, Icon, Parent)
 			Name = "TabOutline",
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 			BorderStrokePosition = Enum.BorderStrokePosition.Inner,
-			Thickness = 1,
-			Transparency = 0.55,
+			Thickness = 1.5,
+			Transparency = 0.15,
 			ThemeTag = {
 				Color = "Accent",
 			},
