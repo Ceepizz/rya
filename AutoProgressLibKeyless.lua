@@ -1289,12 +1289,7 @@ function TabModule:RebuildForAlignment()
 	local Alignment = TabModule.Window.Alignment
 
 	for _, Tab in next, TabModule.Tabs do
-		Tab.SelectedAccent = Color3.fromRGB(45, 170, 255)
-	Tab.TitleLabel = TextLabel
-	Tab.IconLabel = IconLabel
-	Tab.Frame.BackgroundColor3 = Tab.SelectedAccent
-
-	TabModule:ApplyPillShape(Tab, Alignment)
+		TabModule:ApplyPillShape(Tab, Alignment)
 	end
 end
 
