@@ -1518,16 +1518,16 @@ function TabModule:New(Title, Icon, Parent)
 	Tab.Motor, Tab.SetTransparency = Creator.SpringMotor(1, Tab.Frame, "BackgroundTransparency")
 
 	Creator.AddSignal(Tab.Frame.MouseEnter, function()
-		Tab.SetTransparency(Tab.Selected and 0.74 or 0.94)
+		Tab.SetTransparency(Tab.Selected and 0.85 or 0.89)
 	end)
 	Creator.AddSignal(Tab.Frame.MouseLeave, function()
-		Tab.SetTransparency(Tab.Selected and 0.78 or 1)
+		Tab.SetTransparency(Tab.Selected and 0.89 or 1)
 	end)
 	Creator.AddSignal(Tab.Frame.MouseButton1Down, function()
 		Tab.SetTransparency(0.92)
 	end)
 	Creator.AddSignal(Tab.Frame.MouseButton1Up, function()
-		Tab.SetTransparency(Tab.Selected and 0.74 or 0.94)
+		Tab.SetTransparency(Tab.Selected and 0.85 or 0.89)
 	end)
 	Creator.AddSignal(Tab.Frame.MouseButton1Click, function()
 		TabModule:SelectTab(TabIndex)
@@ -1585,24 +1585,12 @@ function TabModule:SelectTab(Tab)
 	TabModule.SelectedTab = Tab
 
 	for _, TabObject in next, TabModule.Tabs do
-		local isSelected = TabObject == TabModule.Tabs[Tab]
-		TabObject.Selected = isSelected
-		TabObject.SetTransparency(isSelected and 0.78 or 1)
-		local accent = Color3.fromRGB(255, 145, 45)
-		local titleLabel = TabObject.Frame:FindFirstChild("TabTitleLabel")
-		local iconLabel = TabObject.Frame:FindFirstChild("IconLabel")
-		if titleLabel then
-			titleLabel.TextColor3 = isSelected and accent or Color3.fromRGB(255, 255, 255)
-		end
-		if iconLabel then
-			iconLabel.ImageColor3 = isSelected and accent or Color3.fromRGB(255, 255, 255)
-		end
-		TabObject.Frame.BackgroundColor3 = accent
-		local outline = TabObject.Frame:FindFirstChild("TabOutline")
-		if outline then
-			outline.Transparency = isSelected and 0.38 or 1
-		end
+		TabObject.SetTransparency(1)
+		TabObject.Selected = false
 	end
+
+	TabModule.Tabs[Tab].SetTransparency(0.89)
+	TabModule.Tabs[Tab].Selected = true
 
 	UpdateTabDisplay(Tab)
 	Window.SelectorPosMotor:setGoal(Spring(TabModule:GetCurrentTabPos(), { frequency = 6 }))
