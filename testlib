@@ -1861,7 +1861,7 @@ return function(Config)
 		end
 
 		return {
-			Image = "rbxassetid://88505209802501",
+			Image = "rbxassetid://88144315472439",
 			ImageRectSize = Vector2.new(0, 0),
 			ImageRectOffset = Vector2.new(0, 0),
 		}
