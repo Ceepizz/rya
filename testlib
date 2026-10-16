@@ -329,7 +329,7 @@ function Library:Window(Config: {
 	end
 
 	Config.Theme = "Electric_Blue"
-	Config.Icon = Config.Icon or 88505209802501
+	Config.Icon = Config.Icon or 88144315472439
 
 	if not Config.Title then
 		local Success, Game_Info = pcall(MarketplaceService.GetProductInfo, MarketplaceService, game.PlaceId)
@@ -2701,7 +2701,7 @@ end)
 			end
 		end
 
-		return "rbxassetid://88505209802501"
+		return "rbxassetid://88144315472439"
 	end
 
 	local FloatingLogoImage = New("ImageLabel", {
