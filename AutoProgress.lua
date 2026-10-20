@@ -383,7 +383,7 @@ task.spawn(function()
 end)
 
 local ok, err = pcall(function()
-loadstring(game:HttpGet("https://api.jnkie.com/api/v1/luascripts/public/7c7a4c329222a36ff1e2107aedb7ae0bc4d1335c1479b644061ff4fb056f5ce6/download"))()
+loadstring(game:HttpGet("https://api.jnkie.com/api/v1/luascripts/public/96aa3bb286648b1860f83b0d1dffc8b67b5091050f89341b6384c4450894193d/download"))()
 end)
 
 LoaderActive = false
