@@ -5,6 +5,109 @@ local Connections = {}
 local OriginalEffects = {}
 local OriginalEmitters = {}
 
+local Lighting = game:GetService("Lighting")
+
+-- Infinite Yield's nofog command, integrated with AntiLag.
+local function RemoveFog()
+    Lighting.FogEnd = 9e9
+    Lighting.FogStart = 9e9
+
+    for _, effect in ipairs(Lighting:GetDescendants()) do
+        if effect:IsA("Atmosphere") then
+            effect:Destroy()
+        end
+    end
+end
+
+local function OptimizeGraphicsInstance(instance)
+    pcall(function()
+        if instance:IsA("BasePart") then
+            instance.CastShadow = false
+            instance.Material = Enum.Material.Plastic
+            instance.Reflectance = 0
+
+            local smooth = Enum.SurfaceType.SmoothNoOutlines
+            instance.BackSurface = smooth
+            instance.BottomSurface = smooth
+            instance.FrontSurface = smooth
+            instance.LeftSurface = smooth
+            instance.RightSurface = smooth
+            instance.TopSurface = smooth
+        elseif instance:IsA("Decal") then
+            instance.Transparency = 1
+            instance.Texture = ""
+        elseif instance:IsA("ParticleEmitter") then
+            instance.Lifetime = NumberRange.new(0)
+        elseif instance:IsA("Trail") then
+            -- Trail.Lifetime is a number; ParticleEmitter.Lifetime is a NumberRange.
+            instance.Lifetime = 0
+        end
+    end)
+end
+
+-- Infinite Yield's antilag/boostfps/lowgraphics optimizations.
+-- The existing TDS-specific cleanup and effects hooks remain unchanged.
+local function ApplyInfiniteYieldGraphics()
+    local terrain = workspace:FindFirstChildWhichIsA("Terrain")
+    if terrain then
+        terrain.WaterWaveSize = 0
+        terrain.WaterWaveSpeed = 0
+        terrain.WaterReflectance = 0
+        terrain.WaterTransparency = 1
+    end
+
+    RemoveFog()
+
+    for _, instance in ipairs(game:GetDescendants()) do
+        if not Globals.AntiLag then
+            return
+        end
+        OptimizeGraphicsInstance(instance)
+    end
+
+    for _, effect in ipairs(Lighting:GetDescendants()) do
+        if effect:IsA("PostEffect") then
+            effect.Enabled = false
+        end
+    end
+
+    table.insert(Connections, workspace.DescendantAdded:Connect(function(instance)
+        if not Globals.AntiLag then
+            return
+        end
+
+        if instance:IsA("BasePart") then
+            instance.CastShadow = false
+        elseif instance:IsA("ForceField") or instance:IsA("Sparkles")
+            or instance:IsA("Smoke") or instance:IsA("Fire") or instance:IsA("Beam") then
+            task.defer(function()
+                if Globals.AntiLag and instance.Parent then
+                    instance:Destroy()
+                end
+            end)
+        end
+    end))
+
+    table.insert(Connections, Lighting.DescendantAdded:Connect(function(effect)
+        if not Globals.AntiLag then
+            return
+        end
+        if effect:IsA("Atmosphere") then
+            effect:Destroy()
+        elseif effect:IsA("PostEffect") then
+            effect.Enabled = false
+        end
+    end))
+
+    for _, property in ipairs({"FogStart", "FogEnd"}) do
+        table.insert(Connections, Lighting:GetPropertyChangedSignal(property):Connect(function()
+            if Globals.AntiLag and Lighting[property] ~= 9e9 then
+                Lighting[property] = 9e9
+            end
+        end))
+    end
+end
+
 local function HideInstance(descendant)
     if descendant:IsA("BasePart") then
         descendant.LocalTransparencyModifier = 1
@@ -130,6 +233,8 @@ local function StartAntiLag()
     pcall(function()
         game:GetService("Lighting").GlobalShadows = false
     end)
+
+    ApplyInfiniteYieldGraphics()
 
     HookEffectsController()
     HookEmitterManager()
