@@ -5,6 +5,23 @@ local Connections = {}
 local OriginalEffects = {}
 local OriginalEmitters = {}
 
+local LOBBY_PLACE_ID = 3260590327
+
+local function ApplyNoFog()
+    if game.PlaceId == LOBBY_PLACE_ID then
+        return
+    end
+
+    local lighting = game:GetService("Lighting")
+    lighting.FogEnd = 100000
+
+    for _, descendant in ipairs(lighting:GetDescendants()) do
+        if descendant:IsA("Atmosphere") then
+            descendant:Destroy()
+        end
+    end
+end
+
 local function HideInstance(descendant)
     if descendant:IsA("BasePart") then
         descendant.LocalTransparencyModifier = 1
@@ -131,6 +148,8 @@ local function StartAntiLag()
         game:GetService("Lighting").GlobalShadows = false
     end)
 
+    pcall(ApplyNoFog)
+
     HookEffectsController()
     HookEmitterManager()
 
@@ -155,6 +174,8 @@ local function StartAntiLag()
 
     task.spawn(function()
         while Globals.AntiLag do
+            pcall(ApplyNoFog)
+
             local towersFolder = workspace:FindFirstChild("Towers")
             if towersFolder then
                 for _, tower in ipairs(towersFolder:GetChildren()) do
