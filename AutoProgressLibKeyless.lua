@@ -2581,7 +2581,7 @@ TypeLabel.TextWrapped = true
 TypeLabel.RichText = true
 TypeLabel.Text = '<font color="rgb(255,200,70)"><b>Premium</b></font>'
 
-LimitedLabel.Name = "Limited"
+LimitedLabel.Name = ""
 LimitedLabel.Parent = InfoFrame
 LimitedLabel.BackgroundTransparency = 1
 LimitedLabel.Position = UDim2.new(0, 0, 0, 33)
