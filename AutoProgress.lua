@@ -12,7 +12,7 @@ local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 
 local LOBBY_PLACE_ID = 3260590327
 
-local LOADING_TIMEOUT = 60
+local LOADING_TIMEOUT = 100
 local LOBBY_LOADING_TIMEOUT = 60
 local GAMEOVER_STEP_TIMEOUT = 60
 local NO_GAMEOVER_TIMEOUT = 30 * 120
