@@ -107,7 +107,7 @@ local Library = {
 	Unloaded = false,
 	Loaded = true,
 
-	Theme = "Royal_Purple",
+	Theme = "Electric_Blue",
 	DialogOpen = false,
 	UseAcrylic = false,
 	Acrylic = false,
@@ -328,8 +328,8 @@ function Library:Window(Config: {
 		end
 	end
 
-	Config.Theme = "Royal_Purple"
-	Config.Icon = Config.Icon or 88505209802501
+	Config.Theme = "Electric_Blue"
+	Config.Icon = Config.Icon or 88144315472439
 
 	if not Config.Title then
 		local Success, Game_Info = pcall(MarketplaceService.GetProductInfo, MarketplaceService, game.PlaceId)
@@ -349,7 +349,7 @@ function Library:Window(Config: {
 	Library.MinimizeKey = if typeof(Config.MinimizeKey) == "string" or typeof(Config.MinimizeKey) == "EnumItem" and Config.MinimizeKey.EnumType == Enum.KeyCode then Config.MinimizeKey else Enum.KeyCode.LeftControl
 	Library.UseAcrylic = if typeof(Config.Acrylic) == "boolean" then Config.Acrylic else false
 	Library.Acrylic = if typeof(Config.Acrylic) == "boolean" then Config.Acrylic else false
-	Library.Theme = "Royal_Purple"
+	Library.Theme = "Electric_Blue"
 
 	if Config.Acrylic then
 		Acrylic.init()
@@ -1349,6 +1349,10 @@ local function UpdateTabDisplay(TabIndex)
 
 	local Status = ResolveGlobalStatus()
 	local HasStatus = Status ~= ""
+	local Player = game:GetService("Players").LocalPlayer
+	local Username = EscapeTabRichText(Player and Player.Name or "Player")
+	local Header = '<font size="19">' .. EscapeTabRichText(Tab.Name) .. '</font>'
+		.. '\n<font size="12" color="#B8CCE5">Username: ' .. Username .. '</font>'
 
 	if HasStatus then
 		local StatusColor = "#A0A0A0"
@@ -1364,16 +1368,16 @@ local function UpdateTabDisplay(TabIndex)
 			StatusColor = "#4ADE80"
 		end
 
-		Window.TabDisplay.Text = EscapeTabRichText(Tab.Name)
-			.. "\n<font size=\"13\" color=\"#FFFFFF\">STATUS: </font><font size=\"13\" color=\"" .. StatusColor .. "\">"
+		Window.TabDisplay.Text = Header
+			.. "\n<font size=\"12\" color=\"#FFFFFF\">STATUS: </font><font size=\"12\" color=\"" .. StatusColor .. "\">"
 			.. EscapeTabRichText(Status)
 			.. "</font>"
 	else
-		Window.TabDisplay.Text = EscapeTabRichText(Tab.Name)
+		Window.TabDisplay.Text = Header
 	end
 
 	if Window.SetTabDisplayMultiline then
-		Window:SetTabDisplayMultiline(HasStatus)
+		Window:SetTabDisplayMultiline(true)
 	end
 end
 
@@ -1460,8 +1464,8 @@ function TabModule:New(Title, Icon, Parent)
 			Name = "TabOutline",
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 			BorderStrokePosition = Enum.BorderStrokePosition.Inner,
-			Thickness = 1,
-			Transparency = 0.55,
+			Thickness = 1.5,
+			Transparency = 0.15,
 			ThemeTag = {
 				Color = "Accent",
 			},
@@ -1579,10 +1583,21 @@ function TabModule:SelectTab(Tab)
 	for _, TabObject in next, TabModule.Tabs do
 		TabObject.SetTransparency(1)
 		TabObject.Selected = false
+		local outline = TabObject.Frame:FindFirstChild("TabOutline")
+		if outline then
+			outline.Transparency = 0.65
+			outline.Thickness = 1
+		end
 	end
 
-	TabModule.Tabs[Tab].SetTransparency(0.89)
-	TabModule.Tabs[Tab].Selected = true
+	local activeTab = TabModule.Tabs[Tab]
+	activeTab.SetTransparency(0.80)
+	activeTab.Selected = true
+	local activeOutline = activeTab.Frame:FindFirstChild("TabOutline")
+	if activeOutline then
+		activeOutline.Transparency = 0
+		activeOutline.Thickness = 2.5
+	end
 
 	UpdateTabDisplay(Tab)
 	Window.SelectorPosMotor:setGoal(Spring(TabModule:GetCurrentTabPos(), { frequency = 6 }))
@@ -1592,24 +1607,39 @@ function TabModule:SelectTab(Tab)
 	end
 
 	task.spawn(function()
-		Window.ContainerHolder.Parent = Window.ContainerAnim
+		local holderAlive = pcall(function()
+			Window.ContainerHolder.Parent = Window.ContainerAnim
+		end)
+
+		if not holderAlive then
+			return
+		end
 
 		Window.ContainerPosMotor:setGoal(Spring(15, { frequency = 10 }))
 		Window.ContainerBackMotor:setGoal(Spring(1, { frequency = 10 }))
 
 		task.wait(0.12)
 
-		for _, Container in next, TabModule.Containers do
-			Container.Visible = false
+		local containersAlive = pcall(function()
+			for _, Container in next, TabModule.Containers do
+				Container.Visible = false
+			end
+
+			TabModule.Containers[Tab].Visible = true
+		end)
+
+		if not containersAlive then
+			return
 		end
 
-		TabModule.Containers[Tab].Visible = true
 		Window.ContainerPosMotor:setGoal(Spring(0, { frequency = 5 }))
 		Window.ContainerBackMotor:setGoal(Spring(0, { frequency = 8 }))
 
 		task.wait(0.12)
 
-		Window.ContainerHolder.Parent = Window.ContainerCanvas
+		pcall(function()
+			Window.ContainerHolder.Parent = Window.ContainerCanvas
+		end)
 	end)
 end
 
@@ -1835,7 +1865,7 @@ return function(Config)
 		end
 
 		return {
-			Image = "rbxassetid://88505209802501",
+			Image = "rbxassetid://88144315472439",
 			ImageRectSize = Vector2.new(0, 0),
 			ImageRectOffset = Vector2.new(0, 0),
 		}
@@ -1866,7 +1896,7 @@ return function(Config)
 		BackgroundTransparency = 1,
 	}, {
 		New("UIListLayout", {
-			Padding = UDim.new(0, 8),
+			Padding = UDim.new(0, 6),
 			FillDirection = Enum.FillDirection.Horizontal,
 			SortOrder = Enum.SortOrder.LayoutOrder,
 			VerticalAlignment = Enum.VerticalAlignment.Center,
@@ -1899,7 +1929,7 @@ return function(Config)
 			Enum.FontWeight.Bold,
 			Enum.FontStyle.Normal
 		),
-		TextSize = 20,
+		TextSize = 17,
 		TextColor3 = Color3.new(1, 1, 1),
 		TextXAlignment = "Left",
 		TextYAlignment = "Center",
@@ -1932,27 +1962,70 @@ return function(Config)
 	AddSignal(TitleBar.Frame.Destroying, StopTitleGradient)
 	TitleGradientTween:Play()
 
-	TitleBar.SubTitle = New("TextLabel", {
-		RichText = true,
-		Text = Config.SubTitle,
+	-- Account information now sits beside the Auto Progress title.
+	TitleBar.PlanLabel = New("TextLabel", {
+		Name = "AccountPlan",
 		Parent = TitleBar.TitleHolder,
 		LayoutOrder = 2,
-		TextTransparency = 0.4,
-		FontFace = Font.new(
-			"rbxasset://fonts/families/GothamSSm.json",
-			Enum.FontWeight.Regular,
-			Enum.FontStyle.Normal
-		),
-		TextSize = 12,
-		TextXAlignment = "Left",
-		TextYAlignment = "Center",
+		RichText = true,
+		Text = "Standard",
+		FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.SemiBold),
+		TextSize = 11,
+		TextColor3 = Color3.fromRGB(215, 215, 215),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Center,
 		Size = UDim2.fromScale(0, 1),
 		AutomaticSize = Enum.AutomaticSize.X,
 		BackgroundTransparency = 1,
-		ThemeTag = {
-			TextColor3 = "Text",
-		}
 	})
+
+	TitleBar.ExpiryLabel = New("TextLabel", {
+		Name = "KeyExpiry",
+		Parent = TitleBar.TitleHolder,
+		LayoutOrder = 3,
+		RichText = true,
+		Text = "Permanent",
+		FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Medium),
+		TextSize = 10,
+		TextColor3 = Color3.fromRGB(80, 255, 120),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Center,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		Size = UDim2.new(1, -245, 1, 0),
+		BackgroundTransparency = 1,
+	})
+
+	local function FormatKeyRemaining(seconds)
+		if seconds <= 0 then
+			return "Expired"
+		end
+		local hours = math.floor(seconds / 3600)
+		if hours >= 1 then
+			return string.format("%dh", hours)
+		end
+		return string.format("%dm", math.max(1, math.floor(seconds / 60)))
+	end
+
+	task.spawn(function()
+		while TitleBar.Frame.Parent do
+			local premium = shared.JD_IS_PREMIUM == true
+			TitleBar.PlanLabel.Text = premium
+				and '<font color="rgb(255,200,70)"><b>Premium</b></font>'
+				or "Standard"
+
+			local expires = tonumber(shared.JD_EXPIRES_AT)
+			if expires == nil then
+				TitleBar.ExpiryLabel.Text = '<font color="rgb(80,255,120)"><b>Permanent</b></font>'
+			elseif expires > os.time() then
+				TitleBar.ExpiryLabel.Text = '<font color="rgb(255,90,90)"><b>Key Expires in: '
+					.. FormatKeyRemaining(expires - os.time()) .. '</b></font>'
+			else
+				TitleBar.ExpiryLabel.Text = '<font color="rgb(255,90,90)"><b>Expired</b></font>'
+			end
+
+			task.wait(1)
+		end
+	end)
 
 	TitleBar.CloseButton = BarButton(Library.Utilities:GetIcon("Close"), UDim2.new(1, -4, 0, 4), TitleBar.Frame, 0, function()
 		Library.CreatedWindow:Dialog{
@@ -2056,7 +2129,7 @@ return function(Config)
 			TabFrameSize = UDim2.new(1, -OuterPadding * 2, 0, RowHeight)
 			TabFramePos = IsReversed and UDim2.new(0, OuterPadding, 1, -RowHeight - 8) or UDim2.new(0, OuterPadding, 0, TitleBarHeight + 12)
 		else
-			TabFrameSize = UDim2.new(0, Window.TabWidth, 1, -145)
+			TabFrameSize = UDim2.new(0, Window.TabWidth, 1, -66)
 			TabFramePos = ForAlignment == "Right" and UDim2.new(1, -OuterPadding - EdgeInset - Window.TabWidth, 0, 54) or UDim2.new(0, OuterPadding, 0, 54)
 		end
 
@@ -2100,6 +2173,7 @@ return function(Config)
 	local Layout = ComputeLayout(Alignment)
 
 	local Selector = New("Frame", {
+		Visible = false,
 		Size = Horizontal and UDim2.fromOffset(0, 3) or UDim2.fromOffset(3, 0),
 		BackgroundColor3 = Color3.fromRGB(76, 194, 255),
 		AnchorPoint = Horizontal and Vector2.new(0.5, Reversed and 0 or 1) or Vector2.new(Reversed and 1 or 0, 0.5),
@@ -2194,7 +2268,7 @@ return function(Config)
 		ScrollingDirection = Horizontal and Enum.ScrollingDirection.X or Enum.ScrollingDirection.Y,
 	}, {
 		New("UIListLayout", {
-			Padding = UDim.new(0, 4),
+			Padding = UDim.new(0, 2),
 			FillDirection = Horizontal and Enum.FillDirection.Horizontal or Enum.FillDirection.Vertical,
 			VerticalAlignment = Horizontal and Enum.VerticalAlignment.Center or Enum.VerticalAlignment.Top,
 		}),
@@ -2215,9 +2289,9 @@ return function(Config)
 		Text = "Tab",
 		TextTransparency = 0,
 		FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.SemiBold, Enum.FontStyle.Normal),
-		TextSize = 28,
+		TextSize = 19,
 		TextXAlignment = "Left",
-		TextYAlignment = "Center",
+		TextYAlignment = "Top",
 		Size = Layout.TabDisplaySize,
 		Position = Layout.TabDisplayPos,
 		BackgroundTransparency = 1,
@@ -2325,15 +2399,15 @@ return function(Config)
 
 	local RunService = game:GetService("RunService")
 
-	-- Soft purple/pink/blue outline like the reference, but brighter and more
-	-- neon. The colors will also shift over time for a shiny animated look.
+	-- Electric blue gradient: bright cyan/sky blue into deep royal blue.
+	-- Keep the whole sweep inside the blue family so no purple/pink appears.
 	local NeonGradientColors = ColorSequence.new({
-		ColorSequenceKeypoint.new(0.00, Color3.fromRGB(110, 98, 238)),
-		ColorSequenceKeypoint.new(0.22, Color3.fromRGB(135, 83, 229)),
-		ColorSequenceKeypoint.new(0.48, Color3.fromRGB(179, 72, 232)),
-		ColorSequenceKeypoint.new(0.64, Color3.fromRGB(235, 92, 232)),
-		ColorSequenceKeypoint.new(0.82, Color3.fromRGB(189, 120, 226)),
-		ColorSequenceKeypoint.new(1.00, Color3.fromRGB(110, 98, 238)),
+		ColorSequenceKeypoint.new(0.00, Color3.fromRGB(88, 220, 255)),
+		ColorSequenceKeypoint.new(0.20, Color3.fromRGB(38, 190, 255)),
+		ColorSequenceKeypoint.new(0.44, Color3.fromRGB(0, 145, 255)),
+		ColorSequenceKeypoint.new(0.68, Color3.fromRGB(0, 91, 255)),
+		ColorSequenceKeypoint.new(0.86, Color3.fromRGB(0, 61, 204)),
+		ColorSequenceKeypoint.new(1.00, Color3.fromRGB(32, 151, 255)),
 	})
 
 	local function Wrap01(Value)
@@ -2341,15 +2415,9 @@ return function(Config)
 	end
 
 	local function BuildShiftedNeonGradient(Phase)
-		local Shift = Phase * 0.09
-		return ColorSequence.new({
-			ColorSequenceKeypoint.new(0.00, Color3.fromHSV(Wrap01(0.67 + Shift), 0.52, 1.00)),
-			ColorSequenceKeypoint.new(0.20, Color3.fromHSV(Wrap01(0.73 + Shift), 0.62, 1.00)),
-			ColorSequenceKeypoint.new(0.46, Color3.fromHSV(Wrap01(0.79 + Shift), 0.67, 1.00)),
-			ColorSequenceKeypoint.new(0.62, Color3.fromHSV(Wrap01(0.86 + Shift), 0.58, 1.00)),
-			ColorSequenceKeypoint.new(0.82, Color3.fromHSV(Wrap01(0.92 + Shift), 0.44, 1.00)),
-			ColorSequenceKeypoint.new(1.00, Color3.fromHSV(Wrap01(0.75 + Shift), 0.58, 1.00)),
-		})
+		-- The Offset animation below already makes the gradient move.
+		-- Keep the actual hues fixed to cyan -> electric blue -> deep blue.
+		return NeonGradientColors
 	end
 
 	local NeonGradientTransparency = NumberSequence.new({
@@ -2360,8 +2428,8 @@ return function(Config)
 		NumberSequenceKeypoint.new(1.00, 0.10),
 	})
 
-	-- Soft purple halo behind the window. This is what gives the
-	-- outline the same "lit from the edge" look as the neon hat.
+	-- Soft blue/cyan halo behind the window. This gives the
+	-- outline the same "lit from the edge" neon look.
 	local NeonGlowTexture = "rbxassetid://8992230677"
 	local NeonOuterExtra = 84
 	local NeonInnerExtra = 46
@@ -2397,14 +2465,14 @@ return function(Config)
 	Window.NeonGlowOuter = CreateNeonHalo(
 		"NeonGlowOuter",
 		NeonOuterExtra,
-		Color3.fromRGB(126, 24, 255),
+		Color3.fromRGB(0, 105, 255),
 		0.52
 	)
 
 	Window.NeonGlowInner = CreateNeonHalo(
 		"NeonGlowInner",
 		NeonInnerExtra,
-		Color3.fromRGB(224, 54, 255),
+		Color3.fromRGB(45, 205, 255),
 		0.40
 	)
 
@@ -2493,171 +2561,6 @@ return function(Config)
 	SyncNeonVisibility()
 	Creator.AddSignal(Window.Root:GetPropertyChangedSignal("Visible"), SyncNeonVisibility)
 
-local AccountInfo = Instance.new("Frame")
-local AvatarFrame = Instance.new("Frame")
-local AvatarImage = Instance.new("ImageLabel")
-local InfoFrame = Instance.new("Frame")
-local UsernameLabel = Instance.new("TextLabel")
-local TypeLabel = Instance.new("TextLabel")
-local ExpiryLabel = Instance.new("TextLabel")
-
-local LocalPlayer = game:GetService("Players").LocalPlayer
-
-AccountInfo.Name = "AccountInfo"
-AccountInfo.Parent = Window.Root
-AccountInfo.BackgroundTransparency = 1
-AccountInfo.BorderSizePixel = 0
-AccountInfo.AnchorPoint = Vector2.new(0, 1)
-AccountInfo.Position = UDim2.new(0, 16, 1, -11)
-AccountInfo.Size = UDim2.new(0, 150, 0, 66)
-
-AvatarFrame.Name = "AvatarFrame"
-AvatarFrame.Parent = AccountInfo
-AvatarFrame.BackgroundTransparency = 1
-AvatarFrame.BorderSizePixel = 0
-AvatarFrame.AnchorPoint = Vector2.new(0, 0.5)
-AvatarFrame.Position = UDim2.new(0, 0, 0.5, 0)
-AvatarFrame.Size = UDim2.new(0, 40, 0, 40)
-
-local AvatarCorner = Instance.new("UICorner")
-AvatarCorner.CornerRadius = UDim.new(1, 0)
-AvatarCorner.Parent = AvatarFrame
-
-AvatarImage.Name = "AvatarImage"
-AvatarImage.Parent = AvatarFrame
-AvatarImage.BackgroundTransparency = 1
-AvatarImage.Size = UDim2.new(1, 0, 1, 0)
-AvatarImage.Position = UDim2.new(0, 0, 0, 0)
-
-pcall(function()
-    if LocalPlayer then
-        AvatarImage.Image =
-            "rbxthumb://type=AvatarHeadShot&id="
-            .. LocalPlayer.UserId
-            .. "&w=48&h=48"
-    end
-end)
-
-InfoFrame.Name = "Info"
-InfoFrame.Parent = AccountInfo
-InfoFrame.BackgroundTransparency = 1
-InfoFrame.AnchorPoint = Vector2.new(0, 0.5)
-InfoFrame.Position = UDim2.new(0, 48, 0.5, 0)
-InfoFrame.Size = UDim2.new(1, -52, 1, 0)
-
-UsernameLabel.Name = "Username"
-UsernameLabel.Parent = InfoFrame
-UsernameLabel.BackgroundTransparency = 1
-UsernameLabel.Position = UDim2.new(0, 0, 0, 0)
-UsernameLabel.Size = UDim2.new(1, 0, 0, 18)
-UsernameLabel.Font = Enum.Font.GothamBold
-UsernameLabel.TextSize = 14
-UsernameLabel.TextScaled = true
-UsernameLabel.Text =
-    LocalPlayer
-    and LocalPlayer.Name
-    or "Player"
-
-UsernameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-UsernameLabel.TextXAlignment = Enum.TextXAlignment.Left
-UsernameLabel.TextWrapped = true
-
-TypeLabel.Name = "Type"
-TypeLabel.Parent = InfoFrame
-TypeLabel.BackgroundTransparency = 1
-TypeLabel.Position = UDim2.new(0, 0, 0, 18)
-TypeLabel.Size = UDim2.new(1, 0, 0, 12)
-TypeLabel.Font = Enum.Font.Gotham
-TypeLabel.TextSize = 12
-TypeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-TypeLabel.TextXAlignment = Enum.TextXAlignment.Left
-TypeLabel.TextWrapped = true
-TypeLabel.RichText = true
-
-ExpiryLabel.Name = "Expiry"
-ExpiryLabel.Parent = InfoFrame
-ExpiryLabel.BackgroundTransparency = 1
-ExpiryLabel.Position = UDim2.new(0, 0, 0, 33)
-ExpiryLabel.Size = UDim2.new(1, 0, 0, 30)
-ExpiryLabel.Font = Enum.Font.Gotham
-ExpiryLabel.TextSize = 12
-ExpiryLabel.Text = "Key expires: --"
-ExpiryLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-ExpiryLabel.TextXAlignment = Enum.TextXAlignment.Left
-ExpiryLabel.TextWrapped = true
-ExpiryLabel.RichText = true
-ExpiryLabel.TextYAlignment = Enum.TextYAlignment.Top
-
-local function IsPremium()
-    return shared.JD_IS_PREMIUM == true
-end
-
-local function GetExpiresAt()
-    return tonumber(shared.JD_EXPIRES_AT)
-end
-
-local function FormatDuration(sec)
-    if not sec or sec <= 0 then
-        return "Expired"
-    end
-
-    local days = math.floor(sec / 86400)
-    sec = sec - days * 86400
-
-    local hours = math.floor(sec / 3600)
-    sec = sec - hours * 3600
-
-    local mins = math.floor(sec / 60)
-    local secs = math.floor(sec - mins * 60)
-
-    if days > 0 then
-        return string.format("%dd %dh", days, hours)
-    elseif hours > 0 then
-        return string.format("%dh %dm", hours, mins)
-    elseif mins > 0 then
-        return string.format("%dm %ds", mins, secs)
-    else
-        return string.format("%ds", secs)
-    end
-end
-
-task.spawn(function()
-    while AccountInfo.Parent do
-        if IsPremium() then
-            -- Keep the label readable, but make the Premium value gold.
-            TypeLabel.Text = '<font color="rgb(255,200,70)"><b>Premium</b></font>'
-            TypeLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-        else
-            TypeLabel.Text = "Standard"
-            TypeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        end
-
-        local expires = GetExpiresAt()
-        local remaining
-
-        if type(expires) == "number" then
-            remaining = expires - os.time()
-        end
-
-        if type(expires) ~= "number" then
-            -- No expiry timestamp = permanent key.
-            ExpiryLabel.Text = '<font color="rgb(80,255,120)"><b>Permanent</b></font>'
-            ExpiryLabel.TextColor3 = Color3.fromRGB(80, 255, 120)
-        elseif remaining and remaining > 0 then
-            -- Temporary key: countdown is red.
-            ExpiryLabel.Text =
-                'Key expires in: <font color="rgb(255,90,90)"><b>'
-                .. FormatDuration(remaining)
-                .. '</b></font>'
-            ExpiryLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-        else
-            ExpiryLabel.Text = '<font color="rgb(255,90,90)"><b>Expired</b></font>'
-            ExpiryLabel.TextColor3 = Color3.fromRGB(255, 90, 90)
-        end
-
-        task.wait(1)
-    end
-end)
 
 	Window.HideButton = New("ImageButton", {
 		Visible = false,
@@ -2681,7 +2584,7 @@ end)
 			end
 		end
 
-		return "rbxassetid://88505209802501"
+		return "rbxassetid://88144315472439"
 	end
 
 	local FloatingLogoImage = New("ImageLabel", {
@@ -2716,7 +2619,7 @@ end)
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			Image = NeonGlowTexture,
-			ImageColor3 = Color3.fromRGB(198, 42, 255),
+			ImageColor3 = Color3.fromRGB(0, 157, 255),
 			ImageTransparency = 0.42,
 			ScaleType = Enum.ScaleType.Slice,
 			SliceCenter = Rect.new(99, 99, 99, 99),
@@ -2815,10 +2718,12 @@ end)
 		end
 
 		if Window.NeonGlowOuter then
-			Window.NeonGlowOuter.ImageColor3 = Color3.fromHSV(Wrap01(0.76 + Phase * 0.08), 0.74, 1.00)
+			-- Cyan -> sky-blue pulse only.
+			Window.NeonGlowOuter.ImageColor3 = Color3.fromHSV(0.53 + Phase * 0.03, 0.78, 1.00)
 		end
 		if Window.NeonGlowInner then
-			Window.NeonGlowInner.ImageColor3 = Color3.fromHSV(Wrap01(0.84 + Phase * 0.08), 0.62, 1.00)
+			-- Sky-blue -> royal-blue pulse only.
+			Window.NeonGlowInner.ImageColor3 = Color3.fromHSV(0.59 + Phase * 0.03, 0.72, 1.00)
 		end
 	end)
 
@@ -4445,7 +4350,7 @@ ToggleFrame.DescLabel.Size = UDim2.new(1, -54, 0, 14)
 		LineJoinMode = Enum.LineJoinMode.Round,
 		Thickness = 7,
 		Transparency = 1,
-		Color = Color3.fromRGB(126, 24, 255),
+		Color = Color3.fromRGB(0, 105, 255),
 	})
 
 	local ToggleGlowInner = New("UIStroke", {
@@ -4454,7 +4359,7 @@ ToggleFrame.DescLabel.Size = UDim2.new(1, -54, 0, 14)
 		LineJoinMode = Enum.LineJoinMode.Round,
 		Thickness = 4,
 		Transparency = 1,
-		Color = Color3.fromRGB(226, 58, 255),
+		Color = Color3.fromRGB(45, 205, 255),
 	})
 
 	local ToggleSlider = New("Frame", {
@@ -5217,7 +5122,7 @@ function Creator.GetThemeProperty(Property)
 		return Themes[require(Root).Theme][Property]
 	end
 
-	return Themes["Royal_Purple"][Property]
+	return Themes["Electric_Blue"][Property]
 end
 
 function Creator.UpdateTheme(RegistryIndex: Instance?)
@@ -5450,7 +5355,7 @@ end)() end,
     [31] = function()local wax,script,require=ImportGlobals(31)local ImportGlobals return (function(...)
 local Themes = {
     Names = {
-        "Royal_Purple"
+        "Electric_Blue"
     }
 }
 
@@ -5461,49 +5366,49 @@ end
 return Themes
 end)() end,
     [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)return {
-	Accent = Color3.fromRGB(140, 60, 220),
+	Accent = Color3.fromRGB(0, 157, 255),
 
-	AcrylicMain = Color3.fromRGB(14, 10, 22),
-	AcrylicBorder = Color3.fromRGB(107, 79, 155),
-	AcrylicGradient = ColorSequence.new(Color3.fromRGB(58, 27, 91), Color3.fromRGB(9, 6, 14)),
+	AcrylicMain = Color3.fromRGB(4, 8, 18),
+	AcrylicBorder = Color3.fromRGB(18, 92, 180),
+	AcrylicGradient = ColorSequence.new(Color3.fromRGB(8, 38, 86), Color3.fromRGB(2, 5, 12)),
 	AcrylicNoise = 0.9,
 
-	TitleBarLine = Color3.fromRGB(69, 49, 105),
-	Tab = Color3.fromRGB(118, 92, 162),
+	TitleBarLine = Color3.fromRGB(12, 72, 140),
+	Tab = Color3.fromRGB(25, 64, 122),
 
-	Element = Color3.fromRGB(100, 70, 150),
-	ElementBorder = Color3.fromRGB(11, 8, 18),
-	InElementBorder = Color3.fromRGB(107, 79, 155),
+	Element = Color3.fromRGB(18, 48, 94),
+	ElementBorder = Color3.fromRGB(2, 6, 15),
+	InElementBorder = Color3.fromRGB(25, 78, 153),
 	ElementTransparency = 0.87,
 
-	ToggleSlider = Color3.fromRGB(100, 70, 150),
-	ToggleToggled = Color3.fromRGB(0, 0, 0),
+	ToggleSlider = Color3.fromRGB(22, 58, 112),
+	ToggleToggled = Color3.fromRGB(235, 248, 255),
 
-	SliderRail = Color3.fromRGB(100, 70, 150),
+	SliderRail = Color3.fromRGB(22, 58, 112),
 
-	DropdownFrame = Color3.fromRGB(131, 107, 171),
-	DropdownHolder = Color3.fromRGB(13, 9, 20),
-	DropdownBorder = Color3.fromRGB(11, 8, 17),
-	DropdownOption = Color3.fromRGB(100, 70, 150),
+	DropdownFrame = Color3.fromRGB(28, 73, 138),
+	DropdownHolder = Color3.fromRGB(4, 9, 20),
+	DropdownBorder = Color3.fromRGB(2, 6, 15),
+	DropdownOption = Color3.fromRGB(19, 50, 97),
 
-	Keybind = Color3.fromRGB(100, 70, 150),
+	Keybind = Color3.fromRGB(22, 58, 112),
 
-	Input = Color3.fromRGB(123, 97, 165),
-	InputFocused = Color3.fromRGB(9, 6, 14),
-	InputIndicator = Color3.fromRGB(138, 116, 176),
+	Input = Color3.fromRGB(27, 68, 129),
+	InputFocused = Color3.fromRGB(3, 7, 17),
+	InputIndicator = Color3.fromRGB(48, 190, 255),
 
-	Dialog = Color3.fromRGB(13, 9, 20),
-	DialogHolder = Color3.fromRGB(11, 8, 18),
-	DialogHolderLine = Color3.fromRGB(10, 7, 16),
-	DialogButton = Color3.fromRGB(13, 9, 20),
-	DialogButtonBorder = Color3.fromRGB(112, 84, 158),
-	DialogBorder = Color3.fromRGB(100, 70, 150),
-	DialogInput = Color3.fromRGB(32, 28, 38),
-	DialogInputLine = Color3.fromRGB(138, 116, 176),
+	Dialog = Color3.fromRGB(4, 9, 20),
+	DialogHolder = Color3.fromRGB(3, 8, 18),
+	DialogHolderLine = Color3.fromRGB(2, 6, 15),
+	DialogButton = Color3.fromRGB(6, 14, 28),
+	DialogButtonBorder = Color3.fromRGB(27, 86, 166),
+	DialogBorder = Color3.fromRGB(20, 68, 136),
+	DialogInput = Color3.fromRGB(14, 26, 46),
+	DialogInputLine = Color3.fromRGB(48, 190, 255),
 
-	Text = Color3.fromRGB(240, 240, 240),
-	SubText = Color3.fromRGB(170, 170, 170),
-	Hover = Color3.fromRGB(100, 70, 150),
+	Text = Color3.fromRGB(240, 248, 255),
+	SubText = Color3.fromRGB(155, 178, 205),
+	Hover = Color3.fromRGB(23, 60, 114),
 	HoverChange = 0.06
 }
 
@@ -6607,7 +6512,7 @@ local ObjectTree = {
                                                                                     109,
                                                                                     2,
                                                                                     {
-                                                                                                                "Royal_Purple"
+                                                                                                                "Electric_Blue"
                                                                                                             }
                                                                                 }
                                                         }
