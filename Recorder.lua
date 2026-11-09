@@ -659,24 +659,53 @@ return function(ctx)
     end
 
     do
-        local logPanel = RecorderTab:Label({
-            Title = "Recorder log",
-            Content = "Ready",
-        })
+        local logPanel = RecorderTab:Label({Title = "Recorder log"})
+        local element = logPanel.Instance
+        local textStyle = element.DescLabel
+        textStyle.Visible = false
+
+        local viewport = Instance.new("ScrollingFrame")
+        viewport.Name = "RecorderLogViewport"
+        viewport.LayoutOrder = 1
+        viewport.Size = UDim2.fromScale(1, 0)
+        viewport.BackgroundTransparency = 1
+        viewport.BorderSizePixel = 0
+        viewport.ScrollBarThickness = 5
+        viewport.ScrollingDirection = Enum.ScrollingDirection.Y
+        viewport.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        viewport.CanvasSize = UDim2.new()
+        viewport.Parent = element.LabelHolder
+
+        local square = Instance.new("UIAspectRatioConstraint")
+        square.DominantAxis = Enum.DominantAxis.Width
+        square.AspectType = Enum.AspectType.ScaleWithParentSize
+        square.Parent = viewport
+
+        local logText = textStyle:Clone()
+        logText.Name = "LogText"
+        logText.Size = UDim2.new(1, -8, 0, 0)
+        logText.TextYAlignment = Enum.TextYAlignment.Top
+        logText.Text = "Ready"
+        logText.Visible = true
+        logText.Parent = viewport
+
+        viewport:GetPropertyChangedSignal("AbsoluteCanvasSize"):Connect(function()
+            local bottom = math.max(0, viewport.AbsoluteCanvasSize.Y - viewport.AbsoluteWindowSize.Y)
+            viewport.CanvasPosition = Vector2.new(0, bottom)
+        end)
+
         local logLines = {}
         Recorder = {}
 
         function Recorder:Log(message)
             table.insert(logLines, tostring(message))
-            if #logLines > 12 then
-                table.remove(logLines, 1)
-            end
-            logPanel:SetContent(table.concat(logLines, "\n"))
+            logText.Text = table.concat(logLines, "\n")
         end
 
         function Recorder:Clear()
             table.clear(logLines)
-            logPanel:SetContent("")
+            logText.Text = ""
+            viewport.CanvasPosition = Vector2.zero
         end
 
         RecorderTab:Button({
