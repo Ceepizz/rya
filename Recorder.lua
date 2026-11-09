@@ -667,23 +667,13 @@ return function(ctx)
         local viewport = Instance.new("ScrollingFrame")
         viewport.Name = "RecorderLogViewport"
         viewport.LayoutOrder = 1
-        viewport.Size = UDim2.new(1, 0, 0, 200)
+        viewport.Size = UDim2.new(1, 0, 0, 150)
         viewport.BackgroundTransparency = 1
         viewport.BorderSizePixel = 0
         viewport.ScrollBarThickness = 5
         viewport.ScrollingDirection = Enum.ScrollingDirection.Y
         viewport.CanvasSize = UDim2.new()
         viewport.Parent = element.LabelHolder
-
-        local function sizeViewport()
-            local width = element.LabelHolder.AbsoluteSize.X
-            if width > 0 and viewport.Size.Y.Offset ~= width then
-                viewport.Size = UDim2.new(1, 0, 0, width)
-            end
-        end
-
-        element.LabelHolder:GetPropertyChangedSignal("AbsoluteSize"):Connect(sizeViewport)
-        sizeViewport()
 
         local rows = Instance.new("UIListLayout")
         rows.SortOrder = Enum.SortOrder.LayoutOrder
