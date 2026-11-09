@@ -21,6 +21,7 @@ return function(ctx)
     local last_wave = 0
     local Recorder
     local recording = {}
+    local stackedPlacements = {}
     local autoMercenary = false
     local strategyFolder = "AutoStrategy"
     local has_hook = type(hookmetamethod) == "function"
@@ -853,6 +854,7 @@ TDS:Mode("%s")%s
 ]], tower1, tower2, tower3, tower4, tower5, current_mode, game_info_str)
 
                 recording = {config_header}
+                table.clear(stackedPlacements)
                 Globals.record_strat = true
 
                 autoMercenary = false
@@ -966,14 +968,35 @@ TDS:Mode("%s")%s
             local originalNamecall
             originalNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
                 if state.enabled and self == remote and getnamecallmethod() == "InvokeServer" then
-                    local category, action, placement = ...
+                    local category, action, placement, towerName = ...
                     if category == "Troops" and action == "Place" and type(placement) == "table"
                         and typeof(placement.Position) == "Vector3" then
                         local args = table.pack(...)
                         local updated = table.clone(placement)
                         updated.Position = placement.Position + Vector3.new(0, 25, 0)
                         args[3] = updated
-                        return originalNamecall(self, table.unpack(args, 1, args.n))
+                        local stacked
+                        if Globals.record_strat then
+                            stacked = {
+                                name = towerName,
+                                original = placement.Position,
+                                raised = updated.Position,
+                            }
+                            table.insert(stackedPlacements, stacked)
+                        end
+
+                        local results = table.pack(originalNamecall(self, table.unpack(args, 1, args.n)))
+                        if stacked then
+                            if typeof(results[1]) == "Instance" then
+                                stacked.tower = results[1]
+                            else
+                                local index = table.find(stackedPlacements, stacked)
+                                if index then
+                                    table.remove(stackedPlacements, index)
+                                end
+                            end
+                        end
+                        return table.unpack(results, 1, results.n)
                     end
                 end
                 return originalNamecall(self, ...)
@@ -1056,20 +1079,21 @@ TDS:Mode("%s")%s
                 local tower_name = replicator:GetAttribute("Name") or tower.Name
                 local raw_pos = replicator:GetAttribute("Position")
                 
-                local pos_x, pos_y, pos_z
-                if typeof(raw_pos) == "Vector3" then
-                    pos_x, pos_y, pos_z = raw_pos.X, raw_pos.Y, raw_pos.Z
-                else
-                    local p = tower:GetPivot().Position
-                    pos_x, pos_y, pos_z = p.X, p.Y, p.Z
+                local position = typeof(raw_pos) == "Vector3" and raw_pos or tower:GetPivot().Position
+                local stacked = false
+                for index, placement in ipairs(stackedPlacements) do
+                    if placement.tower == tower
+                        or (not placement.tower and placement.name == tower_name
+                            and (placement.raised - position).Magnitude < 0.05) then
+                        position = placement.original
+                        stacked = true
+                        table.remove(stackedPlacements, index)
+                        break
+                    end
                 end
-                
-                local command
-                if Globals.StackEnabled then
-                    command = 'TDS:Place("' .. tower_name .. '", ' .. tostring(pos_x) .. ', ' .. tostring(pos_y) .. ', ' .. tostring(pos_z) .. ', true)'
-                else
-                    command = 'TDS:Place("' .. tower_name .. '", ' .. tostring(pos_x) .. ', ' .. tostring(pos_y) .. ', ' .. tostring(pos_z) .. ')'
-                end
+
+                local command = string.format("TDS:Place(%q, %s, %s, %s%s)", tower_name,
+                    tostring(position.X), tostring(position.Y), tostring(position.Z), stacked and ", true" or "")
                 record_action(command)
                 Recorder:Log("Placed " .. tower_name .. " (Index: " .. my_index .. ")")
 
