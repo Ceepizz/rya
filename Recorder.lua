@@ -22,7 +22,6 @@ return function(ctx)
     local Recorder
     local workspacePath = "Strat.txt"
     local strategyFolder = "AutoStrategy"
-    local strategyPath = strategyFolder .. "/" .. workspacePath
     local has_hook = type(hookmetamethod) == "function"
     
     local function get_wave_prefix()
@@ -670,7 +669,7 @@ return function(ctx)
         local viewport = Instance.new("ScrollingFrame")
         viewport.Name = "RecorderLogViewport"
         viewport.LayoutOrder = 1
-        viewport.Size = UDim2.new(1, 0, 0, 150)
+        viewport.Size = UDim2.new(1, 0, 0, 110)
         viewport.BackgroundTransparency = 1
         viewport.BorderSizePixel = 0
         viewport.ScrollBarThickness = 5
@@ -715,10 +714,18 @@ return function(ctx)
 
         Recorder:Log("Ready")
 
+        local strategyName = RecorderTab:Textbox({
+            Title = "Strategy name",
+            Placeholder = "Strat",
+            ClearTextOnFocus = false,
+            MaxLength = 80,
+        })
+
         RecorderTab:Button({
             Title = "START",
             Desc = "",
             Callback = function()
+                if Globals.record_strat then return end
                 Recorder:Clear()
 
                 if not has_hook then
@@ -750,6 +757,20 @@ return function(ctx)
                         end)
                     end
                 end
+
+                local name = (strategyName.Value or ""):match("^%s*(.-)%s*$")
+                name = name:gsub("%.[tT][xX][tT]$", ""):gsub("[^%w_ %-]", "_")
+                name = name:match("^%s*(.-)%s*$")
+                if name == "" then
+                    name = "Strat"
+                end
+
+                local upperName = name:upper()
+                if upperName == "CON" or upperName == "PRN" or upperName == "AUX" or upperName == "NUL"
+                    or upperName:match("^COM%d$") or upperName:match("^LPT%d$") then
+                    name = "_" .. name
+                end
+                workspacePath = name .. ".txt"
 
                 Recorder:Log("Recorder started")
 
@@ -860,13 +881,14 @@ TDS:Mode("%s")%s
         })
 
         RecorderTab:Button({
-            Title = "STOP",
+            Title = "SAVE",
             Desc = "",
             Callback = function()
                 local wasRecording = Globals.record_strat
                 Globals.record_strat = false
                 if not wasRecording then return end
 
+                local strategyPath = strategyFolder .. "/" .. workspacePath
                 local copied = false
                 if type(readfile) == "function" and type(writefile) == "function" then
                     if type(makefolder) == "function" then
