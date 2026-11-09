@@ -21,6 +21,7 @@ return function(ctx)
     local last_wave = 0
     local Recorder
     local recording = {}
+    local autoMercenary = false
     local strategyFolder = "AutoStrategy"
     local has_hook = type(hookmetamethod) == "function"
     
@@ -446,7 +447,8 @@ return function(ctx)
         if a1 == "Troops" and a2 == "Abilities" and a3 == "Activate" then
             if type(a4) == "table" and type(a4.Name) == "string" then
                 local abilityName = a4.Name
-                if abilityName == "Call Of Arms" or abilityName == "Support Caravan" or abilityName == "Drop The Beat" or abilityName == "Raise The Dead" then
+                if abilityName == "Call Of Arms" or abilityName == "Support Caravan" or abilityName == "Drop The Beat" or abilityName == "Raise The Dead"
+                    or (autoMercenary and abilityName == "Air-Drop") then
                     return
                 end
             end
@@ -852,6 +854,48 @@ TDS:Mode("%s")%s
 
                 recording = {config_header}
                 Globals.record_strat = true
+
+                autoMercenary = false
+                if game_state == "GAME" then
+                    local loadout = {tower1, tower2, tower3, tower4, tower5}
+                    local thisRecording = recording
+                    if table.find(loadout, "Gatling Gun") and type(ctx.StartRecorderGatling) == "function" then
+                        task.spawn(ctx.StartRecorderGatling)
+                    end
+
+                    local support = {
+                        {"Commander", "AutoChain"},
+                        {"Mercenary Base", "Mercenary"},
+                        {"DJ Booth", "AutoDJ"},
+                        {"Necromancer", "AutoNecro"},
+                    }
+
+                    task.spawn(function()
+                        local api
+                        for _, automation in ipairs(support) do
+                            local towerName, method = table.unpack(automation)
+                            if table.find(loadout, towerName) then
+                                if not Globals.record_strat or recording ~= thisRecording then return end
+                                if not api then
+                                    local ok, result = pcall(ctx.GetRecorderSupportAPI)
+                                    if not Globals.record_strat or recording ~= thisRecording then return end
+                                    if not ok or type(result) ~= "table" then
+                                        Recorder:Log("Could not load tower automation.")
+                                        return
+                                    end
+                                    api = result
+                                end
+                                local ok, started = pcall(api[method], api)
+                                if ok and started ~= false then
+                                    if method == "Mercenary" then autoMercenary = true end
+                                    Recorder:Log("Auto enabled for " .. towerName)
+                                else
+                                    Recorder:Log("Could not start auto for " .. towerName)
+                                end
+                            end
+                        end
+                    end)
+                end
 
                 ctx.Library:Notify({
                     Title = "ADS",
