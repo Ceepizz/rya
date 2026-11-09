@@ -667,46 +667,60 @@ return function(ctx)
         local viewport = Instance.new("ScrollingFrame")
         viewport.Name = "RecorderLogViewport"
         viewport.LayoutOrder = 1
-        viewport.Size = UDim2.fromScale(1, 0)
+        viewport.Size = UDim2.new(1, 0, 0, 200)
         viewport.BackgroundTransparency = 1
         viewport.BorderSizePixel = 0
         viewport.ScrollBarThickness = 5
         viewport.ScrollingDirection = Enum.ScrollingDirection.Y
-        viewport.AutomaticCanvasSize = Enum.AutomaticSize.Y
         viewport.CanvasSize = UDim2.new()
         viewport.Parent = element.LabelHolder
 
-        local square = Instance.new("UIAspectRatioConstraint")
-        square.DominantAxis = Enum.DominantAxis.Width
-        square.AspectType = Enum.AspectType.ScaleWithParentSize
-        square.Parent = viewport
+        local function sizeViewport()
+            local width = element.LabelHolder.AbsoluteSize.X
+            if width > 0 and viewport.Size.Y.Offset ~= width then
+                viewport.Size = UDim2.new(1, 0, 0, width)
+            end
+        end
 
-        local logText = textStyle:Clone()
-        logText.Name = "LogText"
-        logText.Size = UDim2.new(1, -8, 0, 0)
-        logText.TextYAlignment = Enum.TextYAlignment.Top
-        logText.Text = "Ready"
-        logText.Visible = true
-        logText.Parent = viewport
+        element.LabelHolder:GetPropertyChangedSignal("AbsoluteSize"):Connect(sizeViewport)
+        sizeViewport()
 
-        viewport:GetPropertyChangedSignal("AbsoluteCanvasSize"):Connect(function()
-            local bottom = math.max(0, viewport.AbsoluteCanvasSize.Y - viewport.AbsoluteWindowSize.Y)
-            viewport.CanvasPosition = Vector2.new(0, bottom)
-        end)
+        local rows = Instance.new("UIListLayout")
+        rows.SortOrder = Enum.SortOrder.LayoutOrder
+        rows.Parent = viewport
 
-        local logLines = {}
+        local function updateCanvas()
+            local height = rows.AbsoluteContentSize.Y
+            viewport.CanvasSize = UDim2.fromOffset(0, height)
+            viewport.CanvasPosition = Vector2.new(0, math.max(0, height - viewport.AbsoluteWindowSize.Y))
+        end
+
+        rows:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)
+
+        local logRows = {}
         Recorder = {}
 
         function Recorder:Log(message)
-            table.insert(logLines, tostring(message))
-            logText.Text = table.concat(logLines, "\n")
+            local row = textStyle:Clone()
+            row.Name = "LogEntry"
+            row.LayoutOrder = #logRows + 1
+            row.Size = UDim2.new(1, -8, 0, 0)
+            row.TextYAlignment = Enum.TextYAlignment.Top
+            row.Text = tostring(message)
+            row.Visible = true
+            row.Parent = viewport
+            table.insert(logRows, row)
         end
 
         function Recorder:Clear()
-            table.clear(logLines)
-            logText.Text = ""
+            for _, row in ipairs(logRows) do
+                row:Destroy()
+            end
+            table.clear(logRows)
             viewport.CanvasPosition = Vector2.zero
         end
+
+        Recorder:Log("Ready")
 
         RecorderTab:Button({
             Title = "START",
