@@ -1553,6 +1553,7 @@ end
 
 function TabModule:SelectTab(Tab)
 	local Window = TabModule.Window
+	local IsFirstSelection = TabModule.SelectedTab == 0
 
 	TabModule.SelectedTab = Tab
 
@@ -1588,6 +1589,11 @@ function TabModule:SelectTab(Tab)
 
 	if TabModule:IsHorizontal() then
 		Window.SelectorSizeMotor:setGoal(Spring(TabModule:GetCurrentTabSize(), { frequency = 6 }))
+	end
+
+	if IsFirstSelection then
+		Window.ContainerHolder.Parent = Window.ContainerCanvas
+		return
 	end
 
 	task.spawn(function()
@@ -3266,7 +3272,15 @@ return function(Config)
 
 
 	function Window:Tab(TabConfig)
-		return TabModule:New(TabConfig.Title, TabConfig.Icon, Window.TabHolder)
+		local NewTab = TabModule:New(TabConfig.Title, TabConfig.Icon, Window.TabHolder)
+		if TabModule.TabCount == 1 then
+			task.defer(function()
+				if Library.CreatedWindow == Window and not Library.Unloaded then
+					TabModule:SelectTab(1)
+				end
+			end)
+		end
+		return NewTab
 	end
 
 	function Window:AddTab(TabConfig)
