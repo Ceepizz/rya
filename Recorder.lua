@@ -20,7 +20,7 @@ return function(ctx)
     local tower_count = 0
     local last_wave = 0
     local Recorder
-    local workspacePath = "Strat.txt"
+    local recording = {}
     local strategyFolder = "AutoStrategy"
     local has_hook = type(hookmetamethod) == "function"
     
@@ -35,9 +35,7 @@ return function(ctx)
 
     local function record_action(command_str)
         if not Globals.record_strat then return end
-        if appendfile then
-            appendfile(workspacePath, get_wave_prefix() .. command_str .. "\n")
-        end
+        table.insert(recording, get_wave_prefix() .. command_str .. "\n")
     end
 
     local function log_line(message)
@@ -758,20 +756,6 @@ return function(ctx)
                     end
                 end
 
-                local name = (strategyName.Value or ""):match("^%s*(.-)%s*$")
-                name = name:gsub("%.[tT][xX][tT]$", ""):gsub("[^%w_ %-]", "_")
-                name = name:match("^%s*(.-)%s*$")
-                if name == "" then
-                    name = "Strat"
-                end
-
-                local upperName = name:upper()
-                if upperName == "CON" or upperName == "PRN" or upperName == "AUX" or upperName == "NUL"
-                    or upperName:match("^COM%d$") or upperName:match("^LPT%d$") then
-                    name = "_" .. name
-                end
-                workspacePath = name .. ".txt"
-
                 Recorder:Log("Recorder started")
 
                 local current_mode = "Unknown"
@@ -856,21 +840,18 @@ return function(ctx)
 
                 sync_existing_towers()
                 last_wave = 0
-                Globals.record_strat = true
-
-                if writefile then
-                    local game_info_str = ""
-                    if not skip_game_info then
+                local game_info_str = ""
+                if not skip_game_info then
                         game_info_str = string.format('\nTDS:GameInfo("%s", {%s})', current_map, current_modifiers)
-                    end
-                    local config_header = string.format([[
+                end
+                local config_header = string.format([[
 TDS:Loadout("%s", "%s", "%s", "%s", "%s")
 TDS:Mode("%s")%s
 
 ]], tower1, tower2, tower3, tower4, tower5, current_mode, game_info_str)
 
-                    writefile(workspacePath, config_header)
-                end
+                recording = {config_header}
+                Globals.record_strat = true
 
                 ctx.Library:Notify({
                     Title = "ADS",
@@ -884,20 +865,40 @@ TDS:Mode("%s")%s
             Title = "SAVE",
             Desc = "",
             Callback = function()
-                local wasRecording = Globals.record_strat
-                Globals.record_strat = false
-                if not wasRecording then return end
+                if not Globals.record_strat then return end
 
-                local strategyPath = strategyFolder .. "/" .. workspacePath
-                local copied = false
-                if type(readfile) == "function" and type(writefile) == "function" then
-                    if type(makefolder) == "function" then
-                        pcall(makefolder, strategyFolder)
-                    end
-                    copied = pcall(function()
-                        writefile(strategyPath, readfile(workspacePath))
-                    end)
+                if type(writefile) ~= "function" then
+                    Recorder:Log("This executor cannot save files.")
+                    return
                 end
+
+                local name = (strategyName.Value or ""):match("^%s*(.-)%s*$")
+                name = name:gsub("%.[tT][xX][tT]$", ""):gsub("[^%w_ %-]", "_")
+                name = name:match("^%s*(.-)%s*$")
+                if name == "" then
+                    name = "Strat"
+                end
+
+                local upperName = name:upper()
+                if upperName == "CON" or upperName == "PRN" or upperName == "AUX" or upperName == "NUL"
+                    or upperName:match("^COM%d$") or upperName:match("^LPT%d$") then
+                    name = "_" .. name
+                end
+                local workspacePath = name .. ".txt"
+
+                local content = table.concat(recording)
+                if not pcall(writefile, workspacePath, content) then
+                    Recorder:Log("Could not save " .. workspacePath .. ". Edit the name or try Save again.")
+                    return
+                end
+
+                Globals.record_strat = false
+                table.clear(recording)
+                local strategyPath = strategyFolder .. "/" .. workspacePath
+                if type(makefolder) == "function" then
+                    pcall(makefolder, strategyFolder)
+                end
+                local copied = pcall(writefile, strategyPath, content)
 
                 local message = copied and ("Saved " .. workspacePath .. " and " .. strategyPath)
                     or ("Could not copy to " .. strategyPath .. ". Check the workspace for " .. workspacePath .. ".")
