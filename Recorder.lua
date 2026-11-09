@@ -20,6 +20,9 @@ return function(ctx)
     local tower_count = 0
     local last_wave = 0
     local Recorder
+    local workspacePath = "Strat.txt"
+    local strategyFolder = "AutoStrategy"
+    local strategyPath = strategyFolder .. "/" .. workspacePath
     local has_hook = type(hookmetamethod) == "function"
     
     local function get_wave_prefix()
@@ -34,7 +37,7 @@ return function(ctx)
     local function record_action(command_str)
         if not Globals.record_strat then return end
         if appendfile then
-            appendfile("Strat.txt", get_wave_prefix() .. command_str .. "\n")
+            appendfile(workspacePath, get_wave_prefix() .. command_str .. "\n")
         end
     end
 
@@ -845,7 +848,7 @@ TDS:Mode("%s")%s
 
 ]], tower1, tower2, tower3, tower4, tower5, current_mode, game_info_str)
 
-                    writefile("Strat.txt", config_header)
+                    writefile(workspacePath, config_header)
                 end
 
                 ctx.Library:Notify({
@@ -860,16 +863,29 @@ TDS:Mode("%s")%s
             Title = "STOP",
             Desc = "",
             Callback = function()
+                local wasRecording = Globals.record_strat
                 Globals.record_strat = false
-                if has_hook then
-                    Recorder:Clear()
-                    Recorder:Log("Strategy saved, you may find it in \nyour workspace folder called 'Strat.txt'")
-                    ctx.Library:Notify({
-                        Title = "ADS",
-                        Content = "Recording has been saved! Check your workspace folder for Strat.txt",
-                        Duration = 3
-                    })
+                if not wasRecording then return end
+
+                local copied = false
+                if type(readfile) == "function" and type(writefile) == "function" then
+                    if type(makefolder) == "function" then
+                        pcall(makefolder, strategyFolder)
+                    end
+                    copied = pcall(function()
+                        writefile(strategyPath, readfile(workspacePath))
+                    end)
                 end
+
+                local message = copied and ("Saved " .. workspacePath .. " and " .. strategyPath)
+                    or ("Could not copy to " .. strategyPath .. ". Check the workspace for " .. workspacePath .. ".")
+                Recorder:Clear()
+                Recorder:Log(message)
+                ctx.Library:Notify({
+                    Title = "ADS",
+                    Content = message,
+                    Duration = 3
+                })
             end
         })
 
