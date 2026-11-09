@@ -959,7 +959,7 @@ TDS:Mode("%s")%s
         local stackingToggle
         stackingToggle = RecorderTab:Toggle({
             Title = "Allow Stacking",
-            Desc = "Place inside tower boundaries with a 25-stud height offset.",
+            Desc = "Stack towers in the same spot.",
             Value = stacking and stacking.recorderManaged and stacking.enabled == true or false,
             Callback = function(enabled)
                 if not enabled then
