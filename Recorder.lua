@@ -659,7 +659,7 @@ return function(ctx)
     end
 
     do
-        local logPanel = RecorderTab:Paragraph({
+        local logPanel = RecorderTab:Label({
             Title = "Recorder log",
             Content = "Ready",
         })
