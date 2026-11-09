@@ -428,6 +428,17 @@ return function(ctx)
         record_line(cmd, "Unequipped: " .. tower_name)
     end
 
+    local function formatAbility(index, name, data)
+        local args = {tostring(index), string.format("%q", name)}
+        if data ~= nil and (type(data) ~= "table" or next(data) ~= nil) then
+            table.insert(args, serialize_value(data))
+        end
+        if name == "Hologram Tower" then
+            table.insert(args, "true")
+        end
+        return "TDS:Ability(" .. table.concat(args, ", ") .. ")"
+    end
+
     local function handle_namecall(remote, method, args, results)
         if not Globals.record_strat then
             return
@@ -463,17 +474,7 @@ return function(ctx)
                 local name = a4.Name
                 if idx and type(name) == "string" then
                     local data = a4.Data
-                    local cmd
-                    if data == nil or (type(data) == "table" and next(data) == nil) then
-                        cmd = string.format("TDS:Ability(%d, %s)", idx, string.format("%q", name))
-                    else
-                        cmd = string.format(
-                            "TDS:Ability(%d, %s, %s)",
-                            idx,
-                            string.format("%q", name),
-                            serialize_value(data)
-                        )
-                    end
+                    local cmd = formatAbility(idx, name, data)
 
                     record_line(cmd, "Ability: " .. name .. " (Index: " .. idx .. ")")
                     handled = true
@@ -644,17 +645,7 @@ return function(ctx)
             local name = payload and payload.Name or (#strings >= 1 and strings[1] or nil)
             if name then
                 local data = payload and payload.Data or nil
-                local cmd
-                if data == nil or (type(data) == "table" and next(data) == nil) then
-                    cmd = string.format("TDS:Ability(%d, %s)", idx, string.format("%q", name))
-                else
-                    cmd = string.format(
-                        "TDS:Ability(%d, %s, %s)",
-                        idx,
-                        string.format("%q", name),
-                        serialize_value(data)
-                    )
-                end
+                local cmd = formatAbility(idx, name, data)
                 record_line(cmd, "Ability: " .. name .. " (Index: " .. idx .. ")")
             end
             return
