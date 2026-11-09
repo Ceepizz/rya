@@ -1545,7 +1545,7 @@ function TabModule:New(Title, Icon, Parent)
 	Tab.AddSection = Tab.Section
 
 	setmetatable(Tab, Elements)
-	if TabIndex == 1 and TabModule.SelectedTab == nil then
+	if TabIndex == 1 and (TabModule.SelectedTab == nil or TabModule.SelectedTab == 0) then
 		TabModule:SelectTab(TabIndex)
 	end
 	return Tab
@@ -1576,6 +1576,14 @@ function TabModule:SelectTab(Tab)
 	end
 
 	UpdateTabDisplay(Tab)
+
+	for _, Container in next, TabModule.Containers do
+		Container.Visible = false
+	end
+	if TabModule.Containers[Tab] then
+		TabModule.Containers[Tab].Visible = true
+	end
+
 	Window.SelectorPosMotor:setGoal(Spring(TabModule:GetCurrentTabPos(), { frequency = 6 }))
 
 	if TabModule:IsHorizontal() then
