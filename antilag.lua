@@ -7,6 +7,10 @@ local OriginalEmitters = {}
 
 local LOBBY_PLACE_ID = 3260590327
 
+local function ShouldApplyAntiLag()
+    return Globals.AntiLag and not Globals.record_strat
+end
+
 local function ApplyNoFog()
     if game.PlaceId == LOBBY_PLACE_ID then
         return
@@ -71,7 +75,7 @@ local function HookEffectsController()
             if EffectsController[methodName] and not OriginalEffects[methodName] then
                 OriginalEffects[methodName] = EffectsController[methodName]
                 EffectsController[methodName] = function(...)
-                    if Globals.AntiLag then
+                    if ShouldApplyAntiLag() then
                         return
                     end
                     return OriginalEffects[methodName](...)
@@ -96,7 +100,7 @@ local function HookEmitterManager()
             if EmitterManager[methodName] and not OriginalEmitters[methodName] then
                 OriginalEmitters[methodName] = EmitterManager[methodName]
                 EmitterManager[methodName] = function(...)
-                    if Globals.AntiLag then
+                    if ShouldApplyAntiLag() then
                         return
                     end
                     return OriginalEmitters[methodName](...)
@@ -128,13 +132,7 @@ local function RestoreHooks()
     end)
 end
 
-local function StartAntiLag()
-    if AntiLagRunning or not Globals.AntiLag then
-        return
-    end
-
-    AntiLagRunning = true
-
+local function ApplyGraphicsSettings()
     pcall(function()
         local userGameSettings = UserSettings():GetService("UserGameSettings")
         userGameSettings.SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel1
@@ -149,31 +147,52 @@ local function StartAntiLag()
     end)
 
     pcall(ApplyNoFog)
+end
+
+local function StartAntiLag()
+    if AntiLagRunning or not Globals.AntiLag then
+        return
+    end
+
+    AntiLagRunning = true
 
     HookEffectsController()
     HookEmitterManager()
 
     local npcsFolder = workspace:FindFirstChild("NPCs")
     if npcsFolder then
-        for _, enemy in ipairs(npcsFolder:GetChildren()) do
-            HideModel(enemy)
-        end
 
         table.insert(Connections, npcsFolder.DescendantAdded:Connect(function(descendant)
-            if Globals.AntiLag then
+            if ShouldApplyAntiLag() then
                 HideInstance(descendant)
             end
         end))
     end
 
     table.insert(Connections, workspace.Terrain.ChildAdded:Connect(function(child)
-        if Globals.AntiLag and child.Name == "DamageIndicator" then
+        if ShouldApplyAntiLag() and child.Name == "DamageIndicator" then
             child:Destroy()
         end
     end))
 
     task.spawn(function()
+        local needsGraphicsSetup = true
         while Globals.AntiLag do
+            if not ShouldApplyAntiLag() then
+                needsGraphicsSetup = true
+                task.wait(0.5)
+                continue
+            end
+
+            if needsGraphicsSetup then
+                needsGraphicsSetup = false
+                ApplyGraphicsSettings()
+                if npcsFolder then
+                    for _, enemy in ipairs(npcsFolder:GetChildren()) do
+                        HideModel(enemy)
+                    end
+                end
+            end
             pcall(ApplyNoFog)
 
             local towersFolder = workspace:FindFirstChild("Towers")
