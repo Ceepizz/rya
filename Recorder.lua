@@ -903,6 +903,10 @@ TDS:Mode("%s")%s
                     or ("Could not copy to " .. strategyPath .. ". Check the workspace for " .. workspacePath .. ".")
                 Recorder:Clear()
                 Recorder:Log(message)
+                if copied then
+                    Recorder:Log("To load it, open the Auto Strategy tab.")
+                    Recorder:Log("Select " .. workspacePath .. " under Strategy File, then turn on Enable Auto Strategy.")
+                end
                 ctx.Library:Notify({
                     Title = "ADS",
                     Content = message,
