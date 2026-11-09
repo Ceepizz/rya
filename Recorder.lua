@@ -928,30 +928,23 @@ TDS:Mode("%s")%s
                     or upperName:match("^COM%d$") or upperName:match("^LPT%d$") then
                     name = "_" .. name
                 end
-                local workspacePath = name .. ".txt"
-
-                local content = table.concat(recording)
-                if not pcall(writefile, workspacePath, content) then
-                    Recorder:Log("Could not save " .. workspacePath .. ". Edit the name or try Save again.")
+                local filename = name .. ".txt"
+                local strategyPath = strategyFolder .. "/" .. filename
+                if type(makefolder) == "function" then
+                    pcall(makefolder, strategyFolder)
+                end
+                if not pcall(writefile, strategyPath, table.concat(recording)) then
+                    Recorder:Log("Could not save " .. strategyPath .. ". Try Save again.")
                     return
                 end
 
                 Globals.record_strat = false
                 table.clear(recording)
-                local strategyPath = strategyFolder .. "/" .. workspacePath
-                if type(makefolder) == "function" then
-                    pcall(makefolder, strategyFolder)
-                end
-                local copied = pcall(writefile, strategyPath, content)
-
-                local message = copied and ("Saved " .. workspacePath .. " and " .. strategyPath)
-                    or ("Could not copy to " .. strategyPath .. ". Check the workspace for " .. workspacePath .. ".")
+                local message = "Saved " .. strategyPath
                 Recorder:Clear()
                 Recorder:Log(message)
-                if copied then
-                    Recorder:Log("To load it, open the Auto Strategy tab.")
-                    Recorder:Log("Select " .. workspacePath .. " under Strategy File, then turn on Enable Auto Strategy.")
-                end
+                Recorder:Log("To load it, open the Auto Strategy tab.")
+                Recorder:Log("Select " .. filename .. " under Strategy File, then turn on Enable Auto Strategy.")
                 ctx.Library:Notify({
                     Title = "ADS",
                     Content = message,
