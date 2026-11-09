@@ -916,6 +916,87 @@ TDS:Mode("%s")%s
             end
         })
 
+        local stacking = Globals.__codexTowerPlacementYOffset
+        local function installStacking()
+            local remote = replicated_storage:WaitForChild("RemoteFunction", 5)
+            assert(remote and remote:IsA("RemoteFunction"), "Placement remote is unavailable.")
+            local sharedFunctions = require(replicated_storage.Shared.Modules.SharedGameFunctions)
+            local originalCheck = sharedFunctions.CheckTowerCollisions
+            assert(type(originalCheck) == "function" and not table.isfrozen(sharedFunctions),
+                "The placement collision check is unavailable.")
+
+            local state = {enabled = false, recorderManaged = true}
+            local originalNamecall
+            originalNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+                if state.enabled and self == remote and getnamecallmethod() == "InvokeServer" then
+                    local category, action, placement = ...
+                    if category == "Troops" and action == "Place" and type(placement) == "table"
+                        and typeof(placement.Position) == "Vector3" then
+                        local args = table.pack(...)
+                        local updated = table.clone(placement)
+                        updated.Position = placement.Position + Vector3.new(0, 25, 0)
+                        args[3] = updated
+                        return originalNamecall(self, table.unpack(args, 1, args.n))
+                    end
+                end
+                return originalNamecall(self, ...)
+            end))
+
+            function state.boundaryWrapper(towerName, position, team, ...)
+                local allowed, detail = originalCheck(towerName, position, team, ...)
+                if state.enabled and allowed == false and select("#", ...) == 0
+                    and typeof(position) == "Vector3" and type(detail) == "table"
+                    and detail.Model and detail.PrimaryPart then
+                    return true, CFrame.new(position)
+                end
+                return allowed, detail
+            end
+            sharedFunctions.CheckTowerCollisions = state.boundaryWrapper
+            Globals.__codexTowerPlacementYOffset = state
+            return state
+        end
+
+        local stackingToggle
+        stackingToggle = RecorderTab:Toggle({
+            Title = "Allow Stacking",
+            Desc = "Place inside tower boundaries with a 25-stud height offset.",
+            Value = stacking and stacking.recorderManaged and stacking.enabled == true or false,
+            Callback = function(enabled)
+                if not enabled then
+                    if stacking and stacking.recorderManaged then
+                        stacking.enabled = false
+                    end
+                    Globals.StackEnabled = false
+                    return
+                end
+
+                local errorMessage
+                if game_state ~= "GAME" then
+                    errorMessage = "Join a match to enable stacking."
+                elseif stacking and not stacking.recorderManaged then
+                    errorMessage = "Rejoin without the standalone stacking script to use this toggle."
+                elseif not stacking then
+                    local ok, result = pcall(installStacking)
+                    if ok then
+                        stacking = result
+                    else
+                        errorMessage = "Could not enable stacking: " .. tostring(result)
+                    end
+                end
+
+                if errorMessage then
+                    Recorder:Log(errorMessage)
+                    if stackingToggle then
+                        stackingToggle:SetValue(false)
+                    end
+                    return
+                end
+
+                stacking.enabled = true
+                Globals.StackEnabled = true
+            end,
+        })
+
         if game_state == "GAME" then
             local towers_folder = workspace_ref:WaitForChild("Towers", 5)
             if not towers_folder then return end
