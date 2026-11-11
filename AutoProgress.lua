@@ -1,3 +1,119 @@
+local Environment = (getgenv and getgenv()) or shared or _G
+
+if Environment.__AutoProgressLoaderGame == game then
+    return
+end
+Environment.__AutoProgressLoaderGame = game
+
+local MAIN_URL = "https://api.jnkie.com/api/v1/luascripts/public/96aa3bb286648b1860f83b0d1dffc8b67b5091050f89341b6384c4450894193d/download"
+
+local QueueOnTeleport = queue_on_teleport
+    or queueonteleport
+    or (syn and syn.queue_on_teleport)
+
+local QueueTemplate = [==[
+local Environment = (getgenv and getgenv()) or shared or _G
+local QueueOnTeleport = queue_on_teleport
+    or queueonteleport
+    or (syn and syn.queue_on_teleport)
+local Template = %q
+local MainURL = %q
+
+if Environment.__AutoProgressQueuedGame ~= game and type(QueueOnTeleport) == "function" then
+    Environment.__AutoProgressQueuedGame = game
+    local queued, queueError = pcall(QueueOnTeleport, string.format(Template, Template, MainURL))
+    if not queued then
+        Environment.__AutoProgressQueuedGame = nil
+        warn("[Auto Progress] Unable to requeue: " .. tostring(queueError))
+    end
+end
+
+if Environment.__AutoProgressLoaderGame == game then
+    return
+end
+
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+task.wait(5)
+
+if Environment.__AutoProgressLoaderGame == game then
+    return
+end
+Environment.__AutoProgressLoaderGame = game
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
+local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
+
+local executor = identifyexecutor and identifyexecutor()
+if executor == "Solara" or executor == "Xeno" then
+    LocalPlayer:Kick("Unsupported executor: " .. executor)
+    return
+end
+
+local function IsLoading()
+    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    local loadingScreen = playerGui and playerGui:FindFirstChild("LoadingScreen")
+    local content = loadingScreen and loadingScreen:FindFirstChild("content")
+    return LocalPlayer:GetAttribute("Loading") == true
+        or LocalPlayer:GetAttribute("Teleporting") == true
+        or (content and content.Visible == true)
+end
+
+local isLobby = game.PlaceId == 3260590327
+local stateReplicators = ReplicatedStorage:FindFirstChild("StateReplicators")
+local rep = stateReplicators and stateReplicators:FindFirstChild("GameStateReplicator")
+local timeout = isLobby and 60 or 100
+local startedAt = os.clock()
+
+if isLobby or rep then
+    while IsLoading() and os.clock() - startedAt < timeout do
+        task.wait(1)
+    end
+    if IsLoading() then
+        if isLobby then
+            pcall(function()
+                TeleportService:Teleport(3260590327, LocalPlayer)
+            end)
+        elseif rep then
+            local difficulty = rep:GetAttribute("Difficulty")
+            local displayName = rep:GetAttribute("DifficultyDisplayName")
+            local mode = tostring(displayName or ""):lower() == "hardcore" and "hardcore" or "survival"
+            local remote = ReplicatedStorage:FindFirstChild("RemoteFunction")
+            if difficulty ~= nil and remote then
+                pcall(function()
+                    remote:InvokeServer("Multiplayer", "v2:start", {
+                        difficulty = tostring(difficulty), mode = mode, count = 1
+                    })
+                end)
+            end
+        end
+        return
+    end
+end
+
+local ok, err = pcall(function()
+    loadstring(game:HttpGet(MainURL))()
+end)
+if not ok then
+    warn("[Auto Progress] Queued fallback failed: " .. tostring(err))
+end
+]==]
+
+if type(QueueOnTeleport) == "function" and Environment.__AutoProgressQueuedGame ~= game then
+    Environment.__AutoProgressQueuedGame = game
+    local queued, queueError = pcall(
+        QueueOnTeleport,
+        string.format(QueueTemplate, QueueTemplate, MAIN_URL)
+    )
+    if not queued then
+        Environment.__AutoProgressQueuedGame = nil
+        warn("[Auto Progress] Unable to queue: " .. tostring(queueError))
+    end
+end
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
@@ -12,7 +128,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 
 local LOBBY_PLACE_ID = 3260590327
-
 local LOADING_TIMEOUT = 100
 local LOBBY_LOADING_TIMEOUT = 60
 
@@ -27,7 +142,8 @@ local SavedState = {
 
 local Executor = identifyexecutor and identifyexecutor()
 if Executor == "Solara" or Executor == "Xeno" then
-    game:GetService("Players").LocalPlayer:Kick("Unsupported executor: " .. Executor)
+    LocalPlayer:Kick("Unsupported executor: " .. Executor)
+    return
 end
 
 local function GetRep()
@@ -214,7 +330,7 @@ elseif IsInGame() then
 end
 
 local ok, err = pcall(function()
-    loadstring(game:HttpGet("https://api.jnkie.com/api/v1/luascripts/public/96aa3bb286648b1860f83b0d1dffc8b67b5091050f89341b6384c4450894193d/download"))()
+    loadstring(game:HttpGet(MAIN_URL))()
 end)
 
 LoaderActive = false
