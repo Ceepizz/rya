@@ -1347,37 +1347,10 @@ local function UpdateTabDisplay(TabIndex)
 		return
 	end
 
-	local Status = ResolveGlobalStatus()
-	local HasStatus = Status ~= ""
-	local Player = game:GetService("Players").LocalPlayer
-	local Username = EscapeTabRichText(Player and Player.Name or "Player")
-	local Header = '<font size="19">' .. EscapeTabRichText(Tab.Name) .. '</font>'
-		.. '\n<font size="12" color="#B8CCE5">Username: ' .. Username .. '</font>'
-
-	if HasStatus then
-		local StatusColor = "#A0A0A0"
-
-		if Status:find("Searching", 1, true)
-			or Status:find("Waiting", 1, true)
-			or Status:find("Returning to Lobby", 1, true) then
-
-			StatusColor = "#FACC15"
-		elseif Status:match("^Running")
-			or Status:find("Map Found!", 1, true) then
-
-			StatusColor = "#4ADE80"
-		end
-
-		Window.TabDisplay.Text = Header
-			.. "\n<font size=\"12\" color=\"#FFFFFF\">STATUS: </font><font size=\"12\" color=\"" .. StatusColor .. "\">"
-			.. EscapeTabRichText(Status)
-			.. "</font>"
-	else
-		Window.TabDisplay.Text = Header
-	end
+	Window.TabDisplay.Text = '<font size="19">' .. EscapeTabRichText(Tab.Name) .. '</font>'
 
 	if Window.SetTabDisplayMultiline then
-		Window:SetTabDisplayMultiline(true)
+		Window:SetTabDisplayMultiline(false)
 	end
 end
 
@@ -1572,11 +1545,15 @@ function TabModule:New(Title, Icon, Parent)
 	Tab.AddSection = Tab.Section
 
 	setmetatable(Tab, Elements)
+	if TabIndex == 1 and (TabModule.SelectedTab == nil or TabModule.SelectedTab == 0) then
+		TabModule:SelectTab(TabIndex)
+	end
 	return Tab
 end
 
 function TabModule:SelectTab(Tab)
 	local Window = TabModule.Window
+	local IsFirstSelection = TabModule.SelectedTab == 0
 
 	TabModule.SelectedTab = Tab
 
@@ -1600,10 +1577,23 @@ function TabModule:SelectTab(Tab)
 	end
 
 	UpdateTabDisplay(Tab)
+
+	for _, Container in next, TabModule.Containers do
+		Container.Visible = false
+	end
+	if TabModule.Containers[Tab] then
+		TabModule.Containers[Tab].Visible = true
+	end
+
 	Window.SelectorPosMotor:setGoal(Spring(TabModule:GetCurrentTabPos(), { frequency = 6 }))
 
 	if TabModule:IsHorizontal() then
 		Window.SelectorSizeMotor:setGoal(Spring(TabModule:GetCurrentTabSize(), { frequency = 6 }))
+	end
+
+	if IsFirstSelection then
+		Window.ContainerHolder.Parent = Window.ContainerCanvas
+		return
 	end
 
 	task.spawn(function()
@@ -1963,71 +1953,7 @@ return function(Config)
 	TitleGradientTween:Play()
 
 	-- Account information now sits beside the Auto Progress title.
-	TitleBar.PlanLabel = New("TextLabel", {
-		Name = "AccountPlan",
-		Parent = TitleBar.TitleHolder,
-		LayoutOrder = 2,
-		RichText = true,
-		Text = "Standard",
-		FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.SemiBold),
-		TextSize = 11,
-		TextColor3 = Color3.fromRGB(215, 215, 215),
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextYAlignment = Enum.TextYAlignment.Center,
-		Size = UDim2.fromScale(0, 1),
-		AutomaticSize = Enum.AutomaticSize.X,
-		BackgroundTransparency = 1,
-	})
-
-	TitleBar.ExpiryLabel = New("TextLabel", {
-		Name = "KeyExpiry",
-		Parent = TitleBar.TitleHolder,
-		LayoutOrder = 3,
-		RichText = true,
-		Text = "Permanent",
-		FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Medium),
-		TextSize = 10,
-		TextColor3 = Color3.fromRGB(80, 255, 120),
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextYAlignment = Enum.TextYAlignment.Center,
-		TextTruncate = Enum.TextTruncate.AtEnd,
-		Size = UDim2.new(1, -245, 1, 0),
-		BackgroundTransparency = 1,
-	})
-
-	local function FormatKeyRemaining(seconds)
-		if seconds <= 0 then
-			return "Expired"
-		end
-		local hours = math.floor(seconds / 3600)
-		if hours >= 1 then
-			return string.format("%dh", hours)
-		end
-		return string.format("%dm", math.max(1, math.floor(seconds / 60)))
-	end
-
-	task.spawn(function()
-		while TitleBar.Frame.Parent do
-			local premium = shared.JD_IS_PREMIUM == true
-			TitleBar.PlanLabel.Text = premium
-				and '<font color="rgb(255,200,70)"><b>Premium</b></font>'
-				or "Standard"
-
-			local expires = tonumber(shared.JD_EXPIRES_AT)
-			if expires == nil then
-				TitleBar.ExpiryLabel.Text = '<font color="rgb(80,255,120)"><b>Permanent</b></font>'
-			elseif expires > os.time() then
-				TitleBar.ExpiryLabel.Text = '<font color="rgb(255,90,90)"><b>Key Expires in: '
-					.. FormatKeyRemaining(expires - os.time()) .. '</b></font>'
-			else
-				TitleBar.ExpiryLabel.Text = '<font color="rgb(255,90,90)"><b>Expired</b></font>'
-			end
-
-			task.wait(1)
-		end
-	end)
-
-	TitleBar.CloseButton = BarButton(Library.Utilities:GetIcon("Close"), UDim2.new(1, -4, 0, 4), TitleBar.Frame, 0, function()
+		TitleBar.CloseButton = BarButton(Library.Utilities:GetIcon("Close"), UDim2.new(1, -4, 0, 4), TitleBar.Frame, 0, function()
 		Library.CreatedWindow:Dialog{
 			Title = "Close",
 			Content = "Are you sure you want to unload the interface?",
@@ -3346,7 +3272,15 @@ return function(Config)
 
 
 	function Window:Tab(TabConfig)
-		return TabModule:New(TabConfig.Title, TabConfig.Icon, Window.TabHolder)
+		local NewTab = TabModule:New(TabConfig.Title, TabConfig.Icon, Window.TabHolder)
+		if TabModule.TabCount == 1 then
+			task.defer(function()
+				if Library.CreatedWindow == Window and not Library.Unloaded then
+					TabModule:SelectTab(1)
+				end
+			end)
+		end
+		return NewTab
 	end
 
 	function Window:AddTab(TabConfig)
@@ -4116,12 +4050,25 @@ function Element:New(Idx, Config)
 	Input.SetTitle = InputFrame.SetTitle
 	Input.SetDesc = InputFrame.SetDesc
 
-	local Textbox = require(Components.Textbox)(InputFrame.Frame, true)
-	Textbox.Frame.Position = UDim2.new(1, -10, 0.5, 0)
-	Textbox.Frame.AnchorPoint = Vector2.new(1, 0.5)
-	Textbox.Frame.Size = UDim2.fromOffset(160, 30)
-	Textbox.Input.Text = Config.Default or ""
+	local Textbox = require(Components.Textbox)(InputFrame.LabelHolder, true)
+	local Layout = InputFrame.LabelHolder:FindFirstChildOfClass("UIListLayout")
+	local Padding = InputFrame.LabelHolder:FindFirstChildOfClass("UIPadding")
+	InputFrame.LabelHolder.Size = UDim2.new(1, -20, 0, 0)
+	InputFrame.TitleLabel.LayoutOrder = 1
+	InputFrame.DescLabel.LayoutOrder = 2
+	Textbox.Frame.LayoutOrder = 3
+	Textbox.Frame.AnchorPoint = Vector2.new(0, 0)
+	Textbox.Frame.Position = UDim2.fromOffset(0, 0)
+	Textbox.Frame.Size = UDim2.new(1, 0, 0, 30)
+	Textbox.Input.Text = Config.Default or Config.Value or ""
 	Textbox.Input.PlaceholderText = Config.Placeholder or ""
+	if Layout then
+		Layout.Padding = UDim.new(0, 4)
+	end
+	if Padding then
+		Padding.PaddingTop = UDim.new(0, 9)
+		Padding.PaddingBottom = UDim.new(0, 9)
+	end
 
 	local Box = Textbox.Input
 
