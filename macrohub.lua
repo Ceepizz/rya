@@ -90,6 +90,11 @@ function Library:Window(config)
     local registered, connections, tabs = {}, {}, {}
     local alive, selected, minimized, maximized, oldSize = true, nil, false, false, nil
     local globalStatus = "Idle"
+    local profileStats = {Level = 0, Coins = 0, Gems = 0}
+    local profileView
+    local refreshProfileStatus
+    local refreshProfileStats
+    local refreshBadges
     local refreshStatusHeader
     local floatingSize = math.clamp(tonumber(config.Config and config.Config.FloatingIconSize) or 96, 56, 144)
     local function listen(signal, callback)
@@ -156,7 +161,55 @@ function Library:Window(config)
     themed(topLine, "BackgroundColor3", "Stroke")
     local logo = create("ImageLabel", {Name = "Logo", Image = "rbxassetid://" .. (selectedTheme == "Dark" and "76956733094432" or "95122283075110"), BackgroundTransparency = 1, Position = UDim2.fromOffset(12, 8), Size = UDim2.fromOffset(40, 40), ScaleType = Enum.ScaleType.Fit}, top)
     local title = makeText(top, name, 20, true)
-    title.Position, title.Size = UDim2.fromOffset(60, 16), UDim2.new(1, -228, 0, 26)
+    title.Position, title.Size = UDim2.fromOffset(60, 16), UDim2.fromOffset(124, 26)
+    local badges = {Plan = "Premium", Expiry = "Permanent"}
+    local badgeHolder = create("Frame", {
+        Name = "MembershipBadges", BackgroundTransparency = 1, BorderSizePixel = 0,
+        Position = UDim2.fromOffset(193, 17), Size = UDim2.new(1, -385, 0, 24)
+    }, top)
+    create("UIListLayout", {
+        FillDirection = Enum.FillDirection.Horizontal, SortOrder = Enum.SortOrder.LayoutOrder,
+        VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 7)
+    }, badgeHolder)
+    local function makeBadge(order)
+        local frame = round(create("Frame", {
+            Name = "Badge" .. tostring(order), LayoutOrder = order,
+            Size = UDim2.fromOffset(order == 1 and 78 or 108, 23),
+            BackgroundTransparency = .86, BorderSizePixel = 0
+        }, badgeHolder), 11)
+        local border = create("UIStroke", {Thickness = 1, Transparency = .52}, frame)
+        local lbl = makeText(frame, "", 11, true)
+        lbl.TextXAlignment, lbl.TextYAlignment = Enum.TextXAlignment.Center, Enum.TextYAlignment.Center
+        lbl.Position, lbl.Size = UDim2.new(), UDim2.fromScale(1, 1)
+        return frame, border, lbl
+    end
+    local badge1, badgeBorder1, badgeText1 = makeBadge(1)
+    local badge2, badgeBorder2, badgeText2 = makeBadge(2)
+    local function badgeColor(plan, first)
+        local primary = first and plan == "Premium"
+        if first then
+            if primary then return selectedTheme == "Light" and Color3.fromRGB(154, 90, 0) or Color3.fromRGB(255, 196, 80) end
+            return selectedTheme == "Light" and Color3.fromRGB(38, 95, 174) or Color3.fromRGB(123, 185, 255)
+        end
+        if tostring(plan):lower():find("permanent", 1, true) then
+            return selectedTheme == "Light" and Color3.fromRGB(15, 121, 75) or Color3.fromRGB(77, 225, 147)
+        end
+        return selectedTheme == "Light" and Color3.fromRGB(154, 90, 0) or Color3.fromRGB(255, 196, 80)
+    end
+    refreshBadges = function()
+        for i, data in ipairs({
+            {badge1, badgeBorder1, badgeText1, tostring(badges.Plan or "Standard")},
+            {badge2, badgeBorder2, badgeText2, tostring(badges.Expiry or "Permanent")}
+        }) do
+            local frame, stroke, lbl, value = data[1], data[2], data[3], data[4]
+            local color = badgeColor(i == 1 and badges.Plan or value, i == 1)
+            local labelWidth = math.max(i == 1 and 78 or 88, math.min(i == 1 and 90 or 170, #value * 6.1 + 25))
+            frame.Size = UDim2.fromOffset(labelWidth, 23)
+            frame.BackgroundColor3, stroke.Color, lbl.TextColor3 = color, color, color
+            lbl.Text = value
+        end
+    end
+    refreshBadges()
     local controls = create("Frame", {
         BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, .5),
         Position = UDim2.new(1, -12, .5, 0), Size = UDim2.fromOffset(148, 32)
@@ -192,6 +245,9 @@ function Library:Window(config)
         end
         if window then window.Theme = selectedTheme end
         if refreshStatusHeader then refreshStatusHeader() end
+        if refreshBadges then refreshBadges() end
+        if refreshProfileStatus then refreshProfileStatus() end
+        if refreshProfileStats then refreshProfileStats() end
         themeSignal:Fire(selectedTheme)
         if buttonTheme then buttonTheme.Image = iconId(selectedTheme == "Dark" and "moon" or "sun") end
         if logo then logo.Image = "rbxassetid://" .. (selectedTheme == "Dark" and "76956733094432" or "95122283075110") end
@@ -201,6 +257,23 @@ function Library:Window(config)
         setTheme(selectedTheme == "Dark" and "Light" or "Dark")
     end)
     window = {Minimized = false, Theme = selectedTheme, ThemeChanged = themeSignal.Event, Instance = gui}
+    function window:SetBadges(options)
+        if type(options) ~= "table" then return end
+        badges.Plan = tostring(options.Plan or options.Tier or badges.Plan)
+        badges.Expiry = tostring(options.Expiry or options.Duration or badges.Expiry)
+        refreshBadges()
+    end
+    function window:SetProfileStats(values)
+        if type(values) ~= "table" then return end
+        for _, key in ipairs({"Level", "Coins", "Gems"}) do
+            if tonumber(values[key]) then profileStats[key] = tonumber(values[key]) end
+        end
+        if refreshProfileStats then refreshProfileStats() end
+    end
+    function window:SetProfileStatus(value)
+        globalStatus = tostring(value or "Idle"):gsub("^Status:%s*", "")
+        if refreshProfileStatus then refreshProfileStatus() end
+    end
     function window:Minimize()
         minimized = not minimized
         self.Minimized = minimized
@@ -278,37 +351,23 @@ function Library:Window(config)
         Name = "Content", Position = UDim2.fromOffset(202, 66),
         Size = UDim2.new(1, -216, 1, -77), BackgroundTransparency = 1
     }, main)
-    local tabDisplay = makeText(content, "Description", 22, true)
+    local tabDisplay = makeText(content, "Profile/Desc", 23, true)
     tabDisplay.Name = "TabDisplay"
-    tabDisplay.Size = UDim2.new(1, 0, 0, 72)
+    tabDisplay.Size = UDim2.new(1, 0, 0, 40)
     tabDisplay.TextYAlignment = Enum.TextYAlignment.Top
-    tabDisplay.TextWrapped = true
-    tabDisplay.TextTruncate = Enum.TextTruncate.None
+    tabDisplay.TextWrapped = false
+    tabDisplay.TextTruncate = Enum.TextTruncate.AtEnd
     window.TabDisplay = tabDisplay
-    local function statusTextColor(text)
-        local t = tostring(text or ""):lower()
-        if t:find("^running") or t:find("^recording") then
-            return selectedTheme == "Light" and "#168049" or "#4ADE80"
-        elseif t:find("failed", 1, true) or t:find("error", 1, true) then
-            return selectedTheme == "Light" and "#B42332" or "#FB7185"
-        elseif t:find("waiting", 1, true) or t:find("required", 1, true) then
-            return selectedTheme == "Light" and "#986008" or "#FBBF24"
-        end
-        return selectedTheme == "Light" and "#58708E" or "#94A3B8"
-    end
     refreshStatusHeader = function()
         if not selected then return end
-        local text = tostring(globalStatus or "Idle")
-        text = text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-        local nextText = selected.Title .. '\n<font size="13" color="' .. statusTextColor(globalStatus) .. '"><b>' .. text .. '</b></font>'
-        if tabDisplay.Text ~= nextText then tabDisplay.Text = nextText end
+        if tabDisplay.Text ~= selected.Title then tabDisplay.Text = selected.Title end
     end
     function window:SetTabDisplayMultiline(value)
         tabDisplay.TextWrapped = value == true
-        tabDisplay.TextTruncate = Enum.TextTruncate.None
+        tabDisplay.TextTruncate = value and Enum.TextTruncate.None or Enum.TextTruncate.AtEnd
     end
     local pages = create("Frame", {
-        Position = UDim2.fromOffset(0, 79), Size = UDim2.new(1, 0, 1, -79),
+        Position = UDim2.fromOffset(0, 49), Size = UDim2.new(1, 0, 1, -49),
         BackgroundTransparency = 1
     }, content)
     local toastFrame = create("Frame", {
@@ -423,8 +482,7 @@ function Library:Window(config)
     end
     function Tab:SetStatus(value)
         self.Status = tostring(value or "Idle")
-        globalStatus = self.Status ~= "" and self.Status or "Idle"
-        refreshStatusHeader()
+        window:SetProfileStatus(self.Status)
     end
     function Tab:Section(options)
         local title = tostring(type(options) == "table" and options.Title or options or "")
@@ -449,6 +507,129 @@ function Library:Window(config)
             desc.Position, desc.Size = UDim2.fromOffset(14, 29), UDim2.new(1, -(right or 30), 0, 20)
         end
         return title, desc
+    end
+    function Tab:Profile(options)
+        options = options or {}
+        if options.Subtitle and options.Subtitle ~= "" then
+            local intro = self:_append(create("Frame", {
+                BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 24)
+            }))
+            local subtitle = makeText(intro, options.Subtitle, 12, false, "Sub")
+            subtitle.Size, subtitle.Position = UDim2.new(1, 0, 1, 0), UDim2.new()
+        end
+        local frame = self:_card(152)
+        frame.Name = "ProfileCard"
+        local avatar = round(create("ImageLabel", {
+            Name = "Avatar", BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(15, 15), Size = UDim2.fromOffset(64, 64),
+            ScaleType = Enum.ScaleType.Crop
+        }, frame), 32)
+        local avStroke = create("UIStroke", {Thickness = 2}, avatar)
+        themed(avStroke, "Color", "Accent")
+        task.spawn(function()
+            local ok, image = pcall(function()
+                return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+            end)
+            if ok and avatar.Parent then avatar.Image = image end
+        end)
+        local displayName = makeText(frame, player.DisplayName or player.Name, 17, true)
+        displayName.RichText = false
+        displayName.Position, displayName.Size = UDim2.fromOffset(93, 13), UDim2.new(1, -110, 0, 23)
+        local username = makeText(frame, "Username: " .. player.Name, 11, false, "Sub")
+        username.RichText = false
+        username.Position, username.Size = UDim2.fromOffset(93, 38), UDim2.new(1, -110, 0, 17)
+        local statusChip = round(create("Frame", {
+            Name = "RunStatusBadge", BorderSizePixel = 0, BackgroundTransparency = .85,
+            Position = UDim2.fromOffset(93, 61), Size = UDim2.fromOffset(83, 22)
+        }, frame), 11)
+        local chipText = makeText(statusChip, "● Idle", 11, true)
+        chipText.TextXAlignment, chipText.TextYAlignment = Enum.TextXAlignment.Center, Enum.TextYAlignment.Center
+        chipText.Size = UDim2.fromScale(1, 1)
+        local detail = makeText(frame, "", 11, false, "Sub")
+        detail.Position = UDim2.fromOffset(184, 64)
+        detail.Size = UDim2.new(1, -202, 0, 17)
+        local statRow = create("Frame", {
+            Name = "StatsRow", BackgroundTransparency = 1, Position = UDim2.fromOffset(16, 102),
+            Size = UDim2.new(1, -32, 0, 36)
+        }, frame)
+        create("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal, SortOrder = Enum.SortOrder.LayoutOrder,
+            Padding = UDim.new(0, 8)
+        }, statRow)
+        local statLabels = {}
+        for i, key in ipairs({"Level", "Coins", "Gems"}) do
+            local cell = round(create("Frame", {
+                Name = key .. "Chip", LayoutOrder = i, BackgroundTransparency = 0,
+                Size = UDim2.new(1/3, -6, 1, 0), BorderSizePixel = 0
+            }, statRow), 9)
+            themed(cell, "BackgroundColor3", "Input")
+            makeStroke(cell)
+            local lbl = makeText(cell, "", 12, false, "Text")
+            lbl.TextXAlignment, lbl.TextYAlignment = Enum.TextXAlignment.Center, Enum.TextYAlignment.Center
+            lbl.Size = UDim2.fromScale(1, 1)
+            statLabels[key] = lbl
+        end
+        local function comma(n)
+            local value = tostring(math.floor(tonumber(n) or 0))
+            while true do
+                local nextValue, nrep = value:gsub("^(-?%d+)(%d%d%d)", "%1,%2")
+                value = nextValue
+                if nrep == 0 then break end
+            end
+            return value
+        end
+        refreshProfileStats = function()
+            local colors = selectedTheme == "Light"
+                and {Level = "#166DBB", Coins = "#956400", Gems = "#7D49BE"}
+                or {Level = "#38BDF8", Coins = "#FACC15", Gems = "#C084FC"}
+            for key, lbl in pairs(statLabels) do
+                lbl.Text = key .. '  <font color="' .. colors[key] .. '"><b>' .. comma(profileStats[key]) .. '</b></font>'
+            end
+        end
+        refreshProfileStatus = function()
+            local status = tostring(globalStatus or "Idle"):gsub("^Status:%s*", "")
+            if status == "" or status == "Stopped" or status == "Ready" then status = "Idle" end
+            local primary = status:match("^%s*([^|]+)") or status
+            primary = primary:match("^%s*(.-)%s*$")
+            if #primary > 22 then primary = "Waiting" end
+            local active = status:lower():find("^running") ~= nil or status:lower():find("^recording") ~= nil
+            local problem = status:lower():find("error", 1, true) or status:lower():find("failed", 1, true)
+            local attention = status:lower():find("waiting", 1, true) or status:lower():find("required", 1, true)
+            local color = active and (selectedTheme == "Light" and Color3.fromRGB(18, 136, 79) or Color3.fromRGB(74, 222, 128))
+                or problem and (selectedTheme == "Light" and Color3.fromRGB(184, 53, 67) or Color3.fromRGB(251, 113, 133))
+                or attention and (selectedTheme == "Light" and Color3.fromRGB(158, 100, 13) or Color3.fromRGB(251, 191, 36))
+                or palette.Sub
+            statusChip.BackgroundColor3 = color
+            chipText.TextColor3 = color
+            chipText.Text = "● " .. (active and (status:lower():find("^recording") and "Recording" or "Running") or primary)
+            local statusDetail = status:match("|%s*(.+)") or (not active and primary ~= "Idle" and status or "")
+            detail.Text = statusDetail
+        end
+        profileView = {Frame = frame, Avatar = avatar, Status = chipText, Detail = detail, Stats = statLabels}
+        refreshProfileStats()
+        refreshProfileStatus()
+        return profileView
+    end
+    function Tab:Banner(options)
+        local text = type(options) == "table" and (options.Title or options.Text or "") or tostring(options or "")
+        local frame = round(create("Frame", {
+            Name = "NoticeBanner", BorderSizePixel = 0,
+            BackgroundTransparency = 0, Size = UDim2.new(1, 0, 0, 48)
+        }), 10)
+        local border = create("UIStroke", {Thickness = 1, Transparency = .4}, frame)
+        local msg = makeText(frame, text, 13, true)
+        msg.TextXAlignment, msg.TextYAlignment = Enum.TextXAlignment.Center, Enum.TextYAlignment.Center
+        msg.TextWrapped = true
+        msg.TextTruncate = Enum.TextTruncate.None
+        msg.Position, msg.Size = UDim2.fromOffset(8, 0), UDim2.new(1, -16, 1, 0)
+        local function render()
+            frame.BackgroundColor3 = selectedTheme == "Light" and Color3.fromRGB(255, 249, 232) or Color3.fromRGB(38, 34, 41)
+            border.Color = selectedTheme == "Light" and Color3.fromRGB(215, 162, 63) or Color3.fromRGB(146, 105, 42)
+            msg.TextColor3 = selectedTheme == "Light" and Color3.fromRGB(140, 90, 12) or Color3.fromRGB(255, 198, 74)
+        end
+        listen(themeSignal.Event, render)
+        render()
+        return {Instance = {Frame = self:_append(frame)}}
     end
     function Tab:Label(options)
         options = options or {}
