@@ -10,7 +10,7 @@ local KeyUI = {
     Appearance = {Title = "Macro Hub", Subtitle = "Enter your key to continue"},
     Links = {Discord = "", BuyPremium = ""},
     Storage = {Folder = "", FileName = "verified_key.txt", Remember = true, AutoLoad = true},
-    Options = {Keyless = nil, KeylessUI = true, Draggable = true},
+    Options = {Keyless = nil, KeylessUI = true, Draggable = true, VerificationAttempts = 3, RetryDelay = 1.5},
     Callbacks = {OnSuccess = nil, OnFailure = nil}
 }
 
@@ -364,35 +364,65 @@ function KeyUI:_verify(raw, silent)
         self:Notify("Slow down", "Please wait before trying again.", 4, "error")
         return false
     end
+
     self._busy = true
     if self._verifyButton then
         self._verifyButton.Text = "Verifying..."
         self._verifyButton.Active = false
     end
-    self:Notify("Verification", "Checking access...", 0)
-    local sdk = self:_getJunkie()
-    local ok, result = false, nil
-    if sdk then ok, result = pcall(sdk.check_key, key) end
-    local success = ok and type(result) == "table" and result.valid == true
-    if success then
-        self._busy = false
-        self._failed = 0
-        env.SCRIPT_KEY = key
-        if key ~= "KEYLESS" then self:SaveKey(key) end
-        self:Notify("Verified", result.message == "KEYLESS" and "Keyless access enabled." or "Key accepted.", 0, "success")
-        local callback = self.Callbacks.OnSuccess
-        self:Destroy()
-        if type(callback) == "function" then
-            task.spawn(function()
-                local ran, err = pcall(callback, key, result)
-                if not ran then warn("[Macro Hub Key] OnSuccess: " .. tostring(err)) end
-            end)
+
+    local attempts = math.clamp(tonumber(self.Options.VerificationAttempts) or 3, 1, 3)
+    local delaySeconds = math.max(tonumber(self.Options.RetryDelay) or 1.5, 0.5)
+    local result, code, temporary = nil, "ERROR", false
+
+    for attempt = 1, attempts do
+        if self._closed then return false end
+        self:Notify("Verification", "Checking key (" .. attempt .. "/" .. attempts .. ")...", 0)
+        local sdk = self:_getJunkie()
+        local ok = false
+        result = nil
+        if sdk then
+            ok, result = pcall(sdk.check_key, key)
         end
-        return true
+        if ok and type(result) == "table" and result.valid == true then
+            self._busy = false
+            self._failed = 0
+            env.SCRIPT_KEY = key
+            if key ~= "KEYLESS" then self:SaveKey(key) end
+            self:Notify("Verified", "Key accepted.", 0, "success")
+            local callback = self.Callbacks.OnSuccess
+            self:Destroy()
+            if type(callback) == "function" then
+                task.spawn(function()
+                    local ran, err = pcall(callback, key, result)
+                    if not ran then warn("[Macro Hub Key] OnSuccess: " .. tostring(err)) end
+                end)
+            end
+            return true
+        end
+
+        code = not sdk and "SDK_UNAVAILABLE" or not ok and "NETWORK"
+            or type(result) == "table" and (result.error or result.message)
+            or "ERROR"
+        code = tostring(code or "ERROR"):upper()
+        temporary = code == "ERROR" or code == "NETWORK"
+            or code == "SDK_UNAVAILABLE"
+            or code:match("^HTTP 5%d%d") ~= nil
+
+        -- Retry only temporary SDK/server errors. Invalid/expired/revoked
+        -- keys are definitive responses and should not be spammed.
+        if not temporary or attempt == attempts then break end
+        self:Notify("Verification", "Temporary error. Retrying saved key..." , 0)
+        task.wait(delaySeconds)
     end
-    local code = not ok and "NETWORK" or type(result) == "table" and (result.error or result.message) or "ERROR"
-    code = tostring(code or "ERROR")
-    local temporary = code == "ERROR" or code == "NETWORK" or code:match("^http %d+") ~= nil
+
+    if self._closed then return false end
+    self._busy = false
+    if self._verifyButton then
+        self._verifyButton.Text = "Verify Key"
+        self._verifyButton.Active = true
+    end
+
     if not temporary then
         self._failed = self._failed + 1
         if self._failed >= 5 then
@@ -400,15 +430,11 @@ function KeyUI:_verify(raw, silent)
         elseif self._failed >= 3 then
             self._lockedUntil = os.clock() + 5
         end
-        if silent then self:ClearSavedKey() end
     end
-    if self._closed then return false end
-    self._busy = false
-    if self._verifyButton then
-        self._verifyButton.Text = "Verify Key"
-        self._verifyButton.Active = true
-    end
-    self:Notify("Verification failed", errors[code] or code, 6, "error")
+    -- Keep verified_key.txt and the prefilled textbox intact, even if
+    -- revalidation fails. The user can retry or replace the key.
+    self:Notify("Verification failed", errors[code] or (code == "SDK_UNAVAILABLE"
+        and "Could not reach the verification service.") or code, 6, "error")
     if type(self.Callbacks.OnFailure) == "function" then
         task.spawn(self.Callbacks.OnFailure, code)
     end
