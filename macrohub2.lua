@@ -130,12 +130,21 @@ function Library:Window(config)
         themed(s, "Color", "Stroke")
         return s
     end
-    local old = playerGui:FindFirstChild("MacroHubUI")
-    if old then old:Destroy() end
+    local coreGui = game:GetService("CoreGui")
+    for _, container in ipairs({coreGui, playerGui}) do
+        local old = container:FindFirstChild("MacroHubUI")
+        if old then old:Destroy() end
+    end
     local gui = create("ScreenGui", {
         Name = "MacroHubUI", ResetOnSpawn = false, IgnoreGuiInset = false,
-        DisplayOrder = 150, ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    }, playerGui)
+        DisplayOrder = 999, ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    })
+    local parentedToCore = pcall(function()
+        gui.Parent = coreGui
+    end)
+    if not parentedToCore then
+        gui.Parent = playerGui
+    end
     local main = round(create("Frame", {
         Name = "Main", AnchorPoint = Vector2.new(.5, .5),
         Position = UDim2.fromScale(.5, .5), Size = UDim2.fromOffset(width, height),
