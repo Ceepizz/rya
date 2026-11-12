@@ -724,8 +724,29 @@ function Library:Window(config)
         local frame = self:_card(62)
         local title, desc = headings(frame, options, 145)
         fitCardContent(frame, title, desc, 62)
+        local actionLabel = options.Text or options.ButtonText
+        if actionLabel == nil or tostring(actionLabel) == "" then
+            local actionTitle = tostring(options.Title or options.Name or ""):lower()
+            if actionTitle:find("join", 1, true) then
+                actionLabel = "Join"
+            elseif actionTitle:find("save", 1, true) then
+                actionLabel = "Save"
+            elseif actionTitle:find("send", 1, true) then
+                actionLabel = "Send"
+            elseif actionTitle:find("copy", 1, true) then
+                actionLabel = "Copy"
+            elseif actionTitle:find("start", 1, true) then
+                actionLabel = "Start"
+            elseif actionTitle:find("stop", 1, true) then
+                actionLabel = "Stop"
+            elseif actionTitle:find("buy", 1, true) then
+                actionLabel = "View"
+            else
+                actionLabel = "Open"
+            end
+        end
         local button = round(create("TextButton", {
-            Text = tostring(options.Text or "Run"), Font = Enum.Font.GothamBold,
+            Text = tostring(actionLabel), Font = Enum.Font.GothamBold,
             TextSize = 12, AutoButtonColor = false, TextColor3 = Color3.fromRGB(255, 255, 255),
             Size = UDim2.fromOffset(104, 32), AnchorPoint = Vector2.new(1, .5),
             Position = UDim2.new(1, -12, .5, 0), BorderSizePixel = 0
