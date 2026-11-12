@@ -92,7 +92,6 @@ function Library:Window(config)
     local globalStatus = "Idle"
     local profileStats = {Level = 0, Coins = 0, Gems = 0}
     local profileView
-    local refreshProfileStatus
     local refreshProfileStats
     local refreshBadges
     local refreshStatusHeader
@@ -246,7 +245,6 @@ function Library:Window(config)
         if window then window.Theme = selectedTheme end
         if refreshStatusHeader then refreshStatusHeader() end
         if refreshBadges then refreshBadges() end
-        if refreshProfileStatus then refreshProfileStatus() end
         if refreshProfileStats then refreshProfileStats() end
         themeSignal:Fire(selectedTheme)
         if buttonTheme then buttonTheme.Image = iconId(selectedTheme == "Dark" and "moon" or "sun") end
@@ -272,7 +270,8 @@ function Library:Window(config)
     end
     function window:SetProfileStatus(value)
         globalStatus = tostring(value or "Idle"):gsub("^Status:%s*", "")
-        if refreshProfileStatus then refreshProfileStatus() end
+        if globalStatus == "" then globalStatus = "Idle" end
+        if refreshStatusHeader then refreshStatusHeader() end
     end
     function window:Minimize()
         minimized = not minimized
@@ -353,23 +352,58 @@ function Library:Window(config)
     }, main)
     local tabDisplay = makeText(content, "Profile/Desc", 23, true)
     tabDisplay.Name = "TabDisplay"
-    tabDisplay.Size = UDim2.new(1, 0, 0, 40)
-    tabDisplay.TextYAlignment = Enum.TextYAlignment.Top
+    tabDisplay.Position = UDim2.fromOffset(0, 0)
+    tabDisplay.Size = UDim2.new(1, -8, 0, 28)
+    tabDisplay.TextYAlignment = Enum.TextYAlignment.Center
     tabDisplay.TextWrapped = false
     tabDisplay.TextTruncate = Enum.TextTruncate.AtEnd
     window.TabDisplay = tabDisplay
+    local statusDisplay = create("TextLabel", {
+        Name = "GlobalStatus", Text = "● Idle",
+        BackgroundTransparency = 1, BorderSizePixel = 0,
+        Font = Enum.Font.GothamMedium, TextSize = 12, TextColor3 = palette.Sub,
+        TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+        TextWrapped = true, TextTruncate = Enum.TextTruncate.None, RichText = false,
+        Position = UDim2.fromOffset(0, 33), Size = UDim2.new(1, -10, 0, 18)
+    }, content)
+    local pages = create("Frame", {
+        Position = UDim2.fromOffset(0, 61), Size = UDim2.new(1, 0, 1, -61),
+        BackgroundTransparency = 1
+    }, content)
+    local textService = game:GetService("TextService")
+    local function resizeStatusArea()
+        local width = math.max(120, statusDisplay.AbsoluteSize.X)
+        local size = textService:GetTextSize(
+            statusDisplay.Text, statusDisplay.TextSize, statusDisplay.Font, Vector2.new(width, 10000)
+        )
+        local height = math.max(18, math.ceil(size.Y) + 3)
+        statusDisplay.Size = UDim2.new(1, -10, 0, height)
+        local inset = 33 + height + 10
+        pages.Position = UDim2.fromOffset(0, inset)
+        pages.Size = UDim2.new(1, 0, 1, -inset)
+    end
     refreshStatusHeader = function()
         if not selected then return end
         if tabDisplay.Text ~= selected.Title then tabDisplay.Text = selected.Title end
+        local status = tostring(globalStatus or "Idle")
+        local normalized = status:lower()
+        if normalized:find("^running") or normalized:find("^recording") then
+            statusDisplay.TextColor3 = selectedTheme == "Light" and Color3.fromRGB(19, 130, 77) or Color3.fromRGB(74, 222, 128)
+        elseif normalized:find("error", 1, true) or normalized:find("failed", 1, true) then
+            statusDisplay.TextColor3 = selectedTheme == "Light" and Color3.fromRGB(177, 43, 67) or Color3.fromRGB(251, 113, 133)
+        elseif normalized:find("waiting", 1, true) then
+            statusDisplay.TextColor3 = selectedTheme == "Light" and Color3.fromRGB(146, 94, 12) or Color3.fromRGB(251, 191, 36)
+        else
+            statusDisplay.TextColor3 = palette.Sub
+        end
+        statusDisplay.Text = "● " .. status
+        resizeStatusArea()
     end
     function window:SetTabDisplayMultiline(value)
         tabDisplay.TextWrapped = value == true
         tabDisplay.TextTruncate = value and Enum.TextTruncate.None or Enum.TextTruncate.AtEnd
     end
-    local pages = create("Frame", {
-        Position = UDim2.fromOffset(0, 29), Size = UDim2.new(1, 0, 1, -29),
-        BackgroundTransparency = 1
-    }, content)
+    listen(content:GetPropertyChangedSignal("AbsoluteSize"), resizeStatusArea)
     local toastFrame = create("Frame", {
         Name = "Toasts", AnchorPoint = Vector2.new(1, 1),
         Position = UDim2.new(1, -15, 1, -15), Size = UDim2.fromOffset(300, 350),
@@ -402,8 +436,6 @@ function Library:Window(config)
         local t = type(which) == "number" and tabs[which] or which
         if not t or not t.Page then return end
         selected = t
-        pages.Position = UDim2.fromOffset(0, 29)
-        pages.Size = UDim2.new(1, 0, 1, -29)
         for _, tab in ipairs(tabs) do
             tab.Page.Visible = tab == t
             animate(tab.NavButton, .15, {BackgroundTransparency = tab == t and 0 or .2, BackgroundColor3 = tab == t and palette.Hover or palette.Surface})
@@ -512,18 +544,11 @@ function Library:Window(config)
     end
     function Tab:Profile(options)
         options = options or {}
-        if options.Subtitle and options.Subtitle ~= "" then
-            local intro = self:_append(create("Frame", {
-                BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 24)
-            }))
-            local subtitle = makeText(intro, options.Subtitle, 12, false, "Sub")
-            subtitle.Size, subtitle.Position = UDim2.new(1, 0, 1, 0), UDim2.new()
-        end
         local frame = self:_card(136)
         frame.Name = "ProfileCard"
         local avatar = round(create("ImageLabel", {
             Name = "Avatar", BackgroundTransparency = 1,
-            Position = UDim2.fromOffset(15, 15), Size = UDim2.fromOffset(64, 64),
+            Position = UDim2.fromOffset(15, 14), Size = UDim2.fromOffset(64, 64),
             ScaleType = Enum.ScaleType.Crop
         }, frame), 32)
         local avStroke = create("UIStroke", {Thickness = 2}, avatar)
@@ -536,20 +561,8 @@ function Library:Window(config)
         end)
         local displayName = makeText(frame, player.DisplayName or player.Name, 17, true)
         displayName.RichText = false
-        displayName.Position, displayName.Size = UDim2.fromOffset(93, 13), UDim2.new(1, -110, 0, 23)
-        local username = makeText(frame, "Username: " .. player.Name, 11, false, "Sub")
-        username.RichText = false
-        username.Position, username.Size = UDim2.fromOffset(93, 38), UDim2.new(1, -110, 0, 17)
-        local statusChip = round(create("Frame", {
-            Name = "RunStatusBadge", BorderSizePixel = 0, BackgroundTransparency = .85,
-            Position = UDim2.fromOffset(93, 61), Size = UDim2.fromOffset(83, 22)
-        }, frame), 11)
-        local chipText = makeText(statusChip, "● Idle", 11, true)
-        chipText.TextXAlignment, chipText.TextYAlignment = Enum.TextXAlignment.Center, Enum.TextYAlignment.Center
-        chipText.Size = UDim2.fromScale(1, 1)
-        local detail = makeText(frame, "", 11, false, "Sub")
-        detail.Position = UDim2.fromOffset(184, 64)
-        detail.Size = UDim2.new(1, -202, 0, 17)
+        displayName.Position, displayName.Size = UDim2.fromOffset(93, 34), UDim2.new(1, -110, 0, 23)
+        displayName.TextYAlignment = Enum.TextYAlignment.Center
         local statRow = create("Frame", {
             Name = "StatsRow", BackgroundTransparency = 1, Position = UDim2.fromOffset(16, 90),
             Size = UDim2.new(1, -32, 0, 34)
@@ -588,28 +601,8 @@ function Library:Window(config)
                 lbl.Text = key .. '  <font color="' .. colors[key] .. '"><b>' .. comma(profileStats[key]) .. '</b></font>'
             end
         end
-        refreshProfileStatus = function()
-            local status = tostring(globalStatus or "Idle"):gsub("^Status:%s*", "")
-            if status == "" or status == "Stopped" or status == "Ready" then status = "Idle" end
-            local primary = status:match("^%s*([^|]+)") or status
-            primary = primary:match("^%s*(.-)%s*$")
-            if #primary > 22 then primary = "Waiting" end
-            local active = status:lower():find("^running") ~= nil or status:lower():find("^recording") ~= nil
-            local problem = status:lower():find("error", 1, true) or status:lower():find("failed", 1, true)
-            local attention = status:lower():find("waiting", 1, true) or status:lower():find("required", 1, true)
-            local color = active and (selectedTheme == "Light" and Color3.fromRGB(18, 136, 79) or Color3.fromRGB(74, 222, 128))
-                or problem and (selectedTheme == "Light" and Color3.fromRGB(184, 53, 67) or Color3.fromRGB(251, 113, 133))
-                or attention and (selectedTheme == "Light" and Color3.fromRGB(158, 100, 13) or Color3.fromRGB(251, 191, 36))
-                or palette.Sub
-            statusChip.BackgroundColor3 = color
-            chipText.TextColor3 = color
-            chipText.Text = "● " .. (active and (status:lower():find("^recording") and "Recording" or "Running") or primary)
-            local statusDetail = status:match("|%s*(.+)") or (not active and primary ~= "Idle" and status or "")
-            detail.Text = statusDetail
-        end
-        profileView = {Frame = frame, Avatar = avatar, Status = chipText, Detail = detail, Stats = statLabels}
+        profileView = {Frame = frame, Avatar = avatar, Stats = statLabels}
         refreshProfileStats()
-        refreshProfileStatus()
         return profileView
     end
     function Tab:Banner(options)
