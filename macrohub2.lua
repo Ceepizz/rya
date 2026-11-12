@@ -524,7 +524,7 @@ function Library:Window(config)
         local row = self:_append(create("Frame", {
             Size = UDim2.new(1, 0, 0, 33), BackgroundTransparency = 1
         }))
-        local text = makeText(row, title, 12, true, "Sub")
+        local text = makeText(row, title, 16, true, "Text")
         text.TextXAlignment = Enum.TextXAlignment.Left
         text.TextYAlignment = Enum.TextYAlignment.Center
         text.Position, text.Size = UDim2.fromOffset(5, 0), UDim2.new(1, -10, 1, 0)
