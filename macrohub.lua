@@ -367,7 +367,7 @@ function Library:Window(config)
         tabDisplay.TextTruncate = value and Enum.TextTruncate.None or Enum.TextTruncate.AtEnd
     end
     local pages = create("Frame", {
-        Position = UDim2.fromOffset(0, 49), Size = UDim2.new(1, 0, 1, -49),
+        Position = UDim2.fromOffset(0, 29), Size = UDim2.new(1, 0, 1, -29),
         BackgroundTransparency = 1
     }, content)
     local toastFrame = create("Frame", {
@@ -402,10 +402,8 @@ function Library:Window(config)
         local t = type(which) == "number" and tabs[which] or which
         if not t or not t.Page then return end
         selected = t
-        local compactProfile = t.Title == "Profile/Desc" or t.Title == "Description"
-        local headerInset = compactProfile and 29 or 49
-        pages.Position = UDim2.fromOffset(0, headerInset)
-        pages.Size = UDim2.new(1, 0, 1, -headerInset)
+        pages.Position = UDim2.fromOffset(0, 29)
+        pages.Size = UDim2.new(1, 0, 1, -29)
         for _, tab in ipairs(tabs) do
             tab.Page.Visible = tab == t
             animate(tab.NavButton, .15, {BackgroundTransparency = tab == t and 0 or .2, BackgroundColor3 = tab == t and palette.Hover or palette.Surface})
