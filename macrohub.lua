@@ -402,6 +402,10 @@ function Library:Window(config)
         local t = type(which) == "number" and tabs[which] or which
         if not t or not t.Page then return end
         selected = t
+        local compactProfile = t.Title == "Profile/Desc" or t.Title == "Description"
+        local headerInset = compactProfile and 29 or 49
+        pages.Position = UDim2.fromOffset(0, headerInset)
+        pages.Size = UDim2.new(1, 0, 1, -headerInset)
         for _, tab in ipairs(tabs) do
             tab.Page.Visible = tab == t
             animate(tab.NavButton, .15, {BackgroundTransparency = tab == t and 0 or .2, BackgroundColor3 = tab == t and palette.Hover or palette.Surface})
@@ -517,7 +521,7 @@ function Library:Window(config)
             local subtitle = makeText(intro, options.Subtitle, 12, false, "Sub")
             subtitle.Size, subtitle.Position = UDim2.new(1, 0, 1, 0), UDim2.new()
         end
-        local frame = self:_card(152)
+        local frame = self:_card(136)
         frame.Name = "ProfileCard"
         local avatar = round(create("ImageLabel", {
             Name = "Avatar", BackgroundTransparency = 1,
@@ -549,8 +553,8 @@ function Library:Window(config)
         detail.Position = UDim2.fromOffset(184, 64)
         detail.Size = UDim2.new(1, -202, 0, 17)
         local statRow = create("Frame", {
-            Name = "StatsRow", BackgroundTransparency = 1, Position = UDim2.fromOffset(16, 102),
-            Size = UDim2.new(1, -32, 0, 36)
+            Name = "StatsRow", BackgroundTransparency = 1, Position = UDim2.fromOffset(16, 90),
+            Size = UDim2.new(1, -32, 0, 34)
         }, frame)
         create("UIListLayout", {
             FillDirection = Enum.FillDirection.Horizontal, SortOrder = Enum.SortOrder.LayoutOrder,
