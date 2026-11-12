@@ -133,7 +133,7 @@ function Library:Window(config)
     local old = playerGui:FindFirstChild("MacroHubUI")
     if old then old:Destroy() end
     local gui = create("ScreenGui", {
-        Name = "MacroHubUI", ResetOnSpawn = false, IgnoreGuiInset = true,
+        Name = "MacroHubUI", ResetOnSpawn = false, IgnoreGuiInset = false,
         DisplayOrder = 150, ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     }, playerGui)
     local main = round(create("Frame", {
@@ -144,13 +144,23 @@ function Library:Window(config)
     themed(main, "BackgroundColor3", "Background")
     makeStroke(main)
     local scale = create("UIScale", {Scale = 1}, main)
+    local function safeViewportSize()
+        local camera = workspace.CurrentCamera
+        local view = camera and camera.ViewportSize or Vector2.new(900, 600)
+        local insetTop, insetBottom = game:GetService("GuiService"):GetGuiInset()
+        return Vector2.new(
+            math.max(1, view.X - insetTop.X - insetBottom.X),
+            math.max(1, view.Y - insetTop.Y - insetBottom.Y)
+        )
+    end
     local function fitScale()
         if maximized then return end
-        local view = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(900, 600)
+        local view = safeViewportSize()
         scale.Scale = math.min(1, (view.X - 22) / width, (view.Y - 22) / height)
     end
     fitScale()
     listen(workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"), fitScale)
+    listen(gui:GetPropertyChangedSignal("AbsoluteSize"), fitScale)
     local top = create("Frame", {
         Name = "TitleBar", Size = UDim2.new(1, 0, 0, 56), BackgroundTransparency = 1
     }, main)
@@ -288,7 +298,7 @@ function Library:Window(config)
         if maximized then
             oldSize = main.Size
             scale.Scale = 1
-            local view = workspace.CurrentCamera.ViewportSize
+            local view = safeViewportSize()
             animate(main, .22, {Size = UDim2.fromOffset(view.X - 24, view.Y - 24)})
         else
             animate(main, .22, {Size = oldSize or UDim2.fromOffset(width, height)})
