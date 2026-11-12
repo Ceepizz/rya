@@ -193,7 +193,7 @@ function Library:Window(config)
         if tostring(plan):lower():find("permanent", 1, true) then
             return selectedTheme == "Light" and Color3.fromRGB(15, 121, 75) or Color3.fromRGB(77, 225, 147)
         end
-        return selectedTheme == "Light" and Color3.fromRGB(154, 90, 0) or Color3.fromRGB(255, 196, 80)
+        return selectedTheme == "Light" and Color3.fromRGB(185, 39, 55) or Color3.fromRGB(255, 105, 120)
     end
     refreshBadges = function()
         for i, data in ipairs({
