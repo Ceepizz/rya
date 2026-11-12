@@ -822,6 +822,8 @@ function Library:Window(config)
         local frame = self:_card(58)
         frame.ClipsDescendants = true
         local title, description = headings(frame, options, 205)
+        -- Keep the heading pinned to the top when the dropdown expands.
+        title.Position = description and UDim2.fromOffset(14, 8) or UDim2.fromOffset(14, 19)
         local selector = round(create("Frame", {
             Name = "DropdownSelector", AnchorPoint = Vector2.new(1, 0),
             Position = UDim2.new(1, -12, 0, 11), Size = UDim2.fromOffset(190, 36),
