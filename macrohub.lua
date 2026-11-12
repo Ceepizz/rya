@@ -19,7 +19,8 @@ local Icons = {
     menu = "10734887784", keyboard = "10723416765", plus = "10734924532",
     minus = "10734896206", ["wand-2"] = "10747376349",
     ["layout-dashboard"] = "10723424646", ["sliders-horizontal"] = "10734963191",
-    crown = "10709818626", ["sun-moon"] = "10734973999"
+    crown = "10709818626", ["sun-moon"] = "10734973999",
+    swords = "10734975692", calendar = "10709789505", code = "10709810463"
 }
 local Palettes = {
     Dark = {
@@ -150,7 +151,7 @@ function Library:Window(config)
         Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0, 0, 1, -1), BorderSizePixel = 0
     }, top)
     themed(topLine, "BackgroundColor3", "Stroke")
-    local logo = makeIcon(top, config.Icon or "layout-dashboard", UDim2.fromOffset(18, 17), 22, "Accent")
+    local logo = create("ImageLabel", {Name = "Logo", Image = "rbxassetid://" .. (selectedTheme == "Dark" and "76956733094432" or "95122283075110"), BackgroundTransparency = 1, Position = UDim2.fromOffset(12, 8), Size = UDim2.fromOffset(40, 40), ScaleType = Enum.ScaleType.Fit}, top)
     local title = makeText(top, name, 19, true)
     title.Position, title.Size = UDim2.fromOffset(49, 8), UDim2.new(1, -213, 0, 25)
     local subtitle = makeText(top, tostring(config.Desc or ""), 11, false, "Sub")
@@ -166,7 +167,8 @@ function Library:Window(config)
             Size = UDim2.fromOffset(32, 32)
         }, controls), 7)
         local img = makeIcon(b, nameIcon, UDim2.fromOffset(8, 8), 16)
-        listen(b.MouseEnter, function() if alive then themed(b, "BackgroundColor3", "Hover"); animate(b, .12, {BackgroundTransparency = 0}) end end)
+        themed(b, "BackgroundColor3", "Hover")
+        listen(b.MouseEnter, function() if alive then animate(b, .12, {BackgroundTransparency = 0}) end end)
         listen(b.MouseLeave, function() animate(b, .12, {BackgroundTransparency = 1}) end)
         listen(b.MouseButton1Click, callback)
         return img
@@ -181,6 +183,7 @@ function Library:Window(config)
             if obj and obj.Parent then animate(obj, .23, {[prop] = palette[key]}) end
         end
         if buttonTheme then buttonTheme.Image = iconId(selectedTheme == "Dark" and "moon" or "sun") end
+        if logo then logo.Image = "rbxassetid://" .. (selectedTheme == "Dark" and "76956733094432" or "95122283075110") end
         if floating then floating.Image = "rbxassetid://" .. (selectedTheme == "Dark" and "76956733094432" or "95122283075110") end
     end
     buttonTheme = titleButton("moon", 1, function()
@@ -313,7 +316,7 @@ function Library:Window(config)
         selected = t
         for _, tab in ipairs(tabs) do
             tab.Page.Visible = tab == t
-            animate(tab.Button, .15, {BackgroundTransparency = tab == t and 0 or .34})
+            animate(tab.NavButton, .15, {BackgroundTransparency = tab == t and 0 or .34})
             animate(tab.Bar, .15, {BackgroundTransparency = tab == t and 0 or 1})
             animate(tab.ButtonIcon, .15, {ImageColor3 = tab == t and palette.Accent or palette.Sub})
         end
@@ -366,7 +369,7 @@ function Library:Window(config)
         }, page)
         create("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 9)}, inner)
         local tab = setmetatable({
-            Title = tabName, Button = nav, ButtonIcon = navIcon,
+            Title = tabName, NavButton = nav, ButtonIcon = navIcon,
             Bar = bar, Page = page, Container = inner, Count = 0, Status = ""
         }, Tab)
         tabs[#tabs + 1] = tab
