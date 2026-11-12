@@ -160,6 +160,9 @@ function Library:Window(config)
     themed(topLine, "BackgroundColor3", "Stroke")
     local logo = create("ImageLabel", {Name = "Logo", Image = "rbxassetid://" .. (selectedTheme == "Dark" and "76956733094432" or "95122283075110"), BackgroundTransparency = 1, Position = UDim2.fromOffset(12, 8), Size = UDim2.fromOffset(40, 40), ScaleType = Enum.ScaleType.Fit}, top)
     local title = makeText(top, name, 20, true)
+    if name == "Macro Hub" then
+        title.Text = 'Macro <font color="#00D7C7">Hub</font>'
+    end
     title.Position, title.Size = UDim2.fromOffset(60, 16), UDim2.fromOffset(124, 26)
     local badges = {Plan = "Premium", Expiry = "Permanent"}
     local badgeHolder = create("Frame", {
