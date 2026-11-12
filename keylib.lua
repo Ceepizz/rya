@@ -67,7 +67,7 @@ function UI:CreateWindow(options)
 
     local function coloredStroke(instance)
         local line = new("UIStroke", {
-            Thickness = 1, Transparency = 0.12,
+            Thickness = 1, Transparency = 0.22,
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border
         }, instance)
         bind(line, "Color", "Border")
@@ -113,9 +113,11 @@ function UI:CreateWindow(options)
     self._gui = gui
 
     local overlay = new("Frame", {
-        BorderSizePixel = 0, Size = UDim2.fromScale(1, 1)
+        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+        BackgroundTransparency = 0.52,
+        BorderSizePixel = 0,
+        Size = UDim2.fromScale(1, 1)
     }, gui)
-    bind(overlay, "BackgroundColor3", "Background")
 
     local card = rounded(new("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -165,10 +167,11 @@ function UI:CreateWindow(options)
         Name = "Components", BackgroundTransparency = 1, BorderSizePixel = 0,
         Position = UDim2.fromOffset(23, 103),
         Size = UDim2.new(1, -46, 1, -116),
-        ScrollBarThickness = 3, AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        ScrollBarThickness = 0, ScrollBarImageTransparency = 1,
+        ScrollingEnabled = true, ClipsDescendants = true,
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
         CanvasSize = UDim2.fromOffset(0, 0)
     }, card)
-    bind(body, "ScrollBarImageColor3", "Accent")
     new("UIPadding", {
         PaddingTop = UDim.new(0, 3), PaddingBottom = UDim.new(0, 8),
         PaddingRight = UDim.new(0, 3)
