@@ -126,7 +126,7 @@ function Library:Window(config)
         return image
     end
     local function makeStroke(parent)
-        local s = create("UIStroke", {Thickness = 1, Transparency = .18}, parent)
+        local s = create("UIStroke", {Thickness = 1, Transparency = .25, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, parent)
         themed(s, "Color", "Stroke")
         return s
     end
@@ -487,7 +487,8 @@ function Library:Window(config)
         }, pages)
         themed(page, "ScrollBarImageColor3", "Accent")
         local inner = create("Frame", {
-            Size = UDim2.new(1, -8, 0, 0), BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(4, 2),
+            Size = UDim2.new(1, -18, 0, 0), BackgroundTransparency = 1,
             AutomaticSize = Enum.AutomaticSize.Y
         }, page)
         create("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 9)}, inner)
@@ -521,12 +522,12 @@ function Library:Window(config)
     function Tab:Section(options)
         local title = tostring(type(options) == "table" and options.Title or options or "")
         local row = self:_append(create("Frame", {
-            Size = UDim2.new(1, 0, 0, 29), BackgroundTransparency = 1
+            Size = UDim2.new(1, 0, 0, 33), BackgroundTransparency = 1
         }))
         local text = makeText(row, title, 12, true, "Sub")
         text.TextXAlignment = Enum.TextXAlignment.Left
         text.TextYAlignment = Enum.TextYAlignment.Center
-        text.Position, text.Size = UDim2.fromOffset(3, 0), UDim2.new(1, -6, 1, 0)
+        text.Position, text.Size = UDim2.fromOffset(5, 0), UDim2.new(1, -10, 1, 0)
         return {Instance = {Frame = row}}
     end
     local function headings(parent, options, right)
@@ -539,8 +540,52 @@ function Library:Window(config)
         if hasDesc then
             desc = makeText(parent, options.Desc, 11, false, "Sub")
             desc.Position, desc.Size = UDim2.fromOffset(14, 29), UDim2.new(1, -(right or 30), 0, 20)
+            desc.TextWrapped = true
+            desc.TextTruncate = Enum.TextTruncate.None
+            desc.TextYAlignment = Enum.TextYAlignment.Top
         end
         return title, desc
+    end
+    local textMeasure = game:GetService("TextService")
+    local function fitCardContent(card, title, desc, minimum)
+        title.TextWrapped = true
+        title.TextTruncate = Enum.TextTruncate.None
+        local priorWidth
+        local function refresh()
+            if not card.Parent then return end
+            local titleWidth = math.max(80, title.AbsoluteSize.X)
+            local titleHeight = math.max(20, textMeasure:GetTextSize(
+                title.Text, title.TextSize, title.Font, Vector2.new(titleWidth, 1000)
+            ).Y)
+            title.Size = UDim2.new(title.Size.X.Scale, title.Size.X.Offset, 0, titleHeight)
+            local desired = math.max(minimum or 58, titleHeight + 24)
+            if desc then
+                local descriptionWidth = math.max(80, desc.AbsoluteSize.X)
+                local descriptionHeight = math.max(16, textMeasure:GetTextSize(
+                    desc.Text, desc.TextSize, desc.Font, Vector2.new(descriptionWidth, 1000)
+                ).Y)
+                title.Position = UDim2.fromOffset(14, 9)
+                desc.Position = UDim2.fromOffset(14, 9 + titleHeight + 5)
+                desc.Size = UDim2.new(desc.Size.X.Scale, desc.Size.X.Offset, 0, descriptionHeight)
+                desired = math.max(minimum or 58, 9 + titleHeight + 5 + descriptionHeight + 14)
+            else
+                title.Position = UDim2.new(0, 14, .5, -titleHeight / 2)
+            end
+            if card.Size.Y.Offset ~= desired then
+                card.Size = UDim2.new(1, 0, 0, desired)
+            end
+        end
+        listen(title:GetPropertyChangedSignal("Text"), refresh)
+        if desc then listen(desc:GetPropertyChangedSignal("Text"), refresh) end
+        listen(card:GetPropertyChangedSignal("AbsoluteSize"), function()
+            local width = card.AbsoluteSize.X
+            if width ~= priorWidth then
+                priorWidth = width
+                refresh()
+            end
+        end)
+        task.defer(refresh)
+        return refresh
     end
     function Tab:Profile(options)
         options = options or {}
@@ -676,8 +721,9 @@ function Library:Window(config)
     end
     function Tab:Button(options)
         options = options or {}
-        local frame = self:_card(58)
-        local title, desc = headings(frame, options, 134)
+        local frame = self:_card(62)
+        local title, desc = headings(frame, options, 145)
+        fitCardContent(frame, title, desc, 62)
         local button = round(create("TextButton", {
             Text = tostring(options.Text or "Run"), Font = Enum.Font.GothamBold,
             TextSize = 12, AutoButtonColor = false, TextColor3 = Color3.fromRGB(255, 255, 255),
@@ -698,7 +744,8 @@ function Library:Window(config)
     function Tab:Toggle(options)
         options = options or {}
         local frame = self:_card(58)
-        headings(frame, options, 100)
+        local title, desc = headings(frame, options, 100)
+        fitCardContent(frame, title, desc, 58)
         local switch = round(create("Frame", {
             AnchorPoint = Vector2.new(1, .5), Position = UDim2.new(1, -14, .5, 0),
             Size = UDim2.fromOffset(46, 24), BorderSizePixel = 0
