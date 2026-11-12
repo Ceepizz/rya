@@ -412,7 +412,7 @@ function KeyUI:_verify(raw, silent)
         -- Retry only temporary SDK/server errors. Invalid/expired/revoked
         -- keys are definitive responses and should not be spammed.
         if not temporary or attempt == attempts then break end
-        self:Notify("Verification", "Temporary error. Retrying saved key..." , 0)
+        self:Notify("Verification", "Temporary error. Retrying verification...", 0)
         task.wait(delaySeconds)
     end
 
