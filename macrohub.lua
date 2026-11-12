@@ -745,7 +745,7 @@ function Library:Window(config)
         options = options or {}
         local frame = self:_card(58)
         local title, desc = headings(frame, options, 100)
-        fitCardContent(frame, title, desc, 58)
+        local refreshCard = fitCardContent(frame, title, desc, 58)
         local switch = round(create("Frame", {
             AnchorPoint = Vector2.new(1, .5), Position = UDim2.new(1, -14, .5, 0),
             Size = UDim2.fromOffset(46, 24), BorderSizePixel = 0
@@ -770,6 +770,12 @@ function Library:Window(config)
             val = value == true
             self.Value = val
             redraw()
+        end
+        function handle:SetDesc(text)
+            if desc then
+                desc.Text = tostring(text or "")
+                refreshCard()
+            end
         end
         function handle:SetDisabled(value)
             disabled = value == true
