@@ -9,7 +9,7 @@ local env = getgenv and getgenv() or _G
 local KeyUI = {
     Appearance = {Title = "Macro Hub", Subtitle = "Enter your key to continue"},
     Links = {Discord = "", BuyPremium = ""},
-    Storage = {Folder = "MacroHub", FileName = "Key.txt", Remember = true, AutoLoad = true},
+    Storage = {Folder = "", FileName = "verified_key.txt", Remember = true, AutoLoad = true},
     Options = {Keyless = nil, KeylessUI = true, Draggable = true},
     Callbacks = {OnSuccess = nil, OnFailure = nil}
 }
@@ -75,7 +75,9 @@ local function normalize(key)
 end
 
 local function storagePath(self)
-    return tostring(self.Storage.Folder) .. "/" .. tostring(self.Storage.FileName)
+    local folder = tostring(self.Storage.Folder or "")
+    local file = tostring(self.Storage.FileName or "verified_key.txt")
+    return folder ~= "" and (folder .. "/" .. file) or file
 end
 
 function KeyUI:GetSavedKey()
@@ -103,7 +105,7 @@ function KeyUI:SaveKey(key)
     if not self.Storage.Remember or type(writefile) ~= "function" then return end
     pcall(function()
         local dir = tostring(self.Storage.Folder)
-        if type(makefolder) == "function" and type(isfolder) == "function" and not isfolder(dir) then
+        if dir ~= "" and type(makefolder) == "function" and type(isfolder) == "function" and not isfolder(dir) then
             makefolder(dir)
         end
         writefile(storagePath(self), normalize(key))
