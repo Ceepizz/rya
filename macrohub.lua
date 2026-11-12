@@ -19,7 +19,7 @@ local Icons = {
     menu = "10734887784", keyboard = "10723416765", plus = "10734924532",
     minus = "10734896206", ["wand-2"] = "10747376349",
     ["layout-dashboard"] = "10723424646", ["sliders-horizontal"] = "10734963191",
-    crown = "10709818626", ["sun-moon"] = "10734973999",
+    crown = "10709818626", ["sun-moon"] = "10734973999", square = "10734965702",
     swords = "10734975692", calendar = "10709789505", code = "10709810463"
 }
 local Palettes = {
@@ -31,11 +31,11 @@ local Palettes = {
         Input = Color3.fromRGB(9, 19, 36)
     },
     Light = {
-        Background = Color3.fromRGB(246, 249, 255), Surface = Color3.fromRGB(255, 255, 255),
-        Hover = Color3.fromRGB(236, 243, 253), Stroke = Color3.fromRGB(211, 223, 240),
-        Text = Color3.fromRGB(28, 43, 70), Sub = Color3.fromRGB(100, 120, 151),
-        Accent = Color3.fromRGB(39, 121, 226), Off = Color3.fromRGB(194, 206, 226),
-        Input = Color3.fromRGB(244, 248, 254)
+        Background = Color3.fromRGB(242, 246, 252), Surface = Color3.fromRGB(255, 255, 255),
+        Hover = Color3.fromRGB(224, 236, 252), Stroke = Color3.fromRGB(191, 208, 233),
+        Text = Color3.fromRGB(24, 40, 67), Sub = Color3.fromRGB(77, 100, 137),
+        Accent = Color3.fromRGB(36, 112, 221), Off = Color3.fromRGB(174, 193, 216),
+        Input = Color3.fromRGB(238, 244, 252)
     }
 }
 local function create(class, props, parent)
@@ -152,10 +152,8 @@ function Library:Window(config)
     }, top)
     themed(topLine, "BackgroundColor3", "Stroke")
     local logo = create("ImageLabel", {Name = "Logo", Image = "rbxassetid://" .. (selectedTheme == "Dark" and "76956733094432" or "95122283075110"), BackgroundTransparency = 1, Position = UDim2.fromOffset(12, 8), Size = UDim2.fromOffset(40, 40), ScaleType = Enum.ScaleType.Fit}, top)
-    local title = makeText(top, name, 19, true)
-    title.Position, title.Size = UDim2.fromOffset(49, 8), UDim2.new(1, -213, 0, 25)
-    local subtitle = makeText(top, tostring(config.Desc or ""), 11, false, "Sub")
-    subtitle.Position, subtitle.Size = UDim2.fromOffset(50, 33), UDim2.new(1, -217, 0, 15)
+    local title = makeText(top, name, 20, true)
+    title.Position, title.Size = UDim2.fromOffset(60, 16), UDim2.new(1, -228, 0, 26)
     local controls = create("Frame", {
         BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, .5),
         Position = UDim2.new(1, -12, .5, 0), Size = UDim2.fromOffset(148, 32)
@@ -175,6 +173,8 @@ function Library:Window(config)
     end
     local buttonTheme
     local floating
+    local themeSignal = create("BindableEvent", {Name = "ThemeChanged"}, gui)
+    local window
     local function setTheme(mode)
         selectedTheme = mode == "Light" and "Light" or "Dark"
         palette = Palettes[selectedTheme]
@@ -182,6 +182,13 @@ function Library:Window(config)
             local obj, prop, key = entry[1], entry[2], entry[3]
             if obj and obj.Parent then animate(obj, .23, {[prop] = palette[key]}) end
         end
+        for _, tab in ipairs(tabs) do
+            animate(tab.NavButton, .23, {BackgroundColor3 = tab == selected and palette.Hover or palette.Surface})
+            animate(tab.NavText, .23, {TextColor3 = tab == selected and palette.Text or palette.Sub})
+            animate(tab.ButtonIcon, .23, {ImageColor3 = tab == selected and palette.Accent or palette.Sub})
+        end
+        if window then window.Theme = selectedTheme end
+        themeSignal:Fire(selectedTheme)
         if buttonTheme then buttonTheme.Image = iconId(selectedTheme == "Dark" and "moon" or "sun") end
         if logo then logo.Image = "rbxassetid://" .. (selectedTheme == "Dark" and "76956733094432" or "95122283075110") end
         if floating then floating.Image = "rbxassetid://" .. (selectedTheme == "Dark" and "76956733094432" or "95122283075110") end
@@ -189,15 +196,15 @@ function Library:Window(config)
     buttonTheme = titleButton("moon", 1, function()
         setTheme(selectedTheme == "Dark" and "Light" or "Dark")
     end)
-    local window = {Minimized = false, Theme = selectedTheme, Instance = gui}
+    window = {Minimized = false, Theme = selectedTheme, ThemeChanged = themeSignal.Event, Instance = gui}
     function window:Minimize()
         minimized = not minimized
         self.Minimized = minimized
         main.Visible = not minimized
         if floating then floating.Visible = minimized end
     end
-    titleButton("minimize-2", 2, function() window:Minimize() end)
-    titleButton("maximize-2", 3, function()
+    titleButton("minus", 2, function() window:Minimize() end)
+    titleButton("square", 3, function()
         maximized = not maximized
         if maximized then
             oldSize = main.Size
@@ -316,7 +323,8 @@ function Library:Window(config)
         selected = t
         for _, tab in ipairs(tabs) do
             tab.Page.Visible = tab == t
-            animate(tab.NavButton, .15, {BackgroundTransparency = tab == t and 0 or .34})
+            animate(tab.NavButton, .15, {BackgroundTransparency = tab == t and 0 or .2, BackgroundColor3 = tab == t and palette.Hover or palette.Surface})
+            animate(tab.NavText, .15, {TextColor3 = tab == t and palette.Text or palette.Sub})
             animate(tab.Bar, .15, {BackgroundTransparency = tab == t and 0 or 1})
             animate(tab.ButtonIcon, .15, {ImageColor3 = tab == t and palette.Accent or palette.Sub})
         end
@@ -369,7 +377,7 @@ function Library:Window(config)
         }, page)
         create("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 9)}, inner)
         local tab = setmetatable({
-            Title = tabName, NavButton = nav, ButtonIcon = navIcon,
+            Title = tabName, NavButton = nav, NavText = navText, ButtonIcon = navIcon,
             Bar = bar, Page = page, Container = inner, Count = 0, Status = ""
         }, Tab)
         tabs[#tabs + 1] = tab
@@ -418,26 +426,51 @@ function Library:Window(config)
     end
     function Tab:Label(options)
         options = options or {}
-        local frame = self:_card(options.Desc and options.Desc ~= "" and 62 or 44)
-        local t, d = headings(frame, options)
-        if options.Content and (not options.Desc or options.Desc == "") then
-            if not d then
-                d = makeText(frame, options.Content, 12, false, "Sub")
-                d.Position, d.Size = UDim2.fromOffset(14, 29), UDim2.new(1, -28, 0, 26)
-                frame.Size = UDim2.new(1, 0, 0, 62)
+        local text = tostring(options.Desc or options.Content or "")
+        local frame = self:_card(text ~= "" and 66 or 46)
+        local title = makeText(frame, options.Title or options.Name or "", 14, true)
+        title.Name = "TitleLabel"
+        title.Position = UDim2.fromOffset(14, text ~= "" and 8 or 13)
+        title.Size = UDim2.new(1, -28, 0, 21)
+        local holder = create("Frame", {
+            Name = "LabelHolder", BackgroundTransparency = 1, BorderSizePixel = 0,
+            Position = UDim2.fromOffset(14, 32), Size = UDim2.new(1, -28, 0, 27)
+        }, frame)
+        local desc = makeText(holder, text, 12, false, "Sub")
+        desc.Name = "DescLabel"
+        desc.Position = UDim2.fromOffset(0, 0)
+        desc.Size = UDim2.new(1, 0, 0, 0)
+        desc.AutomaticSize = Enum.AutomaticSize.Y
+        desc.TextWrapped = true
+        desc.TextTruncate = Enum.TextTruncate.None
+        desc.Visible = text ~= ""
+        local handle = {Instance = {Frame = frame, LabelHolder = holder, DescLabel = desc, TitleLabel = title}}
+        local function resize()
+            if not frame.Parent then return end
+            local contentsHeight = desc.Visible and math.max(22, desc.TextBounds.Y + 4) or 0
+            for _, child in ipairs(holder:GetChildren()) do
+                if child:IsA("GuiObject") and child ~= desc and child.Visible then
+                    contentsHeight = math.max(contentsHeight, child.Position.Y.Offset + child.Size.Y.Offset)
+                end
             end
+            holder.Size = UDim2.new(1, -28, 0, contentsHeight)
+            frame.Size = UDim2.new(1, 0, 0, math.max(46, 44 + contentsHeight))
         end
-        return {
-            Instance = {Frame = frame},
-            SetTitle = function(_, value) t.Text = tostring(value or "") end,
-            SetDesc = function(_, value)
-                if not d then
-                    d = makeText(frame, value, 11, false, "Sub")
-                    d.Position, d.Size = UDim2.fromOffset(14, 29), UDim2.new(1, -28, 0, 20)
-                    frame.Size = UDim2.new(1, 0, 0, 62)
-                else d.Text = tostring(value or "") end
-            end
-        }
+        function handle:SetTitle(value)
+            title.Text = tostring(value or "")
+        end
+        function handle:SetDesc(value)
+            desc.Text = tostring(value or "")
+            desc.Visible = desc.Text ~= ""
+            task.defer(resize)
+        end
+        function handle:SetText(value) self:SetDesc(value) end
+        listen(holder.ChildAdded, function() task.defer(resize) end)
+        listen(holder.ChildRemoved, function() task.defer(resize) end)
+        listen(desc:GetPropertyChangedSignal("Visible"), function() task.defer(resize) end)
+        listen(desc:GetPropertyChangedSignal("TextBounds"), function() task.defer(resize) end)
+        task.defer(resize)
+        return handle
     end
     function Tab:Button(options)
         options = options or {}
