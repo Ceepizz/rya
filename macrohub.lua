@@ -432,18 +432,19 @@ function Library:Window(config)
             Size = UDim2.new(1, 0, 0, 29), BackgroundTransparency = 1
         }))
         local text = makeText(row, title, 12, true, "Sub")
-        text.TextXAlignment = Enum.TextXAlignment.Center
+        text.TextXAlignment = Enum.TextXAlignment.Left
         text.TextYAlignment = Enum.TextYAlignment.Center
-        text.Position, text.Size = UDim2.new(), UDim2.fromScale(1, 1)
+        text.Position, text.Size = UDim2.fromOffset(3, 0), UDim2.new(1, -6, 1, 0)
         return {Instance = {Frame = row}}
     end
     local function headings(parent, options, right)
         local titleText = options.Title or options.Name or ""
+        local hasDesc = options.Desc ~= nil and tostring(options.Desc):match("%S") ~= nil
         local title = makeText(parent, titleText, 14, true)
-        title.Position = UDim2.fromOffset(14, options.Desc and 8 or 18)
+        title.Position = hasDesc and UDim2.fromOffset(14, 8) or UDim2.new(0, 14, .5, -10)
         title.Size = UDim2.new(1, -(right or 30), 0, 20)
         local desc
-        if options.Desc and options.Desc ~= "" then
+        if hasDesc then
             desc = makeText(parent, options.Desc, 11, false, "Sub")
             desc.Position, desc.Size = UDim2.fromOffset(14, 29), UDim2.new(1, -(right or 30), 0, 20)
         end
