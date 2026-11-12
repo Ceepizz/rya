@@ -67,7 +67,7 @@ function UI:CreateWindow(options)
 
     local function coloredStroke(instance)
         local line = new("UIStroke", {
-            Thickness = 1, Transparency = 0.22,
+            Thickness = 1, Transparency = 0.42,
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border
         }, instance)
         bind(line, "Color", "Border")
@@ -97,7 +97,6 @@ function UI:CreateWindow(options)
             item.TextColor3 = Color3.new(1, 1, 1)
         else
             bind(item, "TextColor3", "Text")
-            coloredStroke(item)
         end
         return item
     end
@@ -158,7 +157,8 @@ function UI:CreateWindow(options)
     closeButton.Position = UDim2.fromOffset(427, 28)
 
     local line = new("Frame", {
-        BorderSizePixel = 0, Position = UDim2.fromOffset(23, 91),
+        BorderSizePixel = 0, BackgroundTransparency = 0.55,
+        Position = UDim2.fromOffset(23, 91),
         Size = UDim2.fromOffset(444, 1)
     }, card)
     bind(line, "BackgroundColor3", "Border")
@@ -317,7 +317,8 @@ function UI:CreateWindow(options)
     function self:Divider()
         local frame = block(10)
         local line = new("Frame", {
-            BorderSizePixel = 0, Position = UDim2.new(0, 0, .5, 0),
+            BorderSizePixel = 0, BackgroundTransparency = 0.55,
+            Position = UDim2.new(0, 0, .5, 0),
             Size = UDim2.new(1, 0, 0, 1)
         }, frame)
         bind(line, "BackgroundColor3", "Border")
