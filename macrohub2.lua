@@ -198,7 +198,7 @@ function Library:Window(config)
     refreshBadges = function()
         for i, data in ipairs({
             {badge1, badgeBorder1, badgeText1, tostring(badges.Plan or "Standard")},
-            {badge2, badgeBorder2, badgeText2, tostring(badges.Expiry or "Event"):gsub("^Permanent$", "Event")}
+            {badge2, badgeBorder2, badgeText2, (tostring(badges.Expiry or "Event"):gsub("^Permanent$", "Event"))}
         }) do
             local frame, stroke, lbl, value = data[1], data[2], data[3], data[4]
             local color = badgeColor(i == 1 and badges.Plan or value, i == 1)
