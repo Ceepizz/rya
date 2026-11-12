@@ -89,6 +89,9 @@ function Library:Window(config)
     local palette = Palettes[selectedTheme]
     local registered, connections, tabs = {}, {}, {}
     local alive, selected, minimized, maximized, oldSize = true, nil, false, false, nil
+    local globalStatus = "Idle"
+    local refreshStatusHeader
+    local floatingSize = math.clamp(tonumber(config.Config and config.Config.FloatingIconSize) or 96, 56, 144)
     local function listen(signal, callback)
         local c = signal:Connect(callback)
         table.insert(connections, c)
@@ -188,6 +191,7 @@ function Library:Window(config)
             animate(tab.ButtonIcon, .23, {ImageColor3 = tab == selected and palette.Accent or palette.Sub})
         end
         if window then window.Theme = selectedTheme end
+        if refreshStatusHeader then refreshStatusHeader() end
         themeSignal:Fire(selectedTheme)
         if buttonTheme then buttonTheme.Image = iconId(selectedTheme == "Dark" and "moon" or "sun") end
         if logo then logo.Image = "rbxassetid://" .. (selectedTheme == "Dark" and "76956733094432" or "95122283075110") end
@@ -219,7 +223,7 @@ function Library:Window(config)
     titleButton("x", 4, function() window:Destroy() end)
     floating = create("ImageButton", {
         Name = "FloatingIcon", AnchorPoint = Vector2.new(0, .5),
-        Position = UDim2.new(0, 18, .5, 0), Size = UDim2.fromOffset(54, 54),
+        Position = UDim2.new(0, 18, .5, 0), Size = UDim2.fromOffset(floatingSize, floatingSize),
         BackgroundTransparency = 1, Image = "rbxassetid://" .. (selectedTheme == "Dark" and "76956733094432" or "95122283075110"),
         ScaleType = Enum.ScaleType.Fit, Visible = false, AutoButtonColor = false, ZIndex = 50
     }, gui)
@@ -236,8 +240,8 @@ function Library:Window(config)
         if delta.Magnitude > 5 then moved = true end
         local view = workspace.CurrentCamera.ViewportSize
         floating.Position = UDim2.fromOffset(
-            math.clamp(floatPosition.X.Offset + delta.X, 0, view.X - 54),
-            math.clamp(view.Y * floatPosition.Y.Scale + floatPosition.Y.Offset + delta.Y, 0, view.Y - 54)
+            math.clamp(floatPosition.X.Offset + delta.X, 0, math.max(0, view.X - floatingSize)),
+            math.clamp(view.Y * floatPosition.Y.Scale + floatPosition.Y.Offset + delta.Y, 0, math.max(0, view.Y - floatingSize))
         )
     end)
     listen(UserInputService.InputEnded, function(i)
@@ -276,17 +280,35 @@ function Library:Window(config)
     }, main)
     local tabDisplay = makeText(content, "Description", 22, true)
     tabDisplay.Name = "TabDisplay"
-    tabDisplay.Size = UDim2.new(1, 0, 0, 50)
+    tabDisplay.Size = UDim2.new(1, 0, 0, 72)
     tabDisplay.TextYAlignment = Enum.TextYAlignment.Top
     tabDisplay.TextWrapped = true
     tabDisplay.TextTruncate = Enum.TextTruncate.None
     window.TabDisplay = tabDisplay
+    local function statusTextColor(text)
+        local t = tostring(text or ""):lower()
+        if t:find("^running") or t:find("^recording") then
+            return selectedTheme == "Light" and "#168049" or "#4ADE80"
+        elseif t:find("failed", 1, true) or t:find("error", 1, true) then
+            return selectedTheme == "Light" and "#B42332" or "#FB7185"
+        elseif t:find("waiting", 1, true) or t:find("required", 1, true) then
+            return selectedTheme == "Light" and "#986008" or "#FBBF24"
+        end
+        return selectedTheme == "Light" and "#58708E" or "#94A3B8"
+    end
+    refreshStatusHeader = function()
+        if not selected then return end
+        local text = tostring(globalStatus or "Idle")
+        text = text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+        local nextText = selected.Title .. '\n<font size="13" color="' .. statusTextColor(globalStatus) .. '"><b>' .. text .. '</b></font>'
+        if tabDisplay.Text ~= nextText then tabDisplay.Text = nextText end
+    end
     function window:SetTabDisplayMultiline(value)
         tabDisplay.TextWrapped = value == true
         tabDisplay.TextTruncate = Enum.TextTruncate.None
     end
     local pages = create("Frame", {
-        Position = UDim2.fromOffset(0, 55), Size = UDim2.new(1, 0, 1, -55),
+        Position = UDim2.fromOffset(0, 79), Size = UDim2.new(1, 0, 1, -79),
         BackgroundTransparency = 1
     }, content)
     local toastFrame = create("Frame", {
@@ -328,7 +350,7 @@ function Library:Window(config)
             animate(tab.Bar, .15, {BackgroundTransparency = tab == t and 0 or 1})
             animate(tab.ButtonIcon, .15, {ImageColor3 = tab == t and palette.Accent or palette.Sub})
         end
-        tabDisplay.Text = t.Title
+        refreshStatusHeader()
     end
     function window:SetTheme(mode)
         setTheme(mode)
@@ -400,8 +422,9 @@ function Library:Window(config)
         return self:_append(frame)
     end
     function Tab:SetStatus(value)
-        self.Status = tostring(value or "")
-        if selected == self then tabDisplay.Text = self.Title .. "\n" .. self.Status end
+        self.Status = tostring(value or "Idle")
+        globalStatus = self.Status ~= "" and self.Status or "Idle"
+        refreshStatusHeader()
     end
     function Tab:Section(options)
         local title = tostring(type(options) == "table" and options.Title or options or "")
@@ -409,7 +432,9 @@ function Library:Window(config)
             Size = UDim2.new(1, 0, 0, 29), BackgroundTransparency = 1
         }))
         local text = makeText(row, title, 12, true, "Sub")
-        text.Position, text.Size = UDim2.fromOffset(3, 8), UDim2.new(1, -6, 0, 20)
+        text.TextXAlignment = Enum.TextXAlignment.Center
+        text.TextYAlignment = Enum.TextYAlignment.Center
+        text.Position, text.Size = UDim2.new(), UDim2.fromScale(1, 1)
         return {Instance = {Frame = row}}
     end
     local function headings(parent, options, right)
@@ -545,15 +570,24 @@ function Library:Window(config)
         local selectedValue = options.Value or options.Default or choices[1]
         local frame = self:_card(58)
         frame.ClipsDescendants = true
-        local title, description = headings(frame, options, 185)
-        local current = makeText(frame, tostring(selectedValue or ""), 12, true, "Accent")
-        current.TextXAlignment = Enum.TextXAlignment.Right
-        current.Position, current.Size = UDim2.new(1, -181, 0, 19), UDim2.fromOffset(152, 20)
-        local arrow = makeIcon(frame, "chevron-down", UDim2.new(1, -26, 0, 21), 14)
+        local title, description = headings(frame, options, 205)
+        local selector = round(create("Frame", {
+            Name = "DropdownSelector", AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(1, -12, 0, 11), Size = UDim2.fromOffset(190, 36),
+            BorderSizePixel = 0
+        }, frame), 8)
+        themed(selector, "BackgroundColor3", "Input")
+        local selectorStroke = makeStroke(selector)
+        local current = makeText(selector, tostring(selectedValue or ""), 12, true, "Text")
+        current.TextXAlignment = Enum.TextXAlignment.Left
+        current.Position, current.Size = UDim2.fromOffset(12, 8), UDim2.new(1, -46, 0, 20)
+        local arrow = makeIcon(selector, "chevron-down", UDim2.new(1, -27, 0, 11), 15, "Accent")
         local hit = create("TextButton", {
             Text = "", BackgroundTransparency = 1, Position = UDim2.new(),
             Size = UDim2.new(1, 0, 0, 58)
         }, frame)
+        listen(hit.MouseEnter, function() animate(selector, .14, {BackgroundColor3 = palette.Hover}) end)
+        listen(hit.MouseLeave, function() animate(selector, .14, {BackgroundColor3 = palette.Input}) end)
         local optionList = create("ScrollingFrame", {
             Position = UDim2.fromOffset(8, 58), Size = UDim2.new(1, -16, 0, 0),
             CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
@@ -569,6 +603,7 @@ function Library:Window(config)
             animate(frame, .22, {Size = UDim2.new(1, 0, 0, open and 58 + h or 58)})
             optionList.Size = UDim2.new(1, -16, 0, h)
             arrow.Rotation = open and 180 or 0
+            animate(selectorStroke, .2, {Color = open and palette.Accent or palette.Stroke})
         end
         function handle:SetValue(v)
             selectedValue = type(v) == "table" and v[1] or v
