@@ -835,6 +835,9 @@ function Library:Window(config)
         listen(hit.MouseEnter, function() if not disabled then animate(frame, .12, {BackgroundColor3 = palette.Hover}) end end)
         listen(hit.MouseLeave, function() animate(frame, .12, {BackgroundColor3 = palette.Surface}) end)
         redraw()
+        if type(options.Callback) == "function" then
+            task.defer(options.Callback, val)
+        end
         return handle
     end
     function Tab:Dropdown(options)
