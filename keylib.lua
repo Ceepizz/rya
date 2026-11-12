@@ -199,8 +199,8 @@ function KeyUI:_mount()
     local getKey = button(card, "Get Key", 24, 300, 210, 38)
     local discord = button(card, "Discord / Support", 246, 300, 210, 38)
     local premium = button(card, "Buy Premium Key (Crypto Only)", 24, 347, 432, 38)
-    local tip = text(card, "Need another payment method? Create a ticket on Discord.", 11, false, 24, 392, 48, 28)
-    tip.TextXAlignment = Enum.TextXAlignment.Center
+    local otherPayments = button(card, "Other Payment Methods - Discord Support", 24, 394, 432, 32)
+    otherPayments.TextSize = 11
 
     local function connection(signal, callback)
         table.insert(self._connections, signal:Connect(callback))
@@ -215,7 +215,7 @@ function KeyUI:_mount()
         entry.BackgroundColor3 = p.Input
         entryStroke.Color = p.Border
         for _, label in ipairs({title, entryLabel}) do label.TextColor3 = p.Text end
-        for _, label in ipairs({subtitle, tip}) do label.TextColor3 = p.Sub end
+        for _, label in ipairs({subtitle}) do label.TextColor3 = p.Sub end
         if not self._busy then status.TextColor3 = p.Sub end
         input.TextColor3 = p.Text
         input.PlaceholderColor3 = p.Sub
@@ -229,6 +229,8 @@ function KeyUI:_mount()
         discord.TextColor3 = p.Text
         premium.BackgroundColor3 = p.Input
         premium.TextColor3 = p.Accent
+        otherPayments.BackgroundColor3 = p.Input
+        otherPayments.TextColor3 = p.Accent
         closeButton.BackgroundColor3 = p.Input
         closeButton.TextColor3 = p.Sub
         themeButton.BackgroundColor3 = p.Input
@@ -238,7 +240,7 @@ function KeyUI:_mount()
         discord.Visible = self.Links.Discord ~= ""
         getKey.Size = UDim2.fromOffset(discord.Visible and 210 or 432, 38)
         premium.Visible = self.Links.BuyPremium ~= ""
-        tip.Visible = discord.Visible
+        otherPayments.Visible = discord.Visible
     end
     self._refreshTheme = theme
     theme()
@@ -317,11 +319,13 @@ function KeyUI:_mount()
             end
         end)
     end)
-    connection(discord.MouseButton1Click, function()
+    local function copyDiscordSupport()
         if self.Links.Discord == "" then return end
         local success = copy(self.Links.Discord)
-        self:Notify("Discord", success and "Invite copied. Create a ticket for payment options." or "Copy the invite shown in the key field.", 5, "success")
-    end)
+        self:Notify("Discord Support", success and "Invite copied. Create a ticket to ask about other payment methods." or "Copy the invite shown in the key field.", 5, "success")
+    end
+    connection(discord.MouseButton1Click, copyDiscordSupport)
+    connection(otherPayments.MouseButton1Click, copyDiscordSupport)
     connection(premium.MouseButton1Click, function()
         if self.Links.BuyPremium == "" then return end
         local success = copy(self.Links.BuyPremium)
