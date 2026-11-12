@@ -172,6 +172,7 @@ function Library:Window(config)
         return img
     end
     local buttonTheme
+    local floating
     local function setTheme(mode)
         selectedTheme = mode == "Light" and "Light" or "Dark"
         palette = Palettes[selectedTheme]
@@ -185,7 +186,6 @@ function Library:Window(config)
     buttonTheme = titleButton("moon", 1, function()
         setTheme(selectedTheme == "Dark" and "Light" or "Dark")
     end)
-    local floating
     local window = {Minimized = false, Theme = selectedTheme, Instance = gui}
     function window:Minimize()
         minimized = not minimized
