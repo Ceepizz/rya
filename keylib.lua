@@ -249,11 +249,12 @@ function UI:CreateWindow(options)
         heading.Size = UDim2.new(1, 0, 0, 20)
         heading.Position = UDim2.fromOffset(0, 0)
         local field = rounded(new("Frame", {
-            BorderSizePixel = 0, Position = UDim2.fromOffset(0, 28),
-            Size = UDim2.new(1, 0, 0, 44)
+            BorderSizePixel = 0, ClipsDescendants = true,
+            Position = UDim2.fromOffset(2, 28),
+            Size = UDim2.new(1, -4, 0, 44)
         }, box), 9)
         bind(field, "BackgroundColor3", "Input")
-        coloredStroke(field)
+        -- A filled, borderless input avoids the clipped UIStroke outline.
         local actionText = config.ActionText
         local actionWidth = actionText and 75 or 0
         local input = new("TextBox", {
