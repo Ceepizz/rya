@@ -678,16 +678,22 @@ function Library:Window(config)
             Name = "NoticeBanner", BorderSizePixel = 0,
             BackgroundTransparency = 0, Size = UDim2.new(1, 0, 0, 48)
         }), 10)
-        local border = create("UIStroke", {Thickness = 1, Transparency = .4}, frame)
+        local border = create("UIStroke", {Thickness = 1, Transparency = .25}, frame)
         local msg = makeText(frame, text, 13, true)
         msg.TextXAlignment, msg.TextYAlignment = Enum.TextXAlignment.Center, Enum.TextYAlignment.Center
         msg.TextWrapped = true
         msg.TextTruncate = Enum.TextTruncate.None
         msg.Position, msg.Size = UDim2.fromOffset(8, 0), UDim2.new(1, -16, 1, 0)
         local function render()
-            frame.BackgroundColor3 = selectedTheme == "Light" and Color3.fromRGB(255, 249, 232) or Color3.fromRGB(38, 34, 41)
-            border.Color = selectedTheme == "Light" and Color3.fromRGB(215, 162, 63) or Color3.fromRGB(146, 105, 42)
-            msg.TextColor3 = selectedTheme == "Light" and Color3.fromRGB(140, 90, 12) or Color3.fromRGB(255, 198, 74)
+            frame.BackgroundColor3 = selectedTheme == "Light"
+                and Color3.fromRGB(229, 241, 255)
+                or Color3.fromRGB(12, 25, 49)
+            border.Color = selectedTheme == "Light"
+                and Color3.fromRGB(86, 151, 226)
+                or Color3.fromRGB(51, 116, 197)
+            msg.TextColor3 = selectedTheme == "Light"
+                and Color3.fromRGB(24, 94, 174)
+                or Color3.fromRGB(138, 202, 255)
         end
         listen(themeSignal.Event, render)
         render()
