@@ -1262,6 +1262,7 @@ function Library:Window(config)
             {Rotation = 360}):Play()
 
         local title = makeLabel("SplashTitle", "", 20, 20, WHITE, Enum.Font.GothamBold)
+        title.RichText = true
         local status = makeLabel("SplashStatus", "Preparing interface...", 12, 49, Color3.fromRGB(151, 168, 197))
         local percentage = makeLabel("SplashPercent", "0%", 11, 85, CYAN, Enum.Font.GothamBold)
         local track = Instance.new("Frame")
@@ -1291,6 +1292,13 @@ function Library:Window(config)
 
         task.spawn(function()
             local str = string.upper(tostring((config and config.Title) or "Macro Hub"))
+            local function renderTitle(value)
+                if str == "MACRO HUB" then
+                    title.Text = value:sub(1, 6) .. '<font color="#00D7C7">' .. value:sub(7) .. '</font>'
+                else
+                    title.Text = value
+                end
+            end
             local glyphs = "#@%&$*?/=+!~"
             local begin = os.clock()
             while splash.Parent and os.clock() - begin < .7 do
@@ -1301,10 +1309,10 @@ function Library:Window(config)
                     local x = math.random(#glyphs)
                     chars[i] = (i <= revealed or ch == " ") and ch or glyphs:sub(x, x)
                 end
-                title.Text = table.concat(chars)
+                renderTitle(table.concat(chars))
                 task.wait(.04)
             end
-            if splash.Parent then title.Text = str end
+            if splash.Parent then renderTitle(str) end
         end)
 
         task.spawn(function()
