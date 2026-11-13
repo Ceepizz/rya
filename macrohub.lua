@@ -678,16 +678,22 @@ function Library:Window(config)
             Name = "NoticeBanner", BorderSizePixel = 0,
             BackgroundTransparency = 0, Size = UDim2.new(1, 0, 0, 48)
         }), 10)
-        local border = create("UIStroke", {Thickness = 1, Transparency = .4}, frame)
+        local border = create("UIStroke", {Thickness = 1, Transparency = .25}, frame)
         local msg = makeText(frame, text, 13, true)
         msg.TextXAlignment, msg.TextYAlignment = Enum.TextXAlignment.Center, Enum.TextYAlignment.Center
         msg.TextWrapped = true
         msg.TextTruncate = Enum.TextTruncate.None
         msg.Position, msg.Size = UDim2.fromOffset(8, 0), UDim2.new(1, -16, 1, 0)
         local function render()
-            frame.BackgroundColor3 = selectedTheme == "Light" and Color3.fromRGB(255, 249, 232) or Color3.fromRGB(38, 34, 41)
-            border.Color = selectedTheme == "Light" and Color3.fromRGB(215, 162, 63) or Color3.fromRGB(146, 105, 42)
-            msg.TextColor3 = selectedTheme == "Light" and Color3.fromRGB(140, 90, 12) or Color3.fromRGB(255, 198, 74)
+            frame.BackgroundColor3 = selectedTheme == "Light"
+                and Color3.fromRGB(229, 241, 255)
+                or Color3.fromRGB(12, 25, 49)
+            border.Color = selectedTheme == "Light"
+                and Color3.fromRGB(86, 151, 226)
+                or Color3.fromRGB(51, 116, 197)
+            msg.TextColor3 = selectedTheme == "Light"
+                and Color3.fromRGB(24, 94, 174)
+                or Color3.fromRGB(138, 202, 255)
         end
         listen(themeSignal.Event, render)
         render()
@@ -1036,4 +1042,373 @@ function Library:Window(config)
     self.ActiveWindow = window
     return window
 end
+
+
+-- Macro Hub V1: refreshed UI, boot animation and state-driven glow
+local _MacroHubV3PreviousWindow = Library.Window
+function Library:Window(config)
+    local window = _MacroHubV3PreviousWindow(self, config)
+    local gui = window.Instance
+    local main = gui and gui:FindFirstChild("Main")
+    local content = main and main:FindFirstChild("Content")
+    if not main or not content then return window end
+
+    local TweenService = game:GetService("TweenService")
+    local WHITE = Color3.new(1, 1, 1)
+    local BLUE = Color3.fromRGB(58, 156, 255)
+    local CYAN = Color3.fromRGB(105, 222, 255)
+    local FARM_PRIMARY = Color3.fromRGB(43, 212, 142)
+    local FARM_DARK = Color3.fromRGB(13, 125, 91)
+    local FARM_SHINE = Color3.fromRGB(139, 255, 194)
+    local REC_PRIMARY = Color3.fromRGB(246, 73, 112)
+    local REC_DARK = Color3.fromRGB(137, 30, 68)
+    local REC_SHINE = Color3.fromRGB(255, 171, 191)
+    local innerGradients = {}
+
+    -- Only page headings receive the blue gradient; controls retain their themed text colors.
+    local function textGradient()
+        if window.Theme == "Light" then
+            return ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 99, 193)),
+                ColorSequenceKeypoint.new(.52, Color3.fromRGB(30, 139, 216)),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 82, 177))
+            })
+        end
+        return ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(125, 214, 255)),
+            ColorSequenceKeypoint.new(.52, Color3.fromRGB(57, 157, 247)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(64, 112, 230))
+        })
+    end
+
+    local heading = window.TabDisplay or content:FindFirstChild("TabDisplay")
+    if heading and heading:IsA("TextLabel") then
+        local grad = Instance.new("UIGradient")
+        grad.Name = "V3BlueText"
+        grad.Color = textGradient()
+        grad.Rotation = 0
+        grad.Parent = heading
+        heading.TextColor3 = WHITE
+        innerGradients[#innerGradients + 1] = {heading, grad}
+    end
+
+    local border = main:FindFirstChildOfClass("UIStroke")
+    local rim = Instance.new("Frame")
+    rim.Name = "V3ActivityRim"
+    rim.Active = false
+    rim.BackgroundTransparency = 1
+    rim.BorderSizePixel = 0
+    rim.Position = UDim2.fromOffset(4, 4)
+    rim.Size = UDim2.new(1, -8, 1, -8)
+    rim.Parent = main
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 11)
+    corner.Parent = rim
+    local rimStroke = Instance.new("UIStroke")
+    rimStroke.Thickness = 2.5
+    rimStroke.Transparency = 1
+    rimStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    rimStroke.Parent = rim
+    local borderGradient = Instance.new("UIGradient")
+    borderGradient.Name = "V3ActivityGradient"
+    borderGradient.Enabled = false
+    if border then borderGradient.Parent = border end
+    local farming, recording, mode = false, false, nil
+    local pulseOuter, pulseInner, travelingShine
+
+    local function stopGlowAnimations()
+        if pulseOuter then pulseOuter:Cancel(); pulseOuter = nil end
+        if pulseInner then pulseInner:Cancel(); pulseInner = nil end
+        if travelingShine then travelingShine:Cancel(); travelingShine = nil end
+    end
+
+    local function renderGlow(force)
+        local nextMode = recording and "recording" or (farming and "farm" or "idle")
+        if nextMode == mode and not force then return end
+        mode = nextMode
+        stopGlowAnimations()
+
+        if mode == "idle" then
+            borderGradient.Enabled = false
+            borderGradient.Rotation = 0
+            rimStroke.Transparency = 1
+            if border then
+                border.Thickness = 1
+                border.Transparency = .25
+                border.Color = window.Theme == "Light"
+                    and Color3.fromRGB(191, 208, 233) or Color3.fromRGB(39, 57, 91)
+            end
+            return
+        end
+
+        local isRecording = mode == "recording"
+        local primary = isRecording and REC_PRIMARY or FARM_PRIMARY
+        local dark = isRecording and REC_DARK or FARM_DARK
+        local shine = isRecording and REC_SHINE or FARM_SHINE
+        local pulseSpeed = isRecording and 1.2 or 1.5
+
+        -- A subtle inset glow supports the thin border, without a heavy neon ring.
+        rimStroke.Color = primary
+        rimStroke.Thickness = 2.5
+        rimStroke.Transparency = .94
+
+        if border then
+            border.Color = WHITE
+            border.Thickness = 1.7
+            border.Transparency = .30
+            borderGradient.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, dark),
+                ColorSequenceKeypoint.new(.2, primary),
+                ColorSequenceKeypoint.new(.36, shine),
+                ColorSequenceKeypoint.new(.52, primary),
+                ColorSequenceKeypoint.new(.75, dark),
+                ColorSequenceKeypoint.new(1, dark)
+            })
+            borderGradient.Rotation = 0
+            borderGradient.Enabled = true
+
+            -- A moving highlight around the rim, plus a slow breathing effect.
+            travelingShine = TweenService:Create(borderGradient,
+                TweenInfo.new(isRecording and 6.5 or 8, Enum.EasingStyle.Linear,
+                    Enum.EasingDirection.InOut, -1),
+                {Rotation = 360})
+            travelingShine:Play()
+
+            pulseOuter = TweenService:Create(border,
+                TweenInfo.new(pulseSpeed, Enum.EasingStyle.Sine,
+                    Enum.EasingDirection.InOut, -1, true),
+                {Transparency = .15})
+            pulseOuter:Play()
+        end
+
+        pulseInner = TweenService:Create(rimStroke,
+            TweenInfo.new(pulseSpeed, Enum.EasingStyle.Sine,
+                Enum.EasingDirection.InOut, -1, true),
+            {Transparency = .83})
+        pulseInner:Play()
+    end
+
+    function window:SetFarmGlow(enabled)
+        farming = enabled == true
+        renderGlow()
+    end
+    function window:SetRecordingGlow(enabled)
+        recording = enabled == true
+        renderGlow()
+    end
+    function window:SetActivityGlow(value)
+        value = tostring(value or "idle"):lower()
+        recording = value == "recording"
+        farming = value == "farm" or value == "farming"
+        renderGlow()
+    end
+    renderGlow(true)
+
+    local themeConnection = window.ThemeChanged:Connect(function()
+        task.delay(.27, function()
+            if not gui.Parent then return end
+            local colors = textGradient()
+            for _, pair in ipairs(innerGradients) do
+                if pair[1].Parent and pair[2].Parent then
+                    pair[2].Color = colors
+                    pair[1].TextColor3 = WHITE
+                end
+            end
+            renderGlow(true)
+        end)
+    end)
+
+    local function bootSplash()
+        if not gui.Parent then return end
+        local splash = Instance.new("CanvasGroup")
+        splash.Name = "V3BootSplash"
+        splash.Size = UDim2.fromScale(1, 1)
+        splash.BackgroundColor3 = Color3.fromRGB(7, 14, 29)
+        splash.BorderSizePixel = 0
+        splash.Active = true
+        splash.ZIndex = 50
+        splash.Parent = main
+        local roundSplash = Instance.new("UICorner")
+        roundSplash.CornerRadius = UDim.new(0, 14)
+        roundSplash.Parent = splash
+
+        local function makeLabel(name, str, size, y, color, font)
+            local t = Instance.new("TextLabel")
+            t.Name, t.Text = name, str
+            t.Font = font or Enum.Font.Gotham
+            t.TextSize = size
+            t.TextColor3 = color
+            t.BackgroundTransparency = 1
+            t.TextXAlignment = Enum.TextXAlignment.Center
+            t.AnchorPoint = Vector2.new(.5, .5)
+            t.Position = UDim2.new(.5, 0, .5, y)
+            t.Size = UDim2.new(1, -28, 0, size + 8)
+            t.ZIndex = 51
+            t.Parent = splash
+            return t
+        end
+
+        local logo = Instance.new("ImageLabel")
+        logo.Name = "SplashLogo"
+        logo.AnchorPoint = Vector2.new(.5, .5)
+        logo.Position = UDim2.new(.5, 0, .5, -57)
+        logo.Size = UDim2.fromOffset(60, 60)
+        logo.BackgroundTransparency = 1
+        logo.ScaleType = Enum.ScaleType.Fit
+        logo.Image = (config and config.Icon) or "rbxassetid://76956733094432"
+        logo.ZIndex = 52
+        logo.Parent = splash
+
+        local ring = Instance.new("Frame")
+        ring.Name = "Spinner"
+        ring.AnchorPoint = Vector2.new(.5, .5)
+        ring.Position = logo.Position
+        ring.Size = UDim2.fromOffset(95, 95)
+        ring.BackgroundTransparency = 1
+        ring.ZIndex = 51
+        ring.Parent = splash
+        local ringCorner = Instance.new("UICorner")
+        ringCorner.CornerRadius = UDim.new(1, 0)
+        ringCorner.Parent = ring
+        local ringStroke = Instance.new("UIStroke")
+        ringStroke.Color = WHITE
+        ringStroke.Thickness = 3
+        ringStroke.Parent = ring
+        local ringGradient = Instance.new("UIGradient")
+        ringGradient.Color = ColorSequence.new(BLUE, CYAN)
+        ringGradient.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 1),
+            NumberSequenceKeypoint.new(.55, 1),
+            NumberSequenceKeypoint.new(1, 0)
+        })
+        ringGradient.Parent = ringStroke
+        TweenService:Create(ringGradient,
+            TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1),
+            {Rotation = 360}):Play()
+
+        local title = makeLabel("SplashTitle", "", 20, 20, WHITE, Enum.Font.GothamBold)
+        title.RichText = true
+        local status = makeLabel("SplashStatus", "Preparing interface...", 12, 49, Color3.fromRGB(151, 168, 197))
+        local percentage = makeLabel("SplashPercent", "0%", 11, 85, CYAN, Enum.Font.GothamBold)
+        local track = Instance.new("Frame")
+        track.Name = "ProgressTrack"
+        track.AnchorPoint = Vector2.new(.5, .5)
+        track.Position = UDim2.new(.5, 0, .5, 68)
+        track.Size = UDim2.fromOffset(222, 4)
+        track.BorderSizePixel = 0
+        track.BackgroundColor3 = Color3.fromRGB(42, 60, 96)
+        track.ZIndex = 51
+        track.Parent = splash
+        local trackCorner = Instance.new("UICorner")
+        trackCorner.CornerRadius = UDim.new(1, 0)
+        trackCorner.Parent = track
+        local fill = Instance.new("Frame")
+        fill.Size = UDim2.fromScale(0, 1)
+        fill.BackgroundColor3 = BLUE
+        fill.BorderSizePixel = 0
+        fill.ZIndex = 52
+        fill.Parent = track
+        local fillCorner = Instance.new("UICorner")
+        fillCorner.CornerRadius = UDim.new(1, 0)
+        fillCorner.Parent = fill
+        local fillGradient = Instance.new("UIGradient")
+        fillGradient.Color = ColorSequence.new(BLUE, CYAN)
+        fillGradient.Parent = fill
+
+        task.spawn(function()
+            local str = string.upper(tostring((config and config.Title) or "Macro Hub"))
+            local function renderTitle(value)
+                if str == "MACRO HUB" then
+                    title.Text = value:sub(1, 6) .. '<font color="#00D7C7">' .. value:sub(7) .. '</font>'
+                else
+                    title.Text = value
+                end
+            end
+            local glyphs = "#@%&$*?/=+!~"
+            local begin = os.clock()
+            while splash.Parent and os.clock() - begin < .7 do
+                local revealed = math.floor((os.clock() - begin) / .7 * #str)
+                local chars = {}
+                for i = 1, #str do
+                    local ch = str:sub(i, i)
+                    local x = math.random(#glyphs)
+                    chars[i] = (i <= revealed or ch == " ") and ch or glyphs:sub(x, x)
+                end
+                renderTitle(table.concat(chars))
+                task.wait(.04)
+            end
+            if splash.Parent then renderTitle(str) end
+        end)
+
+        task.spawn(function()
+            local steps = {
+                {"Preparing interface", .30},
+                {"Loading controls", .62},
+                {"Applying visual effects", .90},
+                {"Ready", 1}
+            }
+            for _, item in ipairs(steps) do
+                if not splash.Parent then return end
+                status.Text = item[1] .. (item[2] < 1 and "..." or "")
+                percentage.Text = tostring(math.floor(item[2] * 100)) .. "%"
+                TweenService:Create(fill, TweenInfo.new(.32, Enum.EasingStyle.Quart),
+                    {Size = UDim2.fromScale(item[2], 1)}):Play()
+
+                local pulse = Instance.new("Frame")
+                pulse.AnchorPoint = Vector2.new(.5, .5)
+                pulse.Position = logo.Position
+                pulse.Size = UDim2.fromOffset(68, 68)
+                pulse.BackgroundTransparency = 1
+                pulse.ZIndex = 51
+                pulse.Parent = splash
+                local pc = Instance.new("UICorner")
+                pc.CornerRadius = UDim.new(1, 0)
+                pc.Parent = pulse
+                local ps = Instance.new("UIStroke")
+                ps.Color = BLUE
+                ps.Thickness = 2
+                ps.Transparency = .4
+                ps.Parent = pulse
+                TweenService:Create(pulse, TweenInfo.new(.7),
+                    {Size = UDim2.fromOffset(225, 225)}):Play()
+                TweenService:Create(ps, TweenInfo.new(.7),
+                    {Transparency = 1}):Play()
+                task.delay(.75, function()
+                    if pulse.Parent then pulse:Destroy() end
+                end)
+                task.wait(.34)
+            end
+            task.wait(.12)
+            if not splash.Parent then return end
+            local flash = Instance.new("Frame")
+            flash.Name = "PowerOnLine"
+            flash.AnchorPoint = Vector2.new(.5, .5)
+            flash.Position = UDim2.fromScale(.5, .5)
+            flash.Size = UDim2.fromOffset(0, 2)
+            flash.BackgroundColor3 = WHITE
+            flash.BorderSizePixel = 0
+            flash.ZIndex = 53
+            flash.Parent = splash
+            TweenService:Create(flash, TweenInfo.new(.2),
+                {Size = UDim2.new(1, 0, 0, 2)}):Play()
+            task.wait(.2)
+            TweenService:Create(flash, TweenInfo.new(.32),
+                {Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1}):Play()
+            TweenService:Create(splash, TweenInfo.new(.43),
+                {GroupTransparency = 1}):Play()
+            task.wait(.48)
+            if splash.Parent then splash:Destroy() end
+        end)
+    end
+
+    gui.Destroying:Connect(function()
+        themeConnection:Disconnect()
+        stopGlowAnimations()
+    end)
+    if not (config and config.Config and config.Config.BootSplash == false) then
+        task.defer(bootSplash)
+    end
+    return window
+end
+
 return Library
