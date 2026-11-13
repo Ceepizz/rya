@@ -1057,8 +1057,12 @@ function Library:Window(config)
     local WHITE = Color3.new(1, 1, 1)
     local BLUE = Color3.fromRGB(58, 156, 255)
     local CYAN = Color3.fromRGB(105, 222, 255)
-    local GREEN = Color3.fromRGB(69, 230, 143)
-    local RED = Color3.fromRGB(255, 79, 106)
+    local FARM_PRIMARY = Color3.fromRGB(43, 212, 142)
+    local FARM_DARK = Color3.fromRGB(13, 125, 91)
+    local FARM_SHINE = Color3.fromRGB(139, 255, 194)
+    local REC_PRIMARY = Color3.fromRGB(246, 73, 112)
+    local REC_DARK = Color3.fromRGB(137, 30, 68)
+    local REC_SHINE = Color3.fromRGB(255, 171, 191)
     local innerGradients = {}
 
     -- Only page headings receive the blue gradient; controls retain their themed text colors.
@@ -1101,7 +1105,7 @@ function Library:Window(config)
     corner.CornerRadius = UDim.new(0, 11)
     corner.Parent = rim
     local rimStroke = Instance.new("UIStroke")
-    rimStroke.Thickness = 5
+    rimStroke.Thickness = 2.5
     rimStroke.Transparency = 1
     rimStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     rimStroke.Parent = rim
@@ -1110,16 +1114,23 @@ function Library:Window(config)
     borderGradient.Enabled = false
     if border then borderGradient.Parent = border end
     local farming, recording, mode = false, false, nil
-    local pulseOuter, pulseInner
+    local pulseOuter, pulseInner, travelingShine
+
+    local function stopGlowAnimations()
+        if pulseOuter then pulseOuter:Cancel(); pulseOuter = nil end
+        if pulseInner then pulseInner:Cancel(); pulseInner = nil end
+        if travelingShine then travelingShine:Cancel(); travelingShine = nil end
+    end
 
     local function renderGlow(force)
         local nextMode = recording and "recording" or (farming and "farm" or "idle")
         if nextMode == mode and not force then return end
         mode = nextMode
-        if pulseOuter then pulseOuter:Cancel(); pulseOuter = nil end
-        if pulseInner then pulseInner:Cancel(); pulseInner = nil end
+        stopGlowAnimations()
+
         if mode == "idle" then
             borderGradient.Enabled = false
+            borderGradient.Rotation = 0
             rimStroke.Transparency = 1
             if border then
                 border.Thickness = 1
@@ -1129,27 +1140,51 @@ function Library:Window(config)
             end
             return
         end
-        local color = mode == "recording" and RED or GREEN
-        rimStroke.Color = color
-        rimStroke.Transparency = .88
+
+        local isRecording = mode == "recording"
+        local primary = isRecording and REC_PRIMARY or FARM_PRIMARY
+        local dark = isRecording and REC_DARK or FARM_DARK
+        local shine = isRecording and REC_SHINE or FARM_SHINE
+        local pulseSpeed = isRecording and 1.2 or 1.5
+
+        -- A subtle inset glow supports the thin border, without a heavy neon ring.
+        rimStroke.Color = primary
+        rimStroke.Thickness = 2.5
+        rimStroke.Transparency = .94
+
         if border then
             border.Color = WHITE
-            border.Thickness = 2.6
-            border.Transparency = .4
+            border.Thickness = 1.7
+            border.Transparency = .30
             borderGradient.Color = ColorSequence.new({
-                ColorSequenceKeypoint.new(0, color:Lerp(WHITE, .2)),
-                ColorSequenceKeypoint.new(.5, color),
-                ColorSequenceKeypoint.new(1, color:Lerp(Color3.new(0, 0, 0), .12))
+                ColorSequenceKeypoint.new(0, dark),
+                ColorSequenceKeypoint.new(.2, primary),
+                ColorSequenceKeypoint.new(.36, shine),
+                ColorSequenceKeypoint.new(.52, primary),
+                ColorSequenceKeypoint.new(.75, dark),
+                ColorSequenceKeypoint.new(1, dark)
             })
+            borderGradient.Rotation = 0
             borderGradient.Enabled = true
+
+            -- A moving highlight around the rim, plus a slow breathing effect.
+            travelingShine = TweenService:Create(borderGradient,
+                TweenInfo.new(isRecording and 6.5 or 8, Enum.EasingStyle.Linear,
+                    Enum.EasingDirection.InOut, -1),
+                {Rotation = 360})
+            travelingShine:Play()
+
             pulseOuter = TweenService:Create(border,
-                TweenInfo.new(.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-                {Transparency = .04})
+                TweenInfo.new(pulseSpeed, Enum.EasingStyle.Sine,
+                    Enum.EasingDirection.InOut, -1, true),
+                {Transparency = .15})
             pulseOuter:Play()
         end
+
         pulseInner = TweenService:Create(rimStroke,
-            TweenInfo.new(.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-            {Transparency = .65})
+            TweenInfo.new(pulseSpeed, Enum.EasingStyle.Sine,
+                Enum.EasingDirection.InOut, -1, true),
+            {Transparency = .83})
         pulseInner:Play()
     end
 
@@ -1368,8 +1403,7 @@ function Library:Window(config)
 
     gui.Destroying:Connect(function()
         themeConnection:Disconnect()
-        if pulseOuter then pulseOuter:Cancel() end
-        if pulseInner then pulseInner:Cancel() end
+        stopGlowAnimations()
     end)
     if not (config and config.Config and config.Config.BootSplash == false) then
         task.defer(bootSplash)
