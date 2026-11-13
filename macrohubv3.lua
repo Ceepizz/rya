@@ -149,7 +149,7 @@ function Library:Window(config)
         Name = "Main", AnchorPoint = Vector2.new(.5, .5),
         Position = UDim2.fromScale(.5, .5), Size = UDim2.fromOffset(width, height),
         BorderSizePixel = 0, ClipsDescendants = true
-    }, gui), 0)
+    }, gui), 14)
     themed(main, "BackgroundColor3", "Background")
     makeStroke(main)
     local scale = create("UIScale", {Scale = 1}, main)
@@ -1102,7 +1102,7 @@ function Library:Window(config)
     rim.Size = UDim2.new(1, -8, 1, -8)
     rim.Parent = main
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 0)
+    corner.CornerRadius = UDim.new(0, 11)
     corner.Parent = rim
     local rimStroke = Instance.new("UIStroke")
     rimStroke.Thickness = 2.5
@@ -1229,7 +1229,7 @@ function Library:Window(config)
         splash.ZIndex = 50
         splash.Parent = main
         local roundSplash = Instance.new("UICorner")
-        roundSplash.CornerRadius = UDim.new(0, 0)
+        roundSplash.CornerRadius = UDim.new(0, 14)
         roundSplash.Parent = splash
 
         local function makeLabel(name, str, size, y, color, font)
