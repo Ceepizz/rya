@@ -1061,42 +1061,32 @@ function Library:Window(config)
     local RED = Color3.fromRGB(255, 79, 106)
     local innerGradients = {}
 
+    -- Only page headings receive the blue gradient; controls retain their themed text colors.
     local function textGradient()
         if window.Theme == "Light" then
             return ColorSequence.new({
-                ColorSequenceKeypoint.new(0, Color3.fromRGB(22, 78, 179)),
-                ColorSequenceKeypoint.new(.52, Color3.fromRGB(22, 122, 226)),
-                ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 133, 166))
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 99, 193)),
+                ColorSequenceKeypoint.new(.52, Color3.fromRGB(30, 139, 216)),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 82, 177))
             })
         end
         return ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(110, 182, 255)),
-            ColorSequenceKeypoint.new(.52, Color3.fromRGB(56, 139, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(98, 221, 255))
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(125, 214, 255)),
+            ColorSequenceKeypoint.new(.52, Color3.fromRGB(57, 157, 247)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(64, 112, 230))
         })
     end
 
-    local function gradientLabel(lbl)
-        if not lbl or not lbl.Parent or not lbl:IsA("TextLabel")
-            or not lbl:IsDescendantOf(content)
-            or lbl:GetAttribute("MacroHubV3Blue") then return end
-        if lbl.TextSize < 13 or
-            (lbl.Font ~= Enum.Font.GothamBold and lbl.Font ~= Enum.Font.GothamBlack) then
-            return
-        end
-        lbl:SetAttribute("MacroHubV3Blue", true)
+    local heading = window.TabDisplay or content:FindFirstChild("TabDisplay")
+    if heading and heading:IsA("TextLabel") then
         local grad = Instance.new("UIGradient")
         grad.Name = "V3BlueText"
         grad.Color = textGradient()
-        grad.Rotation = 12
-        grad.Parent = lbl
-        lbl.TextColor3 = WHITE
-        innerGradients[#innerGradients + 1] = {lbl, grad}
+        grad.Rotation = 0
+        grad.Parent = heading
+        heading.TextColor3 = WHITE
+        innerGradients[#innerGradients + 1] = {heading, grad}
     end
-    for _, child in ipairs(content:GetDescendants()) do gradientLabel(child) end
-    local descendantConnection = main.DescendantAdded:Connect(function(child)
-        if child:IsA("TextLabel") then task.defer(gradientLabel, child) end
-    end)
 
     local border = main:FindFirstChildOfClass("UIStroke")
     local rim = Instance.new("Frame")
@@ -1377,7 +1367,6 @@ function Library:Window(config)
     end
 
     gui.Destroying:Connect(function()
-        descendantConnection:Disconnect()
         themeConnection:Disconnect()
         if pulseOuter then pulseOuter:Cancel() end
         if pulseInner then pulseInner:Cancel() end
