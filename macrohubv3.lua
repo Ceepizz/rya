@@ -183,7 +183,7 @@ function Library:Window(config)
         title.Text = 'Macro <font color="#00D7C7">Hub</font>'
     end
     title.Position, title.Size = UDim2.fromOffset(60, 16), UDim2.fromOffset(124, 26)
-    local badges = {Plan = "Premium", Expiry = "Permanent"}
+    local badges = {Plan = "Premium", Expiry = "Event"}
     local badgeHolder = create("Frame", {
         Name = "MembershipBadges", BackgroundTransparency = 1, BorderSizePixel = 0,
         Position = UDim2.fromOffset(193, 17), Size = UDim2.new(1, -385, 0, 24)
@@ -220,7 +220,7 @@ function Library:Window(config)
     refreshBadges = function()
         for i, data in ipairs({
             {badge1, badgeBorder1, badgeText1, tostring(badges.Plan or "Standard")},
-            {badge2, badgeBorder2, badgeText2, tostring(badges.Expiry or "Permanent")}
+            {badge2, badgeBorder2, badgeText2, (tostring(badges.Expiry or "Event"):gsub("^Permanent$", "Event"))}
         }) do
             local frame, stroke, lbl, value = data[1], data[2], data[3], data[4]
             local color = badgeColor(i == 1 and badges.Plan or value, i == 1)
