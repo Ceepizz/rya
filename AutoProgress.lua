@@ -95,6 +95,55 @@ if isLobby or rep then
     end
 end
 
+if not isLobby then
+    task.spawn(function()
+        local gameOverSince
+        local lastAttemptAt = -math.huge
+
+        while game.PlaceId ~= 3260590327 do
+            local replicators = ReplicatedStorage:FindFirstChild("StateReplicators")
+            local currentRep = replicators and replicators:FindFirstChild("GameStateReplicator")
+            local gameOver = currentRep and currentRep:GetAttribute("GameOver") == true
+
+            if gameOver and not IsLoading() then
+                gameOverSince = gameOverSince or os.clock()
+
+                if os.clock() - gameOverSince >= 10
+                    and os.clock() - lastAttemptAt >= 10 then
+
+                    lastAttemptAt = os.clock()
+                    local network = ReplicatedStorage:FindFirstChild("Network")
+                    local teleportFolder = network and network:FindFirstChild("Teleport")
+                    local backToLobby = teleportFolder and teleportFolder:FindFirstChild("RE:backToLobby")
+
+                    if backToLobby then
+                        pcall(function()
+                            backToLobby:FireServer()
+                        end)
+                    end
+
+                    task.wait(2)
+
+                    local latestReplicators = ReplicatedStorage:FindFirstChild("StateReplicators")
+                    local latestRep = latestReplicators and latestReplicators:FindFirstChild("GameStateReplicator")
+                    if game.PlaceId ~= 3260590327
+                        and latestRep and latestRep:GetAttribute("GameOver") == true
+                        and not IsLoading() then
+                        pcall(function()
+                            TeleportService:Teleport(3260590327, LocalPlayer)
+                        end)
+                    end
+                end
+            else
+                gameOverSince = nil
+                lastAttemptAt = -math.huge
+            end
+
+            task.wait(0.25)
+        end
+    end)
+end
+
 local ok, err = pcall(function()
     loadstring(game:HttpGet(MainURL))()
 end)
@@ -327,6 +376,53 @@ elseif IsInGame() then
 
         task.wait(1)
     end
+end
+
+if game.PlaceId ~= LOBBY_PLACE_ID then
+    task.spawn(function()
+        local gameOverSince
+        local lastAttemptAt = -math.huge
+
+        while game.PlaceId ~= LOBBY_PLACE_ID do
+            local currentRep = GetRep()
+            local gameOver = currentRep and currentRep:GetAttribute("GameOver") == true
+
+            if gameOver and not IsLoading() then
+                gameOverSince = gameOverSince or os.clock()
+
+                if os.clock() - gameOverSince >= 10
+                    and os.clock() - lastAttemptAt >= 10 then
+
+                    lastAttemptAt = os.clock()
+                    local network = ReplicatedStorage:FindFirstChild("Network")
+                    local teleportFolder = network and network:FindFirstChild("Teleport")
+                    local backToLobby = teleportFolder and teleportFolder:FindFirstChild("RE:backToLobby")
+
+                    if backToLobby then
+                        pcall(function()
+                            backToLobby:FireServer()
+                        end)
+                    end
+
+                    task.wait(2)
+
+                    local latestRep = GetRep()
+                    if game.PlaceId ~= LOBBY_PLACE_ID
+                        and latestRep and latestRep:GetAttribute("GameOver") == true
+                        and not IsLoading() then
+                        pcall(function()
+                            TeleportService:Teleport(LOBBY_PLACE_ID, LocalPlayer)
+                        end)
+                    end
+                end
+            else
+                gameOverSince = nil
+                lastAttemptAt = -math.huge
+            end
+
+            task.wait(0.25)
+        end
+    end)
 end
 
 local ok, err = pcall(function()
