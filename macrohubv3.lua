@@ -368,6 +368,198 @@ function Library:Window(config)
         CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.Y
     }, main)
     create("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6)}, sidebar)
+
+    -- Global search for tabs and standard settings in this window.
+    local searchEntries = {}
+    local searchFocuses = {}
+    local searchHolder = round(create("Frame", {
+        Name = "TabSearch", Position = UDim2.fromOffset(12, 68),
+        Size = UDim2.fromOffset(176, 36), BorderSizePixel = 0
+    }, main), 8)
+    themed(searchHolder, "BackgroundColor3", "Input")
+    makeStroke(searchHolder)
+
+    local searchInput = create("TextBox", {
+        Name = "SearchBox", Text = "", PlaceholderText = "Search settings...",
+        ClearTextOnFocus = false, Font = Enum.Font.Gotham,
+        TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
+        BackgroundTransparency = 1, BorderSizePixel = 0,
+        Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -36, 1, 0)
+    }, searchHolder)
+    themed(searchInput, "TextColor3", "Text")
+    themed(searchInput, "PlaceholderColor3", "Sub")
+
+    local searchClear = create("TextButton", {
+        Name = "ClearSearch", Text = "×", Font = Enum.Font.GothamBold,
+        TextSize = 18, AutoButtonColor = false,
+        BackgroundTransparency = 1, BorderSizePixel = 0,
+        Position = UDim2.new(1, -29, 0, 0), Size = UDim2.fromOffset(25, 36),
+        Visible = false
+    }, searchHolder)
+    themed(searchClear, "TextColor3", "Sub")
+    listen(searchClear.MouseButton1Click, function() searchInput.Text = "" end)
+
+    local searchResults = create("ScrollingFrame", {
+        Name = "SearchResults", BackgroundTransparency = 1, BorderSizePixel = 0,
+        Position = UDim2.fromOffset(12, 110), Size = UDim2.new(0, 176, 1, -122),
+        ScrollBarThickness = 2, AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.Y,
+        Visible = false
+    }, main)
+    themed(searchResults, "ScrollBarImageColor3", "Accent")
+    create("UIListLayout", {
+        SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 5)
+    }, searchResults)
+
+    sidebar.Position = UDim2.fromOffset(12, 110)
+    sidebar.Size = UDim2.new(0, 176, 1, -122)
+
+    local function searchText(value)
+        return tostring(value or ""):lower():match("^%s*(.-)%s*$") or ""
+    end
+
+    local function focusSearchEntry(entry)
+        searchInput.Text = ""
+        window:SelectTab(entry.Tab)
+        if not entry.Frame or not entry.Frame.Parent then return end
+        task.defer(function()
+            task.wait()
+            if not alive or not entry.Frame.Parent or not entry.Tab.Page.Parent then return end
+            local page = entry.Tab.Page
+            local y = entry.Frame.AbsolutePosition.Y - page.AbsolutePosition.Y
+                + page.CanvasPosition.Y - 20
+            local maxY = math.max(0, page.AbsoluteCanvasSize.Y - page.AbsoluteSize.Y)
+            page.CanvasPosition = Vector2.new(0, math.clamp(y, 0, maxY))
+
+            local frame = entry.Frame
+            local focus = searchFocuses[frame]
+            if not focus then
+                local stroke = frame:FindFirstChildOfClass("UIStroke")
+                local created = stroke == nil
+                if created then
+                    stroke = create("UIStroke", {
+                        ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+                    }, frame)
+                end
+                focus = {
+                    Stroke = stroke, Created = created, Token = 0,
+                    Color = stroke.Color, Thickness = stroke.Thickness,
+                    Transparency = stroke.Transparency
+                }
+                searchFocuses[frame] = focus
+            end
+            focus.Token += 1
+            local token = focus.Token
+            if focus.Stroke.Parent then
+                focus.Stroke.Color = palette.Accent
+                focus.Stroke.Thickness = 2
+                focus.Stroke.Transparency = 0
+            end
+            task.delay(1.6, function()
+                if searchFocuses[frame] ~= focus or focus.Token ~= token then return end
+                searchFocuses[frame] = nil
+                if focus.Stroke and focus.Stroke.Parent then
+                    if focus.Created then
+                        focus.Stroke:Destroy()
+                    else
+                        focus.Stroke.Color = palette.Stroke
+                        focus.Stroke.Thickness = focus.Thickness
+                        focus.Stroke.Transparency = focus.Transparency
+                    end
+                end
+            end)
+        end)
+    end
+
+    local function renderSearchResults()
+        local query = searchText(searchInput.Text)
+        local searching = query ~= ""
+        searchClear.Visible = searching
+        sidebar.Visible = not searching
+        searchResults.Visible = searching
+        for _, child in ipairs(searchResults:GetChildren()) do
+            if child:IsA("GuiObject") then child:Destroy() end
+        end
+        searchResults.CanvasPosition = Vector2.new(0, 0)
+        if not searching then return end
+
+        local resultsCount = 0
+        local maxResults = 75
+        local function addResult(title, detail, entry)
+            if resultsCount >= maxResults then return end
+            resultsCount += 1
+            local result = round(create("TextButton", {
+                Name = "SearchResult", Text = "", AutoButtonColor = false,
+                BackgroundColor3 = palette.Surface, BackgroundTransparency = .1,
+                BorderSizePixel = 0, Size = UDim2.new(1, -4, 0, 48),
+                LayoutOrder = resultsCount
+            }, searchResults), 8)
+            create("TextLabel", {
+                Text = title, Font = Enum.Font.GothamBold, TextSize = 12,
+                TextColor3 = palette.Text, BackgroundTransparency = 1,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Position = UDim2.fromOffset(9, 6), Size = UDim2.new(1, -18, 0, 18)
+            }, result)
+            create("TextLabel", {
+                Text = detail, Font = Enum.Font.Gotham, TextSize = 10,
+                TextColor3 = palette.Sub, BackgroundTransparency = 1,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Position = UDim2.fromOffset(9, 25), Size = UDim2.new(1, -18, 0, 15)
+            }, result)
+            result.MouseButton1Click:Connect(function() focusSearchEntry(entry) end)
+        end
+
+        for _, tab in ipairs(tabs) do
+            if searchText(tab.Title):find(query, 1, true) then
+                addResult(tab.Title, "Tab", {Tab = tab})
+            end
+        end
+        for _, entry in ipairs(searchEntries) do
+            if entry.Frame and entry.Frame.Parent then
+                local name = entry.Title
+                if entry.TitleLabel and entry.TitleLabel.Parent then
+                    name = entry.TitleLabel.Text
+                end
+                if searchText(name):find(query, 1, true) then
+                    addResult(tostring(name), entry.Tab.Title .. " · " .. entry.Kind, entry)
+                end
+            end
+        end
+        if resultsCount == 0 then
+            create("TextLabel", {
+                Name = "NoSearchMatches", Text = "No matching settings",
+                TextColor3 = palette.Sub, Font = Enum.Font.Gotham,
+                TextSize = 12, BackgroundTransparency = 1,
+                Size = UDim2.new(1, -4, 0, 38),
+                TextWrapped = true, LayoutOrder = 1
+            }, searchResults)
+        end
+    end
+
+    local function registerSearchEntry(tab, kind, options, frame)
+        if not frame then return end
+        local title
+        if type(options) == "table" then
+            title = options.Title or options.Name or options.Text
+        else
+            title = options
+        end
+        title = tostring(title or "")
+        if title == "" then return end
+        local titleLabel = frame:FindFirstChild("TitleLabel", true)
+            or frame:FindFirstChildWhichIsA("TextLabel", true)
+        searchEntries[#searchEntries + 1] = {
+            Tab = tab, Kind = kind, Title = title,
+            TitleLabel = titleLabel, Frame = frame
+        }
+        if searchInput.Text ~= "" then renderSearchResults() end
+    end
+    listen(searchInput:GetPropertyChangedSignal("Text"), renderSearchResults)
+    listen(themeSignal.Event, function()
+        if searchInput.Text ~= "" then renderSearchResults() end
+    end)
     local content = create("Frame", {
         Name = "Content", Position = UDim2.fromOffset(202, 66),
         Size = UDim2.new(1, -216, 1, -77), BackgroundTransparency = 1
@@ -1024,6 +1216,28 @@ function Library:Window(config)
         end)
         handle:SetValue(handle.Value)
         return handle
+    end
+
+    -- Standard controls self-register for global search.
+    for _, kind in ipairs({
+        "Section", "Banner", "Label", "Button", "Toggle",
+        "Dropdown", "Textbox", "Slider"
+    }) do
+        local original = Tab[kind]
+        Tab[kind] = function(tab, options, ...)
+            local handle = original(tab, options, ...)
+            local frame = handle and handle.Instance and handle.Instance.Frame
+            registerSearchEntry(tab, kind, options, frame)
+            return handle
+        end
+    end
+    Tab.Input = Tab.Textbox
+
+    local createTab = window.Tab
+    function window:Tab(options)
+        local tab = createTab(self, options)
+        if searchInput.Text ~= "" then renderSearchResults() end
+        return tab
     end
     return window
 end
