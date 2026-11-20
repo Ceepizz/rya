@@ -1,0 +1,1124 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+local VirtualUser = game:GetService("VirtualUser")
+local LocalPlayer = Players.LocalPlayer
+
+-- ====================
+-- Persistent Configuration
+-- ====================
+local CONFIG_FILE = "NetAFish_Config.json"
+
+local Config = {
+    AutoThrowNet = false,
+    ReelCapacityPercent = 100,
+    AutoCollectPads = false,
+    AutoEquip = false,
+    AutoRebirth = false,
+    AutoBuyNet = false,
+    AutoBuyUpgrades = false,
+    AutoUpgradeFisherman = false,
+    AutoUpgradeSpear = false,
+    AutoUpgradeBoat = false,
+    AutoClaimContracts = false
+}
+
+local function loadConfig()
+    if isfile and isfile(CONFIG_FILE) then
+        local ok, content = pcall(readfile, CONFIG_FILE)
+        if ok and type(content) == "string" and #content > 0 then
+            local success, decoded = pcall(function()
+                return HttpService:JSONDecode(content)
+            end)
+            if success and type(decoded) == "table" then
+                if decoded.AutoBuyFishingUpgrades ~= nil and decoded.AutoBuyUpgrades == nil then
+                    decoded.AutoBuyUpgrades = decoded.AutoBuyFishingUpgrades
+                end
+                for k, v in pairs(decoded) do
+                    if Config[k] ~= nil then
+                        Config[k] = v
+                    end
+                end
+            end
+        end
+    end
+end
+
+local function saveConfig()
+    if writefile then
+        pcall(function()
+            writefile(CONFIG_FILE, HttpService:JSONEncode(Config))
+        end)
+    end
+end
+
+loadConfig()
+
+-- ====================
+-- Built-in Anti AFK & Auto Reconnect
+-- ====================
+local TeleportService = game:GetService("TeleportService")
+local GuiService = game:GetService("GuiService")
+local CoreGui = game:GetService("CoreGui")
+
+LocalPlayer.Idled:Connect(function()
+    pcall(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.zero)
+    end)
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(600)
+        pcall(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.zero)
+        end)
+    end
+end)
+
+local reconnecting = false
+local function handleReconnect()
+    if reconnecting then return end
+    reconnecting = true
+
+    task.wait(2)
+    while true do
+        pcall(function()
+            TeleportService:Teleport(game.PlaceId, LocalPlayer)
+        end)
+        task.wait(5)
+    end
+end
+
+GuiService.ErrorMessageChanged:Connect(function(msg)
+    if msg and #msg > 0 then
+        task.spawn(handleReconnect)
+    end
+end)
+
+pcall(function()
+    local promptGui = CoreGui:WaitForChild("RobloxPromptGui", 5)
+    local promptOverlay = promptGui and promptGui:WaitForChild("promptOverlay", 5)
+    if promptOverlay then
+        promptOverlay.ChildAdded:Connect(function(child)
+            if child.Name == "ErrorPrompt" then
+                task.spawn(handleReconnect)
+            end
+        end)
+    end
+end)
+
+-- ====================
+-- GUI Setup
+-- ====================
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Ceepizz/rya/refs/heads/main/macrohub.lua"))()
+
+local Window = Library:Window({
+    Title = "NET A FISH",
+    Theme = "Dark",
+    Config = {
+        Keybind = Enum.KeyCode.RightShift,
+        Size = UDim2.fromOffset(680, 520)
+    }
+})
+
+local AutomationTab = Window:Tab({
+    Title = "Automation",
+    Icon = "bot"
+})
+
+local Remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
+local BestSetupEvent = Remotes and Remotes:WaitForChild("BestSetup", 10)
+local RebirthRequestEvent = Remotes and Remotes:WaitForChild("RebirthRequest", 10)
+local BuyItemEvent = Remotes and Remotes:WaitForChild("BuyItem", 10)
+local CollectPadReqEvent = Remotes and Remotes:WaitForChild("CollectPadReq", 10)
+local ThrowNetEvent = Remotes and Remotes:WaitForChild("ThrowNet", 10)
+local ReelInEvent = Remotes and Remotes:WaitForChild("ReelIn", 10)
+local TackleRemote = Remotes and Remotes:WaitForChild("Tackle", 10)
+local ContractsRemote = Remotes and Remotes:WaitForChild("Contracts", 10)
+local ContractPingEvent = Remotes and Remotes:WaitForChild("ContractPing", 10)
+local HelperActionRemote = Remotes and Remotes:WaitForChild("HelperAction", 10)
+local SpearActionRemote = Remotes and Remotes:WaitForChild("SpearAction", 10)
+local BoatActionRemote = Remotes and Remotes:WaitForChild("BoatAction", 10)
+local FishingShared = require(ReplicatedStorage:WaitForChild("FishingShared", 10))
+
+-- Cached player data state
+local playerData = nil
+
+local function getPlayerData()
+    if not playerData then
+        local ok, data = pcall(function()
+            return Remotes.GetData:InvokeServer()
+        end)
+        if ok and type(data) == "table" then
+            playerData = data
+        end
+    end
+    return playerData
+end
+
+Remotes.DataUpdate.OnClientEvent:Connect(function(update)
+    if type(update) == "table" then
+        if not playerData then
+            playerData = update
+        else
+            for k, v in pairs(update) do
+                playerData[k] = v
+            end
+        end
+    end
+end)
+
+Remotes.CashUpdate.OnClientEvent:Connect(function(cash)
+    if playerData then
+        playerData.Cash = cash
+    end
+end)
+
+-- Base lookup
+local function getMyBase()
+    local map = workspace:FindFirstChild("Map")
+    local bases = map and map:FindFirstChild("Bases") or workspace:FindFirstChild("Bases")
+    if not bases then return nil end
+
+    for _, base in ipairs(bases:GetChildren()) do
+        if base:GetAttribute("OwnerUserId") == LocalPlayer.UserId then
+            return base
+        end
+    end
+    return nil
+end
+
+-- ====================
+-- Netting & Fishing
+-- ====================
+AutomationTab:Section({
+    Title = "Fishing & Netting"
+})
+
+local autoThrowNet = Config.AutoThrowNet
+local throwing = false
+
+local function getOptimalThrow()
+    local myBase = getMyBase()
+    local targetZ = 100.74
+    local targetOut = 13.9
+
+    if myBase then
+        local baseZ = myBase.PrimaryPart and myBase.PrimaryPart.Position.Z or myBase:GetPivot().Position.Z
+        if baseZ then
+            targetZ = baseZ
+        end
+
+        local n4 = 20
+        pcall(function()
+            local data = getPlayerData()
+            n4 = FishingShared.CastStats(data, FishingShared.EquippedBait(data)).reach
+        end)
+        local maxOut = FishingShared.NetMaxOut(n4)
+        if maxOut and maxOut > 0 then
+            targetOut = maxOut
+        end
+    end
+
+    return targetZ, targetOut
+end
+
+local reelCapacityPercent = Config.ReelCapacityPercent
+local checkingBait = false
+
+local function getBestBait(state)
+    local rebirths = state.rebirths or 0
+    local cash = state.cash or 0
+    local prices = state.prices or {}
+    local baits = state.baits or {}
+
+    if FishingShared.Baits then
+        for i = #FishingShared.Baits, 1, -1 do
+            local b = FishingShared.Baits[i]
+            local reqRebirth = b.Rebirth or 0
+            local price = prices[b.Id] or b.Cost or (1 / 0)
+            local owned = baits[b.Id] or 0
+
+            if rebirths >= reqRebirth then
+                if owned > 0 or cash >= price then
+                    return b.Id
+                end
+            end
+        end
+    end
+
+    return "Crumbs"
+end
+
+local function checkAndManageBait()
+    if checkingBait or not TackleRemote then return end
+    checkingBait = true
+
+    pcall(function()
+        local state = TackleRemote:InvokeServer("state")
+        if not state then return end
+
+        local bestBait = getBestBait(state)
+        local owned = state.baits and state.baits[bestBait] or 0
+        local equipped = state.bait
+
+        -- only buy 1 when no bait
+        if owned <= 0 then
+            local price = state.prices and state.prices[bestBait] or 0
+            if (state.cash or 0) >= price and price > 0 then
+                TackleRemote:InvokeServer("buyBait", bestBait, 1)
+                owned = 1
+                task.wait(0.2)
+            end
+        end
+
+        -- equip if owned and not currently equipped
+        if equipped ~= bestBait and owned > 0 then
+            TackleRemote:InvokeServer("equipBait", bestBait, nil)
+        end
+    end)
+
+    checkingBait = false
+end
+
+local function checkNetAndReel()
+    if not autoThrowNet or throwing then return end
+    local myBase = getMyBase()
+    if not myBase then return end
+
+    local netState = myBase:GetAttribute("NetState")
+    if netState == "Idle" and ThrowNetEvent then
+        throwing = true
+        checkAndManageBait()
+        local z, out = getOptimalThrow()
+        pcall(function()
+            ThrowNetEvent:FireServer(z, out)
+        end)
+        task.wait(1)
+        throwing = false
+    elseif (netState == "Fishing" or netState == "Out") and ReelInEvent then
+        local netCount = myBase:GetAttribute("NetCount") or 0
+        local netCap = myBase:GetAttribute("NetCap") or 1
+        local targetCount = math.max(1, math.floor(netCap * (reelCapacityPercent / 100)))
+
+        if netCount >= targetCount and netCount > 0 then
+            pcall(function()
+                ReelInEvent:FireServer()
+            end)
+            task.wait(1)
+        end
+    end
+end
+
+AutomationTab:Toggle({
+    Title = "Auto Throw & Reel Net",
+    Desc = "Equips best bait (buys when 0), throws net when idle, and reels at capacity",
+    Value = Config.AutoThrowNet,
+    Callback = function(state)
+        autoThrowNet = state
+        Config.AutoThrowNet = state
+        saveConfig()
+        if autoThrowNet then
+            task.spawn(checkNetAndReel)
+        end
+    end
+})
+
+AutomationTab:Slider({
+    Title = "Reel at Capacity",
+    Min = 10,
+    Max = 100,
+    Step = 5,
+    Value = Config.ReelCapacityPercent,
+    Suffix = "%",
+    Callback = function(val)
+        reelCapacityPercent = tonumber(val) or 100
+        Config.ReelCapacityPercent = reelCapacityPercent
+        saveConfig()
+    end
+})
+
+-- Listen for base NetState and NetCount changes
+task.spawn(function()
+    local myBase = getMyBase()
+    while not myBase do
+        task.wait(1)
+        myBase = getMyBase()
+    end
+
+    myBase:GetAttributeChangedSignal("NetState"):Connect(function()
+        if autoThrowNet then
+            task.spawn(checkNetAndReel)
+        end
+    end)
+
+    myBase:GetAttributeChangedSignal("NetCount"):Connect(function()
+        if autoThrowNet then
+            task.spawn(checkNetAndReel)
+        end
+    end)
+end)
+
+-- ====================
+-- Income & Pads
+-- ====================
+AutomationTab:Section({
+    Title = "Income & Collection"
+})
+
+local autoCollectPads = Config.AutoCollectPads
+local collectingPads = false
+
+local function collectAllPads()
+    if collectingPads then return end
+    collectingPads = true
+
+    local character = LocalPlayer.Character
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    local myBase = getMyBase()
+
+    if not hrp or not myBase or not CollectPadReqEvent then
+        collectingPads = false
+        return
+    end
+
+    local pedestals = myBase:FindFirstChild("Pedestals")
+    if not pedestals then
+        collectingPads = false
+        return
+    end
+
+    local originalCF = hrp.CFrame
+
+    for _, p in ipairs(pedestals:GetChildren()) do
+        if not autoCollectPads then break end
+        local slot = p:GetAttribute("Slot")
+        local open = p:GetAttribute("Open")
+        local collectModel = p:FindFirstChild("Collect")
+        local pad = collectModel and collectModel:FindFirstChild("Pad")
+
+        if open and pad and slot then
+            pcall(function()
+                hrp.CFrame = pad.CFrame + Vector3.new(0, 2.5, 0)
+                hrp.AssemblyLinearVelocity = Vector3.zero
+            end)
+            task.wait(0.6)
+            pcall(function()
+                CollectPadReqEvent:FireServer(slot)
+            end)
+            task.wait(0.2)
+        end
+    end
+
+    -- Return to starting position
+    pcall(function()
+        hrp.CFrame = originalCF
+        hrp.AssemblyLinearVelocity = Vector3.zero
+    end)
+
+    collectingPads = false
+end
+
+AutomationTab:Toggle({
+    Title = "Auto Collect Pads",
+    Desc = "Sweeps all active pedestal pads (0.8s delay) and returns to spot every 60s",
+    Value = Config.AutoCollectPads,
+    Callback = function(state)
+        autoCollectPads = state
+        Config.AutoCollectPads = state
+        saveConfig()
+        if autoCollectPads then
+            task.spawn(collectAllPads)
+        end
+    end
+})
+
+-- Pad timer loop: runs every 60 seconds
+task.spawn(function()
+    while true do
+        task.wait(60)
+        if autoCollectPads then
+            task.spawn(collectAllPads)
+        end
+    end
+end)
+
+-- ====================
+-- Equipment & Showcase
+-- ====================
+AutomationTab:Section({
+    Title = "Equipment & Showcase"
+})
+
+local function hasBetterFish()
+    local myBase = getMyBase()
+    if not myBase then return false end
+
+    local pedestals = myBase:FindFirstChild("Pedestals")
+    local showcase = myBase:FindFirstChild("ShowcaseFish")
+    if not pedestals or not showcase then return false end
+
+    local openPedestals = 0
+    for _, p in ipairs(pedestals:GetChildren()) do
+        if p:GetAttribute("Open") == true then
+            openPedestals += 1
+        end
+    end
+
+    local equippedFish = showcase:GetChildren()
+    local lowestEquippedIncome = math.huge
+
+    for _, slot in ipairs(equippedFish) do
+        local fishId = slot:GetAttribute("FishId")
+        local species = FishingShared.SpeciesById[fishId]
+        local size = slot:GetAttribute("BoneScale") or 1
+        local mutation = slot:GetAttribute("Mutation")
+        local mult = FishingShared.MutationMult and FishingShared.MutationMult(mutation) or 1
+        local val = species and math.floor(FishingShared.FishValue(species, size) * mult + 0.5) or 0
+        if val < lowestEquippedIncome then
+            lowestEquippedIncome = val
+        end
+    end
+
+    if #equippedFish == 0 then
+        lowestEquippedIncome = 0
+    end
+
+    local dataCacheModule = LocalPlayer:FindFirstChild("PlayerScripts") and LocalPlayer.PlayerScripts:FindFirstChild("DataCache")
+    local dataCache = dataCacheModule and require(dataCacheModule)
+    local cooler = dataCache and dataCache.cooler
+
+    if type(cooler) ~= "table" then
+        return false
+    end
+
+    local bestCoolerVal = 0
+    for _, stack in pairs(cooler) do
+        if type(stack) == "table" and (stack.n or 0) > 0 then
+            local fish = FishingShared.CoolerBest(stack)
+            if fish and (fish.v or 0) > bestCoolerVal then
+                bestCoolerVal = fish.v
+            end
+        end
+    end
+
+    if #equippedFish < openPedestals and bestCoolerVal > 0 then
+        return true
+    end
+
+    return bestCoolerVal > lowestEquippedIncome
+end
+
+local autoEquip = Config.AutoEquip
+local checkingEquip = false
+
+local function checkAndEquip()
+    if not autoEquip or checkingEquip then return end
+    checkingEquip = true
+
+    local shouldEquip = false
+    local ok, res = pcall(hasBetterFish)
+    if ok and res then
+        shouldEquip = true
+    end
+
+    if shouldEquip and BestSetupEvent then
+        pcall(function()
+            BestSetupEvent:FireServer()
+        end)
+        task.wait(1.5)
+    end
+
+    checkingEquip = false
+end
+
+AutomationTab:Toggle({
+    Title = "Auto Equip Best",
+    Desc = "Only equips when a higher value fish is found in cooler",
+    Value = Config.AutoEquip,
+    Callback = function(state)
+        autoEquip = state
+        Config.AutoEquip = state
+        saveConfig()
+        if autoEquip then
+            task.spawn(checkAndEquip)
+        end
+    end
+})
+
+LocalPlayer:GetAttributeChangedSignal("CoolerAlertAt"):Connect(function()
+    if autoEquip then
+        task.spawn(checkAndEquip)
+    end
+end)
+
+-- ====================
+-- Quests & Contracts
+-- ====================
+AutomationTab:Section({
+    Title = "Quests & Contracts"
+})
+
+local autoClaimContracts = Config.AutoClaimContracts
+local checkingContracts = false
+
+local function checkAndClaimContracts()
+    if not autoClaimContracts or checkingContracts or not ContractsRemote then return end
+    checkingContracts = true
+
+    pcall(function()
+        local data = getPlayerData()
+        local contracts = data and data.Contracts
+
+        if type(contracts) == "table" then
+            for slotIndex, c in ipairs(contracts) do
+                if not autoClaimContracts then break end
+                if type(c) == "table" and c.k ~= "wait" and (c.p or 0) >= (c.goal or 1e999) then
+                    local ok, res = pcall(function()
+                        return ContractsRemote:InvokeServer("claim", slotIndex)
+                    end)
+                    if ok and res and res.ok then
+                        if data and data.Contracts and data.Contracts[slotIndex] then
+                            data.Contracts[slotIndex].k = "wait"
+                        end
+                    end
+                    task.wait(0.3)
+                end
+            end
+        else
+            local res = ContractsRemote:InvokeServer("state")
+            if res and type(res.list) == "table" then
+                for slotIndex, c in ipairs(res.list) do
+                    if not autoClaimContracts then break end
+                    if type(c) == "table" and c.k ~= "wait" and c.done == true then
+                        ContractsRemote:InvokeServer("claim", slotIndex)
+                        task.wait(0.3)
+                    end
+                end
+            end
+        end
+    end)
+
+    checkingContracts = false
+end
+
+AutomationTab:Toggle({
+    Title = "Auto Claim Contracts",
+    Desc = "Automatically claims completed Quick, Medium, and Long contracts",
+    Value = Config.AutoClaimContracts,
+    Callback = function(state)
+        autoClaimContracts = state
+        Config.AutoClaimContracts = state
+        saveConfig()
+        if autoClaimContracts then
+            task.spawn(checkAndClaimContracts)
+        end
+    end
+})
+
+if ContractPingEvent then
+    ContractPingEvent.OnClientEvent:Connect(function()
+        if autoClaimContracts then
+            task.spawn(checkAndClaimContracts)
+        end
+    end)
+end
+
+-- ====================
+-- Progression & Upgrades
+-- ====================
+AutomationTab:Section({
+    Title = "Progression & Upgrades"
+})
+
+local autoRebirth = Config.AutoRebirth
+local checkingRebirth = false
+
+local function checkAndRebirth()
+    if not autoRebirth or checkingRebirth then return end
+    checkingRebirth = true
+
+    local data = getPlayerData()
+    if data and RebirthRequestEvent then
+        local currentRebirths = data.Rebirths or 0
+        local maxRebirth = FishingShared.MaxRebirth or 60
+
+        if currentRebirths < maxRebirth then
+            local canRebirth = false
+            local ok, can = pcall(FishingShared.CanRebirth, data)
+            if ok and can then
+                canRebirth = true
+            end
+
+            if canRebirth then
+                pcall(function()
+                    RebirthRequestEvent:FireServer()
+                end)
+                task.wait(2.5)
+                playerData = nil
+                getPlayerData()
+            end
+        end
+    end
+
+    checkingRebirth = false
+end
+
+AutomationTab:Toggle({
+    Title = "Auto Rebirth",
+    Desc = "Automatically rebirths whenever requirements are met",
+    Value = Config.AutoRebirth,
+    Callback = function(state)
+        autoRebirth = state
+        Config.AutoRebirth = state
+        saveConfig()
+        if autoRebirth then
+            task.spawn(checkAndRebirth)
+        end
+    end
+})
+
+local autoBuyNet = Config.AutoBuyNet
+local checkingNet = false
+
+local function checkAndBuyNet()
+    if not autoBuyNet or checkingNet then return end
+    checkingNet = true
+
+    local data = getPlayerData()
+    if data and BuyItemEvent then
+        local currentTier = data.NetTier or 1
+        local nextTier = currentTier + 1
+        local netDef = FishingShared.Nets[nextTier]
+
+        while netDef and autoBuyNet do
+            local rebirthOk = FishingShared.NetRebirthOk(data, nextTier)
+            local canAfford = (data.Cash or 0) >= netDef.Cost
+
+            if rebirthOk and canAfford then
+                pcall(function()
+                    BuyItemEvent:FireServer("Net", nextTier)
+                end)
+                task.wait(0.5)
+
+                data.Cash = data.Cash - netDef.Cost
+                data.NetTier = nextTier
+                currentTier = nextTier
+                nextTier = currentTier + 1
+                netDef = FishingShared.Nets[nextTier]
+            else
+                break
+            end
+        end
+    end
+
+    checkingNet = false
+end
+
+AutomationTab:Toggle({
+    Title = "Auto Buy Best Net",
+    Desc = "Purchases the next net tier when unlocked",
+    Value = Config.AutoBuyNet,
+    Callback = function(state)
+        autoBuyNet = state
+        Config.AutoBuyNet = state
+        saveConfig()
+        if autoBuyNet then
+            task.spawn(checkAndBuyNet)
+        end
+    end
+})
+
+local autoBuyUpgrades = Config.AutoBuyUpgrades
+local checkingUpgrades = false
+
+local function checkAndBuyUpgrades()
+    if not autoBuyUpgrades or checkingUpgrades then return end
+    checkingUpgrades = true
+
+    local data = getPlayerData()
+    if data and BuyItemEvent and FishingShared.Upgrades then
+        local candidates = {}
+        for _, u in ipairs(FishingShared.Upgrades) do
+            -- Includes both Fishing and Market tabs
+            if (u.Tab == "Fishing" or u.Tab == "Market") and not u.Hidden then
+                local curLevel = data.Upgrades and data.Upgrades[u.Id] or 0
+                if curLevel < u.Max then
+                    local okLevel = false
+                    pcall(function()
+                        okLevel = FishingShared.UpgradeLevelOk(data, u, curLevel + 1)
+                    end)
+                    local cost = FishingShared.UpgradeCost(u.Id, curLevel)
+                    if okLevel and (data.Cash or 0) >= cost then
+                        table.insert(candidates, {
+                            id = u.Id,
+                            cost = cost,
+                            curLevel = curLevel
+                        })
+                    end
+                end
+            end
+        end
+
+        table.sort(candidates, function(a, b)
+            return a.cost < b.cost
+        end)
+
+        for _, item in ipairs(candidates) do
+            if not autoBuyUpgrades then break end
+            if (data.Cash or 0) >= item.cost then
+                pcall(function()
+                    BuyItemEvent:FireServer("Upgrade", item.id)
+                end)
+                data.Cash = data.Cash - item.cost
+                if not data.Upgrades then data.Upgrades = {} end
+                data.Upgrades[item.id] = item.curLevel + 1
+                task.wait(0.12)
+            end
+        end
+    end
+
+    checkingUpgrades = false
+end
+
+AutomationTab:Toggle({
+    Title = "Auto Buy Upgrades",
+    Desc = "Purchases unlocked Fishing & Market upgrades",
+    Value = Config.AutoBuyUpgrades,
+    Callback = function(state)
+        autoBuyUpgrades = state
+        Config.AutoBuyUpgrades = state
+        saveConfig()
+        if autoBuyUpgrades then
+            task.spawn(checkAndBuyUpgrades)
+        end
+    end
+})
+
+local autoUpgradeFisherman = Config.AutoUpgradeFisherman
+local checkingFisherman = false
+
+local function checkAndUpgradeFisherman()
+    if not autoUpgradeFisherman or checkingFisherman or not HelperActionRemote then return end
+    checkingFisherman = true
+
+    local data = getPlayerData()
+    local helperUpgrades = FishingShared and FishingShared.Helper and FishingShared.Helper.Upgrades
+
+    if data and helperUpgrades then
+        local candidates = {}
+        for _, u in ipairs(helperUpgrades) do
+            local curLevel = data.Helper and data.Helper[u.Id] or 0
+            if curLevel < (u.Max or math.huge) then
+                local okLevel = false
+                pcall(function()
+                    okLevel = FishingShared.HelperLevelOk(data, u, curLevel + 1)
+                end)
+                local cost = FishingShared.HelperCost(u.Id, curLevel)
+                if okLevel and (data.Cash or 0) >= cost then
+                    table.insert(candidates, {
+                        id = u.Id,
+                        cost = cost,
+                        curLevel = curLevel
+                    })
+                end
+            end
+        end
+
+        table.sort(candidates, function(a, b)
+            return a.cost < b.cost
+        end)
+
+        for _, item in ipairs(candidates) do
+            if not autoUpgradeFisherman then break end
+            if (data.Cash or 0) >= item.cost then
+                local ok, res = pcall(function()
+                    return HelperActionRemote:InvokeServer("buy", item.id)
+                end)
+                if ok and res and res.ok then
+                    data.Cash = data.Cash - item.cost
+                    if not data.Helper then data.Helper = {} end
+                    if res.helper then
+                        data.Helper = res.helper
+                    else
+                        data.Helper[item.id] = item.curLevel + 1
+                    end
+                end
+                task.wait(0.12)
+            end
+        end
+    end
+
+    checkingFisherman = false
+end
+
+AutomationTab:Toggle({
+    Title = "Auto Upgrade Fisherman",
+    Desc = "Purchases unlocked Fisherman helper upgrades",
+    Value = Config.AutoUpgradeFisherman,
+    Callback = function(state)
+        autoUpgradeFisherman = state
+        Config.AutoUpgradeFisherman = state
+        saveConfig()
+        if autoUpgradeFisherman then
+            task.spawn(checkAndUpgradeFisherman)
+        end
+    end
+})
+
+local autoUpgradeSpear = Config.AutoUpgradeSpear
+local checkingSpear = false
+
+local function checkAndUpgradeSpear()
+    if not autoUpgradeSpear or checkingSpear or not SpearActionRemote then return end
+    checkingSpear = true
+
+    local data = getPlayerData()
+    local spearUpgrades = FishingShared and FishingShared.Spear and FishingShared.Spear.Upgrades
+
+    if data and spearUpgrades then
+        local candidates = {}
+        for _, u in ipairs(spearUpgrades) do
+            local curLevel = data.Spear and data.Spear[u.Id] or 0
+            if curLevel < (u.Max or math.huge) then
+                local okLevel = false
+                pcall(function()
+                    okLevel = FishingShared.HelperLevelOk(data, u, curLevel + 1)
+                end)
+                local cost = FishingShared.SpearCost(u.Id, curLevel)
+                if okLevel and (data.Cash or 0) >= cost then
+                    table.insert(candidates, {
+                        id = u.Id,
+                        cost = cost,
+                        curLevel = curLevel
+                    })
+                end
+            end
+        end
+
+        table.sort(candidates, function(a, b)
+            return a.cost < b.cost
+        end)
+
+        for _, item in ipairs(candidates) do
+            if not autoUpgradeSpear then break end
+            if (data.Cash or 0) >= item.cost then
+                local ok, res = pcall(function()
+                    return SpearActionRemote:InvokeServer("buy", item.id)
+                end)
+                if ok and res and res.ok then
+                    data.Cash = data.Cash - item.cost
+                    if not data.Spear then data.Spear = {} end
+                    if res.spear then
+                        data.Spear = res.spear
+                    else
+                        data.Spear[item.id] = item.curLevel + 1
+                    end
+                end
+                task.wait(0.12)
+            end
+        end
+    end
+
+    checkingSpear = false
+end
+
+AutomationTab:Toggle({
+    Title = "Auto Upgrade Spear Gun",
+    Desc = "Purchases unlocked Spear Gun upgrades",
+    Value = Config.AutoUpgradeSpear,
+    Callback = function(state)
+        autoUpgradeSpear = state
+        Config.AutoUpgradeSpear = state
+        saveConfig()
+        if autoUpgradeSpear then
+            task.spawn(checkAndUpgradeSpear)
+        end
+    end
+})
+
+local autoUpgradeBoat = Config.AutoUpgradeBoat
+local checkingBoat = false
+
+local function checkAndUpgradeBoat()
+    if not autoUpgradeBoat or checkingBoat or not BoatActionRemote then return end
+    checkingBoat = true
+
+    local data = getPlayerData()
+    local boatShared = FishingShared and FishingShared.Boat
+
+    if data and boatShared then
+        local boatData = data.Boat or {}
+        local curHull = boatData.Hull or 0
+        local nextHull = curHull + 1
+        local hullDef = boatShared.Hulls and boatShared.Hulls[nextHull]
+
+        -- 1. Check Hull upgrade
+        if hullDef then
+            local rebirthOk = (data.Rebirths or 0) >= (hullDef.Rebirth or 0)
+            local canAfford = (data.Cash or 0) >= (hullDef.Cost or 0)
+
+            if rebirthOk and canAfford then
+                local ok, res = pcall(function()
+                    return BoatActionRemote:InvokeServer("buy", "Hull")
+                end)
+                if ok and res and res.ok then
+                    data.Cash = data.Cash - hullDef.Cost
+                    if not data.Boat then data.Boat = {} end
+                    if res.boat then
+                        data.Boat = res.boat
+                    else
+                        data.Boat.Hull = nextHull
+                    end
+                    curHull = nextHull
+                end
+                task.wait(0.2)
+            end
+        end
+
+        -- 2. Check other boat upgrades (Trawl, Engine, Sonar, Cold, Figure)
+        if (curHull > 0) and boatShared.Upgrades then
+            local candidates = {}
+            for _, u in ipairs(boatShared.Upgrades) do
+                local curLvl = data.Boat and data.Boat[u.Id] or 0
+                local cost = FishingShared.BoatCost(u.Id, curLvl)
+                local isBlocked = false
+
+                if u.Extra then
+                    if curLvl >= (u.Max or 10) then
+                        isBlocked = true
+                    else
+                        local okExtra = false
+                        pcall(function()
+                            okExtra = FishingShared.ExtraOk(data, u, curLvl + 1)
+                        end)
+                        isBlocked = not okExtra
+                    end
+                else
+                    local maxLvl = 0
+                    pcall(function()
+                        maxLvl = FishingShared.BoatMaxLevel(curHull)
+                    end)
+                    isBlocked = curLvl >= maxLvl
+                end
+
+                if not isBlocked and (data.Cash or 0) >= cost then
+                    table.insert(candidates, {
+                        id = u.Id,
+                        cost = cost,
+                        curLevel = curLvl
+                    })
+                end
+            end
+
+            table.sort(candidates, function(a, b)
+                return a.cost < b.cost
+            end)
+
+            for _, item in ipairs(candidates) do
+                if not autoUpgradeBoat then break end
+                if (data.Cash or 0) >= item.cost then
+                    local ok, res = pcall(function()
+                        return BoatActionRemote:InvokeServer("buy", item.id)
+                    end)
+                    if ok and res and res.ok then
+                        data.Cash = data.Cash - item.cost
+                        if not data.Boat then data.Boat = {} end
+                        if res.boat then
+                            data.Boat = res.boat
+                        else
+                            data.Boat[item.id] = item.curLevel + 1
+                        end
+                    end
+                    task.wait(0.12)
+                end
+            end
+        end
+    end
+
+    checkingBoat = false
+end
+
+AutomationTab:Toggle({
+    Title = "Auto Upgrade Boat",
+    Desc = "Purchases unlocked Boat hulls and upgrades",
+    Value = Config.AutoUpgradeBoat,
+    Callback = function(state)
+        autoUpgradeBoat = state
+        Config.AutoUpgradeBoat = state
+        saveConfig()
+        if autoUpgradeBoat then
+            task.spawn(checkAndUpgradeBoat)
+        end
+    end
+})
+
+-- Fast background check loop
+task.spawn(function()
+    while true do
+        if autoThrowNet then
+            checkAndManageBait()
+            checkNetAndReel()
+        end
+        if autoEquip then
+            checkAndEquip()
+        end
+        if autoBuyNet then
+            checkAndBuyNet()
+        end
+        if autoBuyUpgrades then
+            checkAndBuyUpgrades()
+        end
+        if autoUpgradeFisherman then
+            checkAndUpgradeFisherman()
+        end
+        if autoUpgradeSpear then
+            checkAndUpgradeSpear()
+        end
+        if autoUpgradeBoat then
+            checkAndUpgradeBoat()
+        end
+        if autoRebirth then
+            checkAndRebirth()
+        end
+        if autoClaimContracts then
+            checkAndClaimContracts()
+        end
+        task.wait(1.5)
+    end
+end)
+
+-- Initial triggers for saved enabled configs
+if autoThrowNet then
+    task.spawn(checkNetAndReel)
+end
+if autoCollectPads then
+    task.spawn(collectAllPads)
+end
+if autoEquip then
+    task.spawn(checkAndEquip)
+end
+if autoBuyNet then
+    task.spawn(checkAndBuyNet)
+end
+if autoBuyUpgrades then
+    task.spawn(checkAndBuyUpgrades)
+end
+if autoUpgradeFisherman then
+    task.spawn(checkAndUpgradeFisherman)
+end
+if autoUpgradeSpear then
+    task.spawn(checkAndUpgradeSpear)
+end
+if autoUpgradeBoat then
+    task.spawn(checkAndUpgradeBoat)
+end
+if autoRebirth then
+    task.spawn(checkAndRebirth)
+end
+if autoClaimContracts then
+    task.spawn(checkAndClaimContracts)
+end
