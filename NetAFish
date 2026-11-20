@@ -55,12 +55,15 @@ end
 loadConfig()
 
 -- ====================
--- Built-in Anti AFK & Auto Reconnect
+-- Built-in Anti AFK, Anti In-Game AFK Mode & Auto Reconnect
 -- ====================
 local TeleportService = game:GetService("TeleportService")
 local GuiService = game:GetService("GuiService")
 local CoreGui = game:GetService("CoreGui")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local RunService = game:GetService("RunService")
 
+-- 1. Anti-Idle Disconnect (Roblox 20-min kick)
 LocalPlayer.Idled:Connect(function()
     pcall(function()
         VirtualUser:CaptureController()
@@ -76,6 +79,63 @@ task.spawn(function()
             VirtualUser:ClickButton2(Vector2.zero)
         end)
     end
+end)
+
+-- 2. Anti In-Game AFK Mode Screen
+local function dismissInGameAFK()
+    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    local afkScreen = playerGui and playerGui:FindFirstChild("AFKModeScreen")
+    if afkScreen and afkScreen.Enabled then
+        local afkBack = afkScreen:FindFirstChild("AFKBack", true)
+        if afkBack and typeof(firesignal) == "function" then
+            firesignal(afkBack.MouseButton1Click)
+        else
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.RightControl, false, game)
+            task.wait(0.02)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.RightControl, false, game)
+        end
+    end
+    if LocalPlayer:GetAttribute("AFKScreen") then
+        LocalPlayer:SetAttribute("AFKScreen", nil)
+        pcall(function()
+            RunService:Set3dRenderingEnabled(true)
+            local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+            local afkState = remotes and remotes:FindFirstChild("AFKState")
+            if afkState then
+                afkState:FireServer(false)
+            end
+        end)
+    end
+end
+
+-- Refresh game's AFKModeClient activity timer every 60s so 300s AFK timer never triggers
+task.spawn(function()
+    while true do
+        task.wait(60)
+        pcall(function()
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.RightControl, false, game)
+            task.wait(0.02)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.RightControl, false, game)
+        end)
+    end
+end)
+
+-- Instant dismiss watcher
+task.spawn(function()
+    local playerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
+    local afkScreen = playerGui and playerGui:WaitForChild("AFKModeScreen", 10)
+    if afkScreen then
+        afkScreen:GetPropertyChangedSignal("Enabled"):Connect(function()
+            if afkScreen.Enabled then
+                task.defer(dismissInGameAFK)
+            end
+        end)
+    end
+    LocalPlayer:GetAttributeChangedSignal("AFKScreen"):Connect(function()
+        if LocalPlayer:GetAttribute("AFKScreen") then
+            task.defer(dismissInGameAFK)
+        end
+    end)
 end)
 
 local reconnecting = false
