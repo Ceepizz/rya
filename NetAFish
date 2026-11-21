@@ -1288,20 +1288,20 @@ local function solveMath(text)
         return nil
     end
 
-    -- 1. Try parenthesized explanation first (e.g. "30² (30 × 30)" -> "30 × 30")
+    -- 1. Always evaluate full expression first (e.g. (36 + 54) * 10 = 900)
+    local fullAns = evaluate(expr)
+    if fullAns then return fullAns end
+
+    -- 2. Fallback for hint-style strings (e.g. "30² (30 × 30)" where both terms together cause syntax error)
     local parenthesized = expr:match("%((.-)%)")
     if parenthesized then
         local ans = evaluate(parenthesized)
         if ans then return ans end
     end
 
-    -- 2. Try stripped expression (e.g. "30²" from "30² (30 × 30)")
+    -- 3. Try stripped expression
     local stripped = expr:gsub("%b()", "")
-    local ans = evaluate(stripped)
-    if ans then return ans end
-
-    -- 3. Fallback to raw expression
-    return evaluate(expr)
+    return evaluate(stripped)
 end
 
 if GlobalChatEvent then
@@ -1558,21 +1558,16 @@ task.spawn(function()
 end)
 
 AutomationTab:Toggle({
-    Title = "Auto Shoot Boss & Turret Mode",
-    Desc = "Auto enters Turret Mode when Megalodon/Bloop spawns, auto aims & rapid-fires, then returns to fishing",
+    Title = "Auto Boss (Turret & Fire)",
+    Desc = "Auto enters Turret Mode when Megalodon/Bloop arrives, aims & fires, then returns to fishing",
     Value = Config.AutoShootBoss,
     Callback = function(state)
         autoShootBoss = state
         Config.AutoShootBoss = state
         saveConfig()
-    end
-})
-
-AutomationTab:Button({
-    Title = "Manual Enter Turret Mode (Press E)",
-    Desc = "Instantly teleports to your base Spear Gun and activates Turret Mode (press E)",
-    Callback = function()
-        enterTurretMode()
+        if state and ((workspace:GetAttribute("MegActive") == true) or (workspace:GetAttribute("BloopActive") == true)) then
+            task.spawn(enterTurretMode)
+        end
     end
 })
 
