@@ -2022,6 +2022,164 @@ AutomationTab:Toggle({
     end
 })
 
+-- ====================
+-- Server & Utility
+-- ====================
+AutomationTab:Section({
+    Title = "Server & Utility"
+})
+
+local hopping = false
+local hopButton = nil
+
+local function hopToLowestServer()
+    if hopping then return end
+    hopping = true
+
+    if hopButton and hopButton.SetText then
+        hopButton:SetText("Searching...")
+    end
+
+    task.spawn(function()
+        local placeId = game.PlaceId
+        local currentJobId = game.JobId
+        local cursor = ""
+        local lowestServer = nil
+        local minPlayers = math.huge
+        local attempts = 0
+        local maxPages = 4
+
+        while attempts < maxPages do
+            attempts += 1
+            local url = string.format("https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Asc&limit=100%s",
+                tostring(placeId),
+                (cursor and cursor ~= "" and ("&cursor=" .. cursor) or ""))
+
+            local rawBody = nil
+            pcall(function()
+                if typeof(request) == "function" then
+                    local res = request({Url = url, Method = "GET"})
+                    rawBody = res and res.Body
+                elseif typeof(http_request) == "function" then
+                    local res = http_request({Url = url, Method = "GET"})
+                    rawBody = res and res.Body
+                elseif typeof(syn) == "table" and type(syn.request) == "function" then
+                    local res = syn.request({Url = url, Method = "GET"})
+                    rawBody = res and res.Body
+                else
+                    rawBody = game:HttpGet(url)
+                end
+            end)
+
+            if rawBody and #rawBody > 0 then
+                local decodeOk, data = pcall(function()
+                    return HttpService:JSONDecode(rawBody)
+                end)
+
+                if decodeOk and data and type(data.data) == "table" then
+                    for _, s in ipairs(data.data) do
+                        if type(s) == "table" and s.id and s.id ~= currentJobId then
+                            local playing = tonumber(s.playing) or 0
+                            local maxPlayers = tonumber(s.maxPlayers) or 8
+                            if playing >= 1 and playing < maxPlayers then
+                                if playing < minPlayers then
+                                    minPlayers = playing
+                                    lowestServer = s
+                                    if minPlayers <= 2 then
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                    if lowestServer and minPlayers <= 2 then
+                        break
+                    end
+
+                    cursor = data.nextPageCursor
+                    if not cursor or cursor == "" or cursor == "null" then
+                        break
+                    end
+                else
+                    break
+                end
+            else
+                break
+            end
+            task.wait(0.25)
+        end
+
+        if lowestServer and lowestServer.id then
+            if hopButton and hopButton.SetText then
+                hopButton:SetText(string.format("Found (%d p)! Hopping...", minPlayers))
+            end
+
+            pcall(function()
+                local qot = (typeof(syn) == "table" and syn.queue_on_teleport)
+                    or (typeof(queue_on_teleport) == "function" and queue_on_teleport)
+                    or (typeof(fluxus) == "table" and fluxus.queue_on_teleport)
+                if qot then
+                    qot([[loadstring(game:HttpGet("https://raw.githubusercontent.com/Ceepizz/rya/main/NetAFish"))()]])
+                end
+            end)
+
+            task.wait(0.5)
+            local teleportSuccess = false
+            for _ = 1, 3 do
+                local ok = pcall(function()
+                    TeleportService:TeleportToPlaceInstance(placeId, lowestServer.id, LocalPlayer)
+                end)
+                if ok then
+                    teleportSuccess = true
+                    break
+                end
+                task.wait(2)
+            end
+
+            if not teleportSuccess then
+                if hopButton and hopButton.SetText then
+                    hopButton:SetText("Teleport Failed")
+                end
+                task.wait(2)
+                if hopButton and hopButton.SetText then
+                    hopButton:SetText("Hop Lowest")
+                end
+                hopping = false
+            end
+        else
+            if hopButton and hopButton.SetText then
+                hopButton:SetText("No Server Found")
+            end
+            task.wait(2)
+            if hopButton and hopButton.SetText then
+                hopButton:SetText("Hop Lowest")
+            end
+            hopping = false
+        end
+    end)
+end
+
+getgenv().HopLowestServer = hopToLowestServer
+
+hopButton = AutomationTab:Button({
+    Title = "Server Hop (Lowest)",
+    Desc = "Finds and teleports to the public server with the lowest player count",
+    Text = "Hop Lowest",
+    Callback = function()
+        hopToLowestServer()
+    end
+})
+
+TeleportService.TeleportInitFailed:Connect(function(player)
+    if player == LocalPlayer then
+        hopping = false
+        if hopButton and hopButton.SetText then
+            hopButton:SetText("Hop Lowest")
+        end
+    end
+end)
+
 -- Fast background check loop
 task.spawn(function()
     while true do
