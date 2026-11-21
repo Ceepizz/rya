@@ -628,6 +628,7 @@ AutomationTab:Section({
 
 local autoClaimContracts = Config.AutoClaimContracts
 local checkingContracts = false
+local contractTimers = {}
 
 local function checkAndClaimContracts()
     if not autoClaimContracts or checkingContracts or not ContractsRemote then return end
@@ -638,13 +639,15 @@ local function checkAndClaimContracts()
         local contracts = data and data.Contracts
 
         if type(contracts) == "table" then
-            for slotIndex, c in ipairs(contracts) do
+            for slotIndex = 1, 3 do
+                local c = contracts[slotIndex]
                 if not autoClaimContracts then break end
                 if type(c) == "table" and c.k ~= "wait" and (c.p or 0) >= (c.goal or 1e999) then
                     local ok, res = pcall(function()
                         return ContractsRemote:InvokeServer("claim", slotIndex)
                     end)
                     if ok and res and res.ok then
+                        contractTimers[slotIndex] = nil
                         if data and data.Contracts and data.Contracts[slotIndex] then
                             data.Contracts[slotIndex].k = "wait"
                         end
@@ -652,14 +655,48 @@ local function checkAndClaimContracts()
                     task.wait(0.3)
                 end
             end
+
+            for slotIndex = 1, 3 do
+                local c = contracts[slotIndex]
+                if type(c) == "table" and c.k ~= "wait" and not c.done and ((c.p or 0) < (c.goal or 1e999)) then
+                    if not contractTimers[slotIndex] then
+                        contractTimers[slotIndex] = os.clock()
+                    elseif os.clock() - contractTimers[slotIndex] >= 600 then
+                        pcall(function()
+                            ContractsRemote:InvokeServer("reroll", slotIndex)
+                        end)
+                        contractTimers[slotIndex] = os.clock()
+                    end
+                else
+                    contractTimers[slotIndex] = nil
+                end
+            end
         else
             local res = ContractsRemote:InvokeServer("state")
             if res and type(res.list) == "table" then
-                for slotIndex, c in ipairs(res.list) do
+                for slotIndex = 1, 3 do
+                    local c = res.list[slotIndex]
                     if not autoClaimContracts then break end
                     if type(c) == "table" and c.k ~= "wait" and c.done == true then
                         ContractsRemote:InvokeServer("claim", slotIndex)
+                        contractTimers[slotIndex] = nil
                         task.wait(0.3)
+                    end
+                end
+
+                for slotIndex = 1, 3 do
+                    local c = res.list[slotIndex]
+                    if type(c) == "table" and c.k ~= "wait" and not c.done then
+                        if not contractTimers[slotIndex] then
+                            contractTimers[slotIndex] = os.clock()
+                        elseif os.clock() - contractTimers[slotIndex] >= 600 then
+                            pcall(function()
+                                ContractsRemote:InvokeServer("reroll", slotIndex)
+                            end)
+                            contractTimers[slotIndex] = os.clock()
+                        end
+                    else
+                        contractTimers[slotIndex] = nil
                     end
                 end
             end
@@ -679,6 +716,8 @@ AutomationTab:Toggle({
         saveConfig()
         if autoClaimContracts then
             task.spawn(checkAndClaimContracts)
+        else
+            table.clear(contractTimers)
         end
     end
 })
