@@ -1744,11 +1744,17 @@ local function stepMiniGame()
     -- 1. Auto-collect results / rewards
     local collectBtn = miniGameGui:FindFirstChild("Collect", true)
     if collectBtn and collectBtn:IsA("GuiButton") and collectBtn.Visible then
-        if os.clock() - lastCollectClick >= 1.0 then
+        if os.clock() - lastCollectClick >= 0.8 then
             lastCollectClick = os.clock()
             pcall(function()
                 if typeof(firesignal) == "function" then
                     firesignal(collectBtn.MouseButton1Click)
+                    firesignal(collectBtn.Activated)
+                end
+                if typeof(getconnections) == "function" then
+                    for _, c in ipairs(getconnections(collectBtn.MouseButton1Click)) do
+                        pcall(function() c:Fire() end)
+                    end
                 end
             end)
         end
@@ -1760,21 +1766,36 @@ local function stepMiniGame()
     if playBtn and playBtn:IsA("GuiButton") and playBtn.Visible then
         local window = playBtn.Parent and playBtn.Parent.Parent
         if window and window:IsA("GuiObject") and window.Visible then
-            if os.clock() - lastInviteAction >= 1.0 then
+            if os.clock() - lastInviteAction >= 0.8 then
                 lastInviteAction = os.clock()
                 task.spawn(function()
+                    -- Force selection of DiffExtreme
                     local diffExtreme = miniGameGui:FindFirstChild("DiffExtreme", true)
-                    if diffExtreme and diffExtreme:IsA("GuiButton") and diffExtreme.Visible then
+                    if diffExtreme then
                         pcall(function()
                             if typeof(firesignal) == "function" then
                                 firesignal(diffExtreme.MouseButton1Click)
+                                firesignal(diffExtreme.Activated)
+                            end
+                            if typeof(getconnections) == "function" then
+                                for _, c in ipairs(getconnections(diffExtreme.MouseButton1Click)) do
+                                    pcall(function() c:Fire() end)
+                                end
                             end
                         end)
-                        task.wait(0.15)
+                        task.wait(0.12)
                     end
+
+                    -- Click PlayButton
                     pcall(function()
                         if typeof(firesignal) == "function" then
                             firesignal(playBtn.MouseButton1Click)
+                            firesignal(playBtn.Activated)
+                        end
+                        if typeof(getconnections) == "function" then
+                            for _, c in ipairs(getconnections(playBtn.MouseButton1Click)) do
+                                pcall(function() c:Fire() end)
+                            end
                         end
                     end)
                 end)
