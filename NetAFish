@@ -1650,6 +1650,73 @@ local function triggerSpotSwing(idx, spot)
     end
 end
 
+local function getLuresSequence(miniGameGui)
+    local bait1 = miniGameGui:FindFirstChild("Bait1", true)
+    if bait1 and typeof(getconnections) == "function" and typeof(getupvalues) == "function" then
+        local conns = getconnections(bait1.MouseButton1Click)
+        if #conns == 0 then
+            conns = getconnections(bait1.MouseButton1Down)
+        end
+        for _, c in ipairs(conns) do
+            local fn = c.Function
+            if fn then
+                local ups1 = getupvalues(fn)
+                for _, u1 in pairs(ups1) do
+                    if type(u1) == "function" then
+                        local ups2 = getupvalues(u1)
+                        for _, u2 in pairs(ups2) do
+                            if type(u2) == "table" and #u2 >= 3 then
+                                local valid = true
+                                for _, n in ipairs(u2) do
+                                    if type(n) ~= "number" or n < 1 or n > 4 then
+                                        valid = false
+                                        break
+                                    end
+                                end
+                                if valid then return u2 end
+                            end
+                        end
+                    elseif type(u1) == "table" and #u1 >= 3 then
+                        local valid = true
+                        for _, n in ipairs(u1) do
+                            if type(n) ~= "number" or n < 1 or n > 4 then
+                                valid = false
+                                break
+                            end
+                        end
+                        if valid then return u1 end
+                    end
+                end
+            end
+        end
+    end
+
+    if typeof(getgc) == "function" and typeof(getupvalues) == "function" then
+        for _, fn in ipairs(getgc()) do
+            if type(fn) == "function" and (typeof(islclosure) ~= "function" or islclosure(fn)) then
+                local info = debug.getinfo(fn)
+                if info and info.source and info.source:find("MiniGameClient") then
+                    local ups = getupvalues(fn)
+                    for _, upVal in pairs(ups) do
+                        if type(upVal) == "table" and #upVal >= 3 then
+                            local valid = true
+                            for _, n in ipairs(upVal) do
+                                if type(n) ~= "number" or n < 1 or n > 4 then
+                                    valid = false
+                                    break
+                                end
+                            end
+                            if valid then return upVal end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return nil
+end
+
 local function stepMiniGame()
     if not autoMiniGame then return end
 
@@ -1771,149 +1838,87 @@ local function stepMiniGame()
 
     -- 5. Auto-solve Bait Memory (Lures)
     if not luresRunning then
-        local titleLabel = miniGameGui:FindFirstChild("Title", true) or miniGameGui:FindFirstChild("Header", true)
         local isLures = false
-        if titleLabel and titleLabel:IsA("TextLabel") then
-            local t = titleLabel.Text:upper()
-            if t:find("BAIT") or t:find("MEMORY") or t:find("LURE") then
-                isLures = true
-            end
-        end
-        if not isLures then
-            for _, desc in ipairs(miniGameGui:GetDescendants()) do
-                if desc:IsA("TextLabel") and desc.Visible and (desc.Text:find("BAIT MEMORY") or desc.Text:find("Bait Memory")) then
+        local turnLabel = nil
+
+        for _, desc in ipairs(miniGameGui:GetDescendants()) do
+            if desc:IsA("TextLabel") and desc.Visible then
+                local txt = desc.Text
+                if txt:find("BAIT MEMORY") or txt:find("Bait Memory") then
                     isLures = true
-                    break
+                end
+                if txt:find("YOUR TURN") then
+                    turnLabel = desc
                 end
             end
         end
 
-        if isLures then
-            local area = miniGameGui:FindFirstChild("Area", true) or miniGameGui
-            local buttons = {}
-            for _, desc in ipairs(area:GetDescendants()) do
-                if desc:IsA("GuiButton") and desc.Visible then
-                    local n = desc.Name
-                    if not n:find("Diff") and not n:find("Play") and not n:find("Collect") and not n:find("Close") and not n:find("Reel") and not n:find("Spot") then
-                        table.insert(buttons, desc)
+        if isLures and turnLabel and turnLabel.Visible and turnLabel.Text:find("YOUR TURN") then
+            local sequence = getLuresSequence(miniGameGui)
+            if sequence and #sequence >= 3 then
+                luresRunning = true
+                task.spawn(function()
+                    local baitButtons = {}
+                    for b = 1, 4 do
+                        local btn = miniGameGui:FindFirstChild("Bait" .. b, true)
+                        if btn and btn:IsA("GuiButton") then
+                            baitButtons[b] = btn
+                        end
                     end
-                end
-            end
 
-            if #buttons >= 3 then
-                table.sort(buttons, function(a, b)
-                    return a.AbsolutePosition.X < b.AbsolutePosition.X
+                    if #baitButtons < 4 then
+                        local area = miniGameGui:FindFirstChild("Area", true) or miniGameGui
+                        local rawBtns = {}
+                        for _, desc in ipairs(area:GetDescendants()) do
+                            if desc:IsA("GuiButton") and desc.Visible then
+                                local n = desc.Name
+                                if not n:find("Diff") and not n:find("Play") and not n:find("Collect") and not n:find("Close") and not n:find("Spot") then
+                                    table.insert(rawBtns, desc)
+                                end
+                            end
+                        end
+                        if #rawBtns >= 4 then
+                            table.sort(rawBtns, function(a, b)
+                                return a.AbsolutePosition.X < b.AbsolutePosition.X
+                            end)
+                            baitButtons = rawBtns
+                        end
+                    end
+
+                    task.wait(0.2)
+
+                    for step = 1, #sequence do
+                        if not miniGameGui or not miniGameGui.Enabled or not autoMiniGame then break end
+                        local lureIdx = sequence[step]
+                        local targetBtn = baitButtons[lureIdx]
+                        if targetBtn and targetBtn.Visible then
+                            pcall(function()
+                                if typeof(firesignal) == "function" then
+                                    firesignal(targetBtn.MouseButton1Click)
+                                    firesignal(targetBtn.MouseButton1Down)
+                                    firesignal(targetBtn.Activated)
+                                end
+                                local vim = game:GetService("VirtualInputManager")
+                                local kc = jumpKeyCodes[lureIdx]
+                                if vim and kc then
+                                    vim:SendKeyEvent(true, kc, false, game)
+                                    task.delay(0.02, function()
+                                        pcall(function() vim:SendKeyEvent(false, kc, false, game) end)
+                                    end)
+                                end
+                            end)
+                        end
+                        task.wait(0.22)
+                    end
+
+                    local startWait = os.clock()
+                    while turnLabel and turnLabel.Parent and turnLabel.Text:find("YOUR TURN") and (os.clock() - startWait < 3.0) do
+                        task.wait(0.05)
+                    end
+
+                    task.wait(0.3)
+                    luresRunning = false
                 end)
-
-                local sequence = nil
-                if typeof(getconnections) == "function" and typeof(getupvalues) == "function" then
-                    for _, btn in ipairs(buttons) do
-                        local conns = getconnections(btn.MouseButton1Down)
-                        if #conns == 0 then
-                            conns = getconnections(btn.MouseButton1Click)
-                        end
-                        for _, conn in ipairs(conns) do
-                            local fn = conn.Function
-                            if fn and (typeof(islclosure) ~= "function" or islclosure(fn)) then
-                                local ups = getupvalues(fn)
-                                for _, cand in pairs(ups) do
-                                    if type(cand) == "table" and #cand >= 3 then
-                                        local valid = true
-                                        for i = 1, #cand do
-                                            local elem = cand[i]
-                                            if type(elem) ~= "number" or elem < 1 or elem > #buttons then
-                                                valid = false
-                                                break
-                                            end
-                                        end
-                                        if valid then
-                                            sequence = cand
-                                            break
-                                        end
-                                    end
-                                end
-                            end
-                            if sequence then break end
-                        end
-                        if sequence then break end
-                    end
-                end
-
-                if not sequence and typeof(getgc) == "function" and typeof(getupvalues) == "function" then
-                    for _, v in ipairs(getgc()) do
-                        if type(v) == "function" and (typeof(islclosure) ~= "function" or islclosure(v)) then
-                            local ups = getupvalues(v)
-                            local isLuresClosure = false
-                            for _, up in pairs(ups) do
-                                if type(up) == "table" and rawget(up, "game") == "Lures" then
-                                    isLuresClosure = true
-                                    break
-                                end
-                            end
-                            if isLuresClosure then
-                                for _, cand in pairs(ups) do
-                                    if type(cand) == "table" and #cand >= 3 then
-                                        local valid = true
-                                        for i = 1, #cand do
-                                            local elem = cand[i]
-                                            if type(elem) ~= "number" or elem < 1 or elem > #buttons then
-                                                valid = false
-                                                break
-                                            end
-                                        end
-                                        if valid then
-                                            sequence = cand
-                                            break
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                        if sequence then break end
-                    end
-                end
-
-                if sequence and #sequence > lastLuresChain then
-                    luresRunning = true
-                    task.spawn(function()
-                        local chainLen = #sequence
-                        local showDuration = 0.65 + (chainLen * 0.40)
-                        task.wait(showDuration)
-
-                        if not miniGameGui or not miniGameGui.Enabled or not autoMiniGame then
-                            luresRunning = false
-                            return
-                        end
-
-                        for step = 1, chainLen do
-                            if not miniGameGui or not miniGameGui.Enabled or not autoMiniGame then break end
-                            local lureIdx = sequence[step]
-                            local targetBtn = buttons[lureIdx]
-                            if targetBtn and targetBtn.Visible then
-                                pcall(function()
-                                    if typeof(firesignal) == "function" then
-                                        firesignal(targetBtn.MouseButton1Click)
-                                        firesignal(targetBtn.MouseButton1Down)
-                                        firesignal(targetBtn.Activated)
-                                    end
-                                    local vim = game:GetService("VirtualInputManager")
-                                    local kc = jumpKeyCodes[lureIdx]
-                                    if vim and kc then
-                                        vim:SendKeyEvent(true, kc, false, game)
-                                        task.delay(0.02, function()
-                                            pcall(function() vim:SendKeyEvent(false, kc, false, game) end)
-                                        end)
-                                    end
-                                end)
-                            end
-                            task.wait(0.22)
-                        end
-
-                        lastLuresChain = chainLen
-                        task.wait(0.8)
-                        luresRunning = false
-                    end)
-                end
             end
         end
     end
