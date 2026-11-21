@@ -22,7 +22,8 @@ local Config = {
     AutoUpgradeSpear = false,
     AutoUpgradeBoat = false,
     AutoClaimContracts = false,
-    AutoTrivia = false
+    AutoTrivia = false,
+    AutoBuyBlackMarket = false
 }
 
 local function loadConfig()
@@ -206,6 +207,7 @@ local SpearActionRemote = Remotes and Remotes:WaitForChild("SpearAction", 10)
 local BoatActionRemote = Remotes and Remotes:WaitForChild("BoatAction", 10)
 local GlobalChatEvent = Remotes and Remotes:WaitForChild("GlobalChatEvent", 10)
 local GlobalChatSend = Remotes and Remotes:WaitForChild("GlobalChatSend", 10)
+local BlackMarketRemote = Remotes and (Remotes:FindFirstChild("BlackMarket") or Remotes:WaitForChild("BlackMarket", 10))
 local FishingShared = require(ReplicatedStorage:WaitForChild("FishingShared", 10))
 
 -- Cached player data state
@@ -1159,6 +1161,110 @@ AutomationTab:Toggle({
     end
 })
 
+local autoBuyBlackMarket = Config.AutoBuyBlackMarket
+local checkingBlackMarket = false
+local lastBlackMarketCheck = 0
+
+local function checkAndBuyBlackMarket()
+    if not autoBuyBlackMarket or checkingBlackMarket or not BlackMarketRemote then return end
+    checkingBlackMarket = true
+
+    pcall(function()
+        local candidates = {}
+        local seen = {}
+
+        local function addCandidate(item)
+            local id = type(item) == "table" and (item.id or item.Id or item.name or item.Name or item.Item) or tostring(item)
+            if id and id ~= "" and not seen[id] then
+                seen[id] = true
+                table.insert(candidates, id)
+            end
+        end
+
+        pcall(function()
+            local res = BlackMarketRemote:InvokeServer("state")
+            if type(res) == "table" then
+                local list = res.items or res.Items or res.list or res.Stock or res.stock or res
+                for _, item in pairs(list) do
+                    addCandidate(item)
+                end
+            end
+        end)
+
+        if #candidates == 0 then
+            local data = getPlayerData()
+            local bmData = data and (data.BlackMarket or data.Merchant)
+            if type(bmData) == "table" then
+                local list = bmData.Items or bmData.Stock or bmData.stock or bmData.Current or bmData.list
+                if type(list) == "table" then
+                    for _, item in pairs(list) do
+                        addCandidate(item)
+                    end
+                end
+            end
+        end
+
+        pcall(function()
+            local BM = require(ReplicatedStorage:WaitForChild("BlackMarket", 5))
+            if type(BM) == "table" then
+                if type(BM.GetStock) == "function" then
+                    local s = BM.GetStock()
+                    if type(s) == "table" then
+                        for _, item in pairs(s) do addCandidate(item) end
+                    end
+                elseif type(BM.GetCurrent) == "function" then
+                    local s = BM.GetCurrent()
+                    if type(s) == "table" then
+                        for _, item in pairs(s) do addCandidate(item) end
+                    end
+                elseif type(BM.Current) == "table" or type(BM.Stock) == "table" then
+                    local list = BM.Current or BM.Stock
+                    for _, item in pairs(list) do addCandidate(item) end
+                end
+
+                if #candidates == 0 then
+                    local pool = BM.Items or BM.Catalog or BM.Pool or BM.List or BM
+                    for k, v in pairs(pool) do
+                        if type(v) == "table" and (v.id or v.Id or v.Name or v.name or v.Item) then
+                            addCandidate(v.id or v.Id or v.Name or v.name or v.Item)
+                        elseif type(k) == "string" and k ~= "Current" and k ~= "Stock" and not tonumber(k) then
+                            addCandidate(k)
+                        end
+                    end
+                end
+            end
+        end)
+
+        if #candidates == 0 then
+            addCandidate("Lock")
+        end
+
+        for _, itemId in ipairs(candidates) do
+            if not autoBuyBlackMarket then break end
+            pcall(function()
+                BlackMarketRemote:InvokeServer("buy", itemId)
+            end)
+            task.wait(0.2)
+        end
+    end)
+
+    checkingBlackMarket = false
+end
+
+AutomationTab:Toggle({
+    Title = "Auto Buy Black Market",
+    Desc = "Automatically buys all available items in the Black Market rotation",
+    Value = Config.AutoBuyBlackMarket,
+    Callback = function(state)
+        autoBuyBlackMarket = state
+        Config.AutoBuyBlackMarket = state
+        saveConfig()
+        if autoBuyBlackMarket then
+            task.spawn(checkAndBuyBlackMarket)
+        end
+    end
+})
+
 -- ====================
 -- Events & Trivia
 -- ====================
@@ -1258,6 +1364,10 @@ task.spawn(function()
         if autoClaimContracts then
             checkAndClaimContracts()
         end
+        if autoBuyBlackMarket and (os.clock() - lastBlackMarketCheck >= 10) then
+            lastBlackMarketCheck = os.clock()
+            checkAndBuyBlackMarket()
+        end
         task.wait(1.5)
     end
 end)
@@ -1292,4 +1402,7 @@ if autoRebirth then
 end
 if autoClaimContracts then
     task.spawn(checkAndClaimContracts)
+end
+if autoBuyBlackMarket then
+    task.spawn(checkAndBuyBlackMarket)
 end
