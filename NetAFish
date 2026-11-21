@@ -1471,13 +1471,19 @@ local lastReelPress = 0
 local lastInviteAction = 0
 local lastCollectClick = 0
 local lastJumpSwing = 0
+local luresRunning = false
+local lastLuresChain = 0
 
 local function stepMiniGame()
     if not autoMiniGame then return end
 
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
     local miniGameGui = playerGui and playerGui:FindFirstChild("MiniGameUI")
-    if not miniGameGui or not miniGameGui.Enabled then return end
+    if not miniGameGui or not miniGameGui.Enabled then
+        lastLuresChain = 0
+        luresRunning = false
+        return
+    end
 
     -- 1. Auto-collect results / rewards
     local collectBtn = miniGameGui:FindFirstChild("Collect", true)
@@ -1577,6 +1583,146 @@ local function stepMiniGame()
             end
         end
     end
+
+    -- 5. Auto-solve Bait Memory (Lures)
+    if not luresRunning then
+        local titleLabel = miniGameGui:FindFirstChild("Title", true) or miniGameGui:FindFirstChild("Header", true)
+        local isLures = false
+        if titleLabel and titleLabel:IsA("TextLabel") then
+            local t = titleLabel.Text:upper()
+            if t:find("BAIT") or t:find("MEMORY") or t:find("LURE") then
+                isLures = true
+            end
+        end
+        if not isLures then
+            for _, desc in ipairs(miniGameGui:GetDescendants()) do
+                if desc:IsA("TextLabel") and desc.Visible and (desc.Text:find("BAIT MEMORY") or desc.Text:find("Bait Memory")) then
+                    isLures = true
+                    break
+                end
+            end
+        end
+
+        if isLures then
+            local area = miniGameGui:FindFirstChild("Area", true) or miniGameGui
+            local buttons = {}
+            for _, desc in ipairs(area:GetDescendants()) do
+                if desc:IsA("GuiButton") and desc.Visible then
+                    local n = desc.Name
+                    if not n:find("Diff") and not n:find("Play") and not n:find("Collect") and not n:find("Close") and not n:find("Reel") and not n:find("Spot") then
+                        table.insert(buttons, desc)
+                    end
+                end
+            end
+
+            if #buttons >= 3 then
+                table.sort(buttons, function(a, b)
+                    return a.AbsolutePosition.X < b.AbsolutePosition.X
+                end)
+
+                local sequence = nil
+                if typeof(getconnections) == "function" and typeof(getupvalues) == "function" then
+                    for _, btn in ipairs(buttons) do
+                        local conns = getconnections(btn.MouseButton1Down)
+                        if #conns == 0 then
+                            conns = getconnections(btn.MouseButton1Click)
+                        end
+                        for _, conn in ipairs(conns) do
+                            local fn = conn.Function
+                            if fn and (typeof(islclosure) ~= "function" or islclosure(fn)) then
+                                local ups = getupvalues(fn)
+                                for _, cand in pairs(ups) do
+                                    if type(cand) == "table" and #cand >= 3 then
+                                        local valid = true
+                                        for i = 1, #cand do
+                                            local elem = cand[i]
+                                            if type(elem) ~= "number" or elem < 1 or elem > #buttons then
+                                                valid = false
+                                                break
+                                            end
+                                        end
+                                        if valid then
+                                            sequence = cand
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                            if sequence then break end
+                        end
+                        if sequence then break end
+                    end
+                end
+
+                if not sequence and typeof(getgc) == "function" and typeof(getupvalues) == "function" then
+                    for _, v in ipairs(getgc()) do
+                        if type(v) == "function" and (typeof(islclosure) ~= "function" or islclosure(v)) then
+                            local ups = getupvalues(v)
+                            local isLuresClosure = false
+                            for _, up in pairs(ups) do
+                                if type(up) == "table" and rawget(up, "game") == "Lures" then
+                                    isLuresClosure = true
+                                    break
+                                end
+                            end
+                            if isLuresClosure then
+                                for _, cand in pairs(ups) do
+                                    if type(cand) == "table" and #cand >= 3 then
+                                        local valid = true
+                                        for i = 1, #cand do
+                                            local elem = cand[i]
+                                            if type(elem) ~= "number" or elem < 1 or elem > #buttons then
+                                                valid = false
+                                                break
+                                            end
+                                        end
+                                        if valid then
+                                            sequence = cand
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        if sequence then break end
+                    end
+                end
+
+                if sequence and #sequence > lastLuresChain then
+                    luresRunning = true
+                    task.spawn(function()
+                        local chainLen = #sequence
+                        local showDuration = 0.65 + (chainLen * 0.40)
+                        task.wait(showDuration)
+
+                        if not miniGameGui or not miniGameGui.Enabled or not autoMiniGame then
+                            luresRunning = false
+                            return
+                        end
+
+                        for step = 1, chainLen do
+                            if not miniGameGui or not miniGameGui.Enabled or not autoMiniGame then break end
+                            local lureIdx = sequence[step]
+                            local targetBtn = buttons[lureIdx]
+                            if targetBtn and targetBtn.Visible then
+                                pcall(function()
+                                    if typeof(firesignal) == "function" then
+                                        firesignal(targetBtn.MouseButton1Down)
+                                        firesignal(targetBtn.MouseButton1Click)
+                                    end
+                                end)
+                            end
+                            task.wait(0.22)
+                        end
+
+                        lastLuresChain = chainLen
+                        task.wait(0.8)
+                        luresRunning = false
+                    end)
+                end
+            end
+        end
+    end
 end
 
 local function startMiniGameAutomation()
@@ -1591,7 +1737,7 @@ end
 
 AutomationTab:Toggle({
     Title = "Auto Play Mini-Game",
-    Desc = "Auto enters on Extreme and lands 100% Perfect reels (zero mouse movement)",
+    Desc = "Auto enters on Extreme, solves Perfect reels, Fish Jump, and Bait Memory (zero mouse movement)",
     Value = Config.AutoMiniGame,
     Callback = function(state)
         autoMiniGame = state
