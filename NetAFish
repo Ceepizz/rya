@@ -1397,6 +1397,89 @@ AutomationTab:Toggle({
 })
 
 local autoShootBoss = Config.AutoShootBoss
+local savedFishingCF = nil
+local lastEnterAttempt = 0
+
+local function getMySpearPrompt()
+    local lp = LocalPlayer
+    local bases = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Bases")
+    if not bases then return nil, nil end
+
+    for _, base in ipairs(bases:GetChildren()) do
+        local owner = base:GetAttribute("Owner") or base:GetAttribute("UserId") or base:GetAttribute("Player")
+        if owner == lp.UserId or owner == lp.Name then
+            local sg = base:FindFirstChild("SpearGun")
+            local promptPart = sg and sg:FindFirstChild("PromptPart")
+            local prompt = promptPart and promptPart:FindFirstChildWhichIsA("ProximityPrompt")
+            return prompt, promptPart
+        end
+    end
+
+    for _, base in ipairs(bases:GetChildren()) do
+        for _, d in ipairs(base:GetDescendants()) do
+            if d:IsA("TextLabel") and d.Text:find(lp.Name) then
+                local sg = base:FindFirstChild("SpearGun")
+                local promptPart = sg and sg:FindFirstChild("PromptPart")
+                local prompt = promptPart and promptPart:FindFirstChildWhichIsA("ProximityPrompt")
+                return prompt, promptPart
+            end
+        end
+    end
+    return nil, nil
+end
+
+local function enterTurretMode()
+    local prompt, promptPart = getMySpearPrompt()
+    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+    local megEvent = remotes and remotes:FindFirstChild("MegEvent")
+    local bloopEvent = remotes and remotes:FindFirstChild("BloopEvent")
+
+    -- 1. Direct server remotes
+    if workspace:GetAttribute("MegActive") == true and megEvent then
+        pcall(function() megEvent:FireServer("enter") end)
+    end
+    if workspace:GetAttribute("BloopActive") == true and bloopEvent then
+        pcall(function() bloopEvent:FireServer("enter") end)
+    end
+
+    -- 2. On-screen TurretGo button (MegDockUI / BloopDockUI / FishingUI)
+    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    for _, guiName in ipairs({"MegDockUI", "BloopDockUI", "FishingUI"}) do
+        local gui = playerGui and playerGui:FindFirstChild(guiName)
+        if gui then
+            local turretBtn = gui:FindFirstChild("TurretGo", true)
+            if turretBtn and turretBtn:IsA("GuiButton") and turretBtn.Visible then
+                if typeof(firesignal) == "function" then
+                    pcall(firesignal, turretBtn.MouseButton1Click)
+                end
+            end
+        end
+    end
+
+    -- 3. Teleport directly to SpearGun PromptPart and trigger ProximityPrompt (E)
+    if prompt and promptPart then
+        local char = LocalPlayer.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        if root then
+            if not savedFishingCF and LocalPlayer:GetAttribute("TurretMode") ~= true then
+                savedFishingCF = root.CFrame
+            end
+            root.CFrame = promptPart.CFrame + Vector3.new(0, 1.5, 0)
+            task.wait(0.08)
+
+            if typeof(fireproximityprompt) == "function" then
+                pcall(fireproximityprompt, prompt)
+            end
+            local vim = game:GetService("VirtualInputManager")
+            if vim then
+                vim:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+                task.delay(0.2, function()
+                    pcall(function() vim:SendKeyEvent(false, Enum.KeyCode.E, false, game) end)
+                end)
+            end
+        end
+    end
+end
 
 local function getBossAimPosition()
     local megFolder = workspace:FindFirstChild("MegalodonLocal")
@@ -1420,48 +1503,76 @@ end
 
 task.spawn(function()
     while true do
-        if autoShootBoss and LocalPlayer:GetAttribute("TurretMode") == true then
-            local aimPos = getBossAimPosition()
-            if not aimPos then
-                local cam = workspace.CurrentCamera
-                aimPos = cam and (cam.CFrame.Position + cam.CFrame.LookVector * 120) or Vector3.zero
+        local bossActive = (workspace:GetAttribute("MegActive") == true) or (workspace:GetAttribute("BloopActive") == true)
+        local inTurret = LocalPlayer:GetAttribute("TurretMode") == true
+
+        if autoShootBoss and bossActive then
+            if not inTurret then
+                if os.clock() - lastEnterAttempt >= 1.5 then
+                    lastEnterAttempt = os.clock()
+                    enterTurretMode()
+                end
+                task.wait(0.2)
+            else
+                local aimPos = getBossAimPosition()
+                if not aimPos then
+                    local cam = workspace.CurrentCamera
+                    aimPos = cam and (cam.CFrame.Position + cam.CFrame.LookVector * 120) or Vector3.zero
+                end
+
+                pcall(function()
+                    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                    local turretUI = playerGui and (playerGui:FindFirstChild("MegTurretUI") or playerGui:FindFirstChild("BloopTurretUI"))
+                    local fireBtn = turretUI and turretUI:FindFirstChild("Fire", true)
+                    if fireBtn and typeof(firesignal) == "function" then
+                        firesignal(fireBtn.MouseButton1Click)
+                    end
+                end)
+
+                pcall(function()
+                    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+                    local megEv = remotes and remotes:FindFirstChild("MegEvent")
+                    local bloopEv = remotes and remotes:FindFirstChild("BloopEvent")
+
+                    if workspace:GetAttribute("MegActive") == true and megEv then
+                        megEv:FireServer("fire", aimPos)
+                    elseif workspace:GetAttribute("BloopActive") == true and bloopEv then
+                        bloopEv:FireServer("fire", aimPos)
+                    end
+                end)
+
+                task.wait(0.08)
             end
-
-            pcall(function()
-                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                local turretUI = playerGui and (playerGui:FindFirstChild("MegTurretUI") or playerGui:FindFirstChild("BloopTurretUI"))
-                local fireBtn = turretUI and turretUI:FindFirstChild("Fire", true)
-                if fireBtn and typeof(firesignal) == "function" then
-                    firesignal(fireBtn.MouseButton1Click)
-                end
-            end)
-
-            pcall(function()
-                if workspace:GetAttribute("MegActive") == true and MegEvent then
-                    MegEvent:FireServer("fire", aimPos)
-                elseif workspace:GetAttribute("BloopActive") == true and BloopEvent then
-                    BloopEvent:FireServer("fire", aimPos)
-                else
-                    if MegEvent then MegEvent:FireServer("fire", aimPos) end
-                    if BloopEvent then BloopEvent:FireServer("fire", aimPos) end
-                end
-            end)
-
-            task.wait(0.1)
         else
+            if savedFishingCF and not inTurret then
+                local char = LocalPlayer.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                if root then
+                    root.CFrame = savedFishingCF
+                end
+                savedFishingCF = nil
+            end
             task.wait(0.5)
         end
     end
 end)
 
 AutomationTab:Toggle({
-    Title = "Auto Shoot Boss",
-    Desc = "Auto aims and rapid-fires spear gun in Turret Mode (Megalodon & Bloop)",
+    Title = "Auto Shoot Boss & Turret Mode",
+    Desc = "Auto enters Turret Mode when Megalodon/Bloop spawns, auto aims & rapid-fires, then returns to fishing",
     Value = Config.AutoShootBoss,
     Callback = function(state)
         autoShootBoss = state
         Config.AutoShootBoss = state
         saveConfig()
+    end
+})
+
+AutomationTab:Button({
+    Title = "Manual Enter Turret Mode (Press E)",
+    Desc = "Instantly teleports to your base Spear Gun and activates Turret Mode (press E)",
+    Callback = function()
+        enterTurretMode()
     end
 })
 
