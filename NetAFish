@@ -25,7 +25,8 @@ local Config = {
     AutoTrivia = false,
     AutoBuyBlackMarket = false,
     AutoSpin = false,
-    AutoShootBoss = false
+    AutoShootBoss = false,
+    AutoMiniGame = false
 }
 
 local function loadConfig()
@@ -214,6 +215,8 @@ local RetentionRemote = Remotes and (Remotes:FindFirstChild("Retention") or Remo
 local RetentionPingEvent = Remotes and (Remotes:FindFirstChild("RetentionPing") or Remotes:WaitForChild("RetentionPing", 10))
 local MegEvent = Remotes and (Remotes:FindFirstChild("MegEvent") or Remotes:WaitForChild("MegEvent", 10))
 local BloopEvent = Remotes and (Remotes:FindFirstChild("BloopEvent") or Remotes:WaitForChild("BloopEvent", 10))
+local MiniGameRemote = Remotes and (Remotes:FindFirstChild("MiniGame") or Remotes:WaitForChild("MiniGame", 10))
+local MiniGamePingEvent = Remotes and (Remotes:FindFirstChild("MiniGamePing") or Remotes:WaitForChild("MiniGamePing", 10))
 local FishingShared = require(ReplicatedStorage:WaitForChild("FishingShared", 10))
 
 -- Cached player data state
@@ -1176,81 +1179,47 @@ local function checkAndBuyBlackMarket()
     checkingBlackMarket = true
 
     pcall(function()
-        local candidates = {}
-        local seen = {}
+        local BM = require(ReplicatedStorage:WaitForChild("BlackMarket", 5))
+        if not BM or type(BM.hour) ~= "function" or type(BM.stock) ~= "function" then
+            return
+        end
 
-        local function addCandidate(item)
-            local id = type(item) == "table" and (item.id or item.Id or item.name or item.Name or item.Item) or tostring(item)
-            if id and id ~= "" and not seen[id] then
-                seen[id] = true
-                table.insert(candidates, id)
+        local currentHour = BM.hour()
+        local stock = BM.stock(currentHour)
+        if type(stock) ~= "table" or #stock == 0 then
+            return
+        end
+
+        local data = getPlayerData()
+        local bmData = data and data.BlackMarket
+        local alreadyBought = {}
+        if type(bmData) == "table" and bmData.h == currentHour and type(bmData.b) == "table" then
+            alreadyBought = bmData.b
+        end
+
+        local allBought = true
+        for _, item in ipairs(stock) do
+            local itemId = type(item) == "table" and item.Id
+            if itemId and not alreadyBought[itemId] then
+                allBought = false
+                break
             end
         end
 
-        pcall(function()
-            local res = BlackMarketRemote:InvokeServer("state")
-            if type(res) == "table" then
-                local list = res.items or res.Items or res.list or res.Stock or res.stock or res
-                for _, item in pairs(list) do
-                    addCandidate(item)
-                end
-            end
-        end)
-
-        if #candidates == 0 then
-            local data = getPlayerData()
-            local bmData = data and (data.BlackMarket or data.Merchant)
-            if type(bmData) == "table" then
-                local list = bmData.Items or bmData.Stock or bmData.stock or bmData.Current or bmData.list
-                if type(list) == "table" then
-                    for _, item in pairs(list) do
-                        addCandidate(item)
-                    end
-                end
-            end
+        if allBought then
+            return
         end
 
-        pcall(function()
-            local BM = require(ReplicatedStorage:WaitForChild("BlackMarket", 5))
-            if type(BM) == "table" then
-                if type(BM.GetStock) == "function" then
-                    local s = BM.GetStock()
-                    if type(s) == "table" then
-                        for _, item in pairs(s) do addCandidate(item) end
-                    end
-                elseif type(BM.GetCurrent) == "function" then
-                    local s = BM.GetCurrent()
-                    if type(s) == "table" then
-                        for _, item in pairs(s) do addCandidate(item) end
-                    end
-                elseif type(BM.Current) == "table" or type(BM.Stock) == "table" then
-                    local list = BM.Current or BM.Stock
-                    for _, item in pairs(list) do addCandidate(item) end
-                end
-
-                if #candidates == 0 then
-                    local pool = BM.Items or BM.Catalog or BM.Pool or BM.List or BM
-                    for k, v in pairs(pool) do
-                        if type(v) == "table" and (v.id or v.Id or v.Name or v.name or v.Item) then
-                            addCandidate(v.id or v.Id or v.Name or v.name or v.Item)
-                        elseif type(k) == "string" and k ~= "Current" and k ~= "Stock" and not tonumber(k) then
-                            addCandidate(k)
-                        end
-                    end
-                end
-            end
-        end)
-
-        if #candidates == 0 then
-            addCandidate("Lock")
-        end
-
-        for _, itemId in ipairs(candidates) do
+        for _, item in ipairs(stock) do
             if not autoBuyBlackMarket then break end
-            pcall(function()
-                BlackMarketRemote:InvokeServer("buy", itemId)
-            end)
-            task.wait(0.2)
+            local itemId = type(item) == "table" and item.Id
+            if itemId and not alreadyBought[itemId] then
+                pcall(function()
+                    BlackMarketRemote:InvokeServer("buy", itemId)
+                end)
+                alreadyBought[itemId] = true
+                task.wait(0.3)
+            end
         end
     end)
 
@@ -1445,6 +1414,142 @@ AutomationTab:Toggle({
     end
 })
 
+local autoMiniGame = Config.AutoMiniGame
+local miniGameConnection = nil
+local lastReelPress = 0
+local lastInviteAction = 0
+local lastCollectClick = 0
+local lastJumpSwing = 0
+
+local function stepMiniGame()
+    if not autoMiniGame then return end
+
+    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    local miniGameGui = playerGui and playerGui:FindFirstChild("MiniGameUI")
+    if not miniGameGui or not miniGameGui.Enabled then return end
+
+    -- 1. Auto-collect results / rewards
+    local collectBtn = miniGameGui:FindFirstChild("Collect", true)
+    if collectBtn and collectBtn:IsA("GuiButton") and collectBtn.Visible then
+        if os.clock() - lastCollectClick >= 1.0 then
+            lastCollectClick = os.clock()
+            pcall(function()
+                if typeof(firesignal) == "function" then
+                    firesignal(collectBtn.MouseButton1Click)
+                end
+            end)
+        end
+        return
+    end
+
+    -- 2. Auto-enter invite on Extreme
+    local playBtn = miniGameGui:FindFirstChild("PlayButton", true)
+    if playBtn and playBtn:IsA("GuiButton") and playBtn.Visible then
+        local window = playBtn.Parent and playBtn.Parent.Parent
+        if window and window:IsA("GuiObject") and window.Visible then
+            if os.clock() - lastInviteAction >= 1.0 then
+                lastInviteAction = os.clock()
+                task.spawn(function()
+                    local diffExtreme = miniGameGui:FindFirstChild("DiffExtreme", true)
+                    if diffExtreme and diffExtreme:IsA("GuiButton") and diffExtreme.Visible then
+                        pcall(function()
+                            if typeof(firesignal) == "function" then
+                                firesignal(diffExtreme.MouseButton1Click)
+                            end
+                        end)
+                        task.wait(0.15)
+                    end
+                    pcall(function()
+                        if typeof(firesignal) == "function" then
+                            firesignal(playBtn.MouseButton1Click)
+                        end
+                    end)
+                end)
+            end
+            return
+        end
+    end
+
+    -- 3. Auto-reel: Stop needle in the green / gold for PERFECT!
+    local needle, zone, reelBtn
+    for _, desc in ipairs(miniGameGui:GetDescendants()) do
+        if desc:IsA("Frame") then
+            if desc.ZIndex == 8 and desc.Size.X.Offset == 8 then
+                needle = desc
+            elseif desc.ZIndex == 5 and desc:FindFirstChildWhichIsA("Frame") then
+                zone = desc
+            end
+        elseif desc:IsA("GuiButton") and (desc.Name == "ReelButton" or (desc.Parent and desc.Parent.Name == "ReelButton")) then
+            reelBtn = desc
+        end
+    end
+
+    if needle and zone and reelBtn and reelBtn.Visible then
+        local zoneCenter = zone.Position.X.Scale
+        local zoneWidth = zone.Size.X.Scale
+        local needlePos = needle.Position.X.Scale
+        local dist = math.abs(needlePos - zoneCenter)
+
+        if dist <= (zoneWidth * 0.14) and (os.clock() - lastReelPress >= 0.35) then
+            lastReelPress = os.clock()
+            pcall(function()
+                if typeof(firesignal) == "function" then
+                    firesignal(reelBtn.MouseButton1Down)
+                end
+            end)
+        end
+        return
+    end
+
+    -- 4. Auto-catch in Jump Minigame (spots 1 to 5)
+    for i = 1, 5 do
+        local spot = miniGameGui:FindFirstChild("Spot" .. i, true)
+        if spot and spot:IsA("GuiButton") and spot.Visible then
+            local hasFish = false
+            local isBoot = false
+            for _, child in ipairs(spot:GetChildren()) do
+                if child:IsA("TextLabel") or child:IsA("ImageLabel") or child.Name == "Fish" or child.Name:find("Label") then
+                    hasFish = true
+                    if child:IsA("TextLabel") and child.Text:find("BOOT") then
+                        isBoot = true
+                    end
+                end
+            end
+            if hasFish and not isBoot and (os.clock() - lastJumpSwing >= 0.3) then
+                lastJumpSwing = os.clock()
+                pcall(function()
+                    if typeof(firesignal) == "function" then
+                        firesignal(spot.MouseButton1Down)
+                    end
+                end)
+                break
+            end
+        end
+    end
+end
+
+local function startMiniGameAutomation()
+    if miniGameConnection then
+        miniGameConnection:Disconnect()
+        miniGameConnection = nil
+    end
+    if autoMiniGame then
+        miniGameConnection = RunService.Heartbeat:Connect(stepMiniGame)
+    end
+end
+
+AutomationTab:Toggle({
+    Title = "Auto Play Mini-Game",
+    Desc = "Auto enters on Extreme and lands 100% Perfect reels (zero mouse movement)",
+    Value = Config.AutoMiniGame,
+    Callback = function(state)
+        autoMiniGame = state
+        Config.AutoMiniGame = state
+        saveConfig()
+        startMiniGameAutomation()
+    end
+})
+
 -- Fast background check loop
 task.spawn(function()
     while true do
@@ -1524,4 +1629,7 @@ if autoBuyBlackMarket then
 end
 if autoSpin then
     task.spawn(checkAndSpin)
+end
+if autoMiniGame then
+    startMiniGameAutomation()
 end
