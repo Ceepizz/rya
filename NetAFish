@@ -1587,15 +1587,6 @@ task.spawn(function()
                 end
 
                 pcall(function()
-                    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                    local turretUI = playerGui and (playerGui:FindFirstChild("MegTurretUI") or playerGui:FindFirstChild("BloopTurretUI"))
-                    local fireBtn = turretUI and turretUI:FindFirstChild("Fire", true)
-                    if fireBtn and typeof(firesignal) == "function" then
-                        firesignal(fireBtn.MouseButton1Click)
-                    end
-                end)
-
-                pcall(function()
                     local remotes = ReplicatedStorage:FindFirstChild("Remotes")
                     local megEv = remotes and remotes:FindFirstChild("MegEvent") or MegEvent
                     local bloopEv = remotes and remotes:FindFirstChild("BloopEvent") or BloopEvent
