@@ -1474,6 +1474,76 @@ local lastJumpSwing = 0
 local luresRunning = false
 local lastLuresChain = 0
 
+local jumpKeyCodes = {
+    [1] = Enum.KeyCode.One,
+    [2] = Enum.KeyCode.Two,
+    [3] = Enum.KeyCode.Three,
+    [4] = Enum.KeyCode.Four,
+    [5] = Enum.KeyCode.Five
+}
+
+local function checkSpotFish(spot)
+    local fishLabel = nil
+    local isGolden = false
+    local isBoot = false
+
+    for _, child in ipairs(spot:GetChildren()) do
+        if child:IsA("TextLabel") and child.TextSize >= 30 and child.TextTransparency < 0.6 then
+            local txt = child.Text
+            if txt == "👢" or txt:find("👢") or txt:find("BOOT") then
+                isBoot = true
+                break
+            elseif txt == "🐠" or txt:find("🐠") then
+                fishLabel = child
+                isGolden = true
+                break
+            elseif txt == "🐟" or txt == "🐡" or txt:find("🐟") or txt:find("🐡") then
+                fishLabel = child
+            elseif not isBoot and txt ~= "1" and txt ~= "2" and txt ~= "3" and txt ~= "4" and txt ~= "5" then
+                fishLabel = child
+            end
+        end
+    end
+
+    if not isBoot and not isGolden then
+        for _, child in ipairs(spot:GetChildren()) do
+            if child:IsA("Frame") and child.Size == UDim2.fromOffset(84, 84) and child.BackgroundTransparency < 0.8 then
+                isGolden = true
+                break
+            end
+        end
+    end
+
+    return fishLabel, isBoot, isGolden
+end
+
+local function triggerSpotSwing(idx, spot)
+    -- 1. firesignal on MouseButton1Click (exact signal connected by MiniGameClient)
+    if typeof(firesignal) == "function" then
+        pcall(firesignal, spot.MouseButton1Click)
+        pcall(firesignal, spot.Activated)
+        pcall(firesignal, spot.MouseButton1Down)
+        pcall(firesignal, spot.MouseButton1Up)
+    end
+    -- 2. getconnections
+    if typeof(getconnections) == "function" then
+        for _, conn in ipairs(getconnections(spot.MouseButton1Click)) do
+            pcall(function() conn:Fire() end)
+        end
+    end
+    -- 3. VirtualInputManager keypress (MiniGameClient binds 1-5 keys to swing(1-5))
+    local vim = game:GetService("VirtualInputManager")
+    local kc = jumpKeyCodes[idx]
+    if vim and kc then
+        pcall(function()
+            vim:SendKeyEvent(true, kc, false, game)
+            task.delay(0.02, function()
+                pcall(function() vim:SendKeyEvent(false, kc, false, game) end)
+            end)
+        end)
+    end
+end
+
 local function stepMiniGame()
     if not autoMiniGame then return end
 
@@ -1552,6 +1622,14 @@ local function stepMiniGame()
             pcall(function()
                 if typeof(firesignal) == "function" then
                     firesignal(reelBtn.MouseButton1Down)
+                    firesignal(reelBtn.MouseButton1Click)
+                end
+                local vim = game:GetService("VirtualInputManager")
+                if vim then
+                    vim:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+                    task.delay(0.02, function()
+                        pcall(function() vim:SendKeyEvent(false, Enum.KeyCode.Space, false, game) end)
+                    end)
                 end
             end)
         end
@@ -1559,29 +1637,30 @@ local function stepMiniGame()
     end
 
     -- 4. Auto-catch in Jump Minigame (spots 1 to 5)
+    local jumpCandidates = {}
     for i = 1, 5 do
         local spot = miniGameGui:FindFirstChild("Spot" .. i, true)
         if spot and spot:IsA("GuiButton") and spot.Visible then
-            local hasFish = false
-            local isBoot = false
-            for _, child in ipairs(spot:GetChildren()) do
-                if child:IsA("TextLabel") or child:IsA("ImageLabel") or child.Name == "Fish" or child.Name:find("Label") then
-                    hasFish = true
-                    if child:IsA("TextLabel") and child.Text:find("BOOT") then
-                        isBoot = true
-                    end
-                end
-            end
-            if hasFish and not isBoot and (os.clock() - lastJumpSwing >= 0.3) then
-                lastJumpSwing = os.clock()
-                pcall(function()
-                    if typeof(firesignal) == "function" then
-                        firesignal(spot.MouseButton1Down)
-                    end
-                end)
-                break
+            local fishLabel, isBoot, isGolden = checkSpotFish(spot)
+            if not isBoot and fishLabel then
+                table.insert(jumpCandidates, {
+                    index = i,
+                    spot = spot,
+                    isGolden = isGolden
+                })
             end
         end
+    end
+
+    if #jumpCandidates > 0 and (os.clock() - lastJumpSwing >= 0.22) then
+        table.sort(jumpCandidates, function(a, b)
+            if a.isGolden and not b.isGolden then return true end
+            return false
+        end)
+        local target = jumpCandidates[1]
+        lastJumpSwing = os.clock()
+        triggerSpotSwing(target.index, target.spot)
+        return
     end
 
     -- 5. Auto-solve Bait Memory (Lures)
@@ -1707,8 +1786,17 @@ local function stepMiniGame()
                             if targetBtn and targetBtn.Visible then
                                 pcall(function()
                                     if typeof(firesignal) == "function" then
-                                        firesignal(targetBtn.MouseButton1Down)
                                         firesignal(targetBtn.MouseButton1Click)
+                                        firesignal(targetBtn.MouseButton1Down)
+                                        firesignal(targetBtn.Activated)
+                                    end
+                                    local vim = game:GetService("VirtualInputManager")
+                                    local kc = jumpKeyCodes[lureIdx]
+                                    if vim and kc then
+                                        vim:SendKeyEvent(true, kc, false, game)
+                                        task.delay(0.02, function()
+                                            pcall(function() vim:SendKeyEvent(false, kc, false, game) end)
+                                        end)
                                     end
                                 end)
                             end
