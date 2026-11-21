@@ -1473,20 +1473,24 @@ local function getMySpearPrompt()
 end
 
 local function enterTurretMode()
-    local prompt, promptPart = getMySpearPrompt()
-    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-    local megEvent = remotes and remotes:FindFirstChild("MegEvent")
-    local bloopEvent = remotes and remotes:FindFirstChild("BloopEvent")
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if root and not savedFishingCF and LocalPlayer:GetAttribute("TurretMode") ~= true then
+        savedFishingCF = root.CFrame
+    end
 
-    -- 1. Direct server remotes
+    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+    local megEvent = remotes and remotes:FindFirstChild("MegEvent") or MegEvent
+    local bloopEvent = remotes and remotes:FindFirstChild("BloopEvent") or BloopEvent
+
+    -- 1. Direct server remotes (instant entry)
     if workspace:GetAttribute("MegActive") == true and megEvent then
         pcall(function() megEvent:FireServer("enter") end)
-    end
-    if workspace:GetAttribute("BloopActive") == true and bloopEvent then
+    elseif workspace:GetAttribute("BloopActive") == true and bloopEvent then
         pcall(function() bloopEvent:FireServer("enter") end)
     end
 
-    -- 2. On-screen TurretGo button (MegDockUI / BloopDockUI / FishingUI)
+    -- 2. On-screen TurretGo button fallback
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
     for _, guiName in ipairs({"MegDockUI", "BloopDockUI", "FishingUI"}) do
         local gui = playerGui and playerGui:FindFirstChild(guiName)
@@ -1500,14 +1504,10 @@ local function enterTurretMode()
         end
     end
 
-    -- 3. Teleport directly to SpearGun PromptPart and trigger ProximityPrompt (E)
-    if prompt and promptPart then
-        local char = LocalPlayer.Character
-        local root = char and char:FindFirstChild("HumanoidRootPart")
+    -- 3. SpearGun prompt fallback
+    local prompt, promptPart = getMySpearPrompt()
+    if prompt and promptPart and LocalPlayer:GetAttribute("TurretMode") ~= true then
         if root then
-            if not savedFishingCF and LocalPlayer:GetAttribute("TurretMode") ~= true then
-                savedFishingCF = root.CFrame
-            end
             root.CFrame = promptPart.CFrame + Vector3.new(0, 1.5, 0)
             task.wait(0.08)
 
@@ -1601,6 +1601,16 @@ task.spawn(function()
                 task.wait(2)
             end
         else
+            if inTurret then
+                pcall(function()
+                    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+                    local megEv = remotes and remotes:FindFirstChild("MegEvent") or MegEvent
+                    local bloopEv = remotes and remotes:FindFirstChild("BloopEvent") or BloopEvent
+                    if megEv then megEv:FireServer("leave") end
+                    if bloopEv then bloopEv:FireServer("leave") end
+                end)
+            end
+
             if savedFishingCF and not inTurret then
                 local char = LocalPlayer.Character
                 local root = char and char:FindFirstChild("HumanoidRootPart")
