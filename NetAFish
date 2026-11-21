@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 local VirtualUser = game:GetService("VirtualUser")
+local TextChatService = game:GetService("TextChatService")
 local LocalPlayer = Players.LocalPlayer
 
 -- ====================
@@ -20,7 +21,8 @@ local Config = {
     AutoUpgradeFisherman = false,
     AutoUpgradeSpear = false,
     AutoUpgradeBoat = false,
-    AutoClaimContracts = false
+    AutoClaimContracts = false,
+    AutoTrivia = false
 }
 
 local function loadConfig()
@@ -202,6 +204,8 @@ local ContractPingEvent = Remotes and Remotes:WaitForChild("ContractPing", 10)
 local HelperActionRemote = Remotes and Remotes:WaitForChild("HelperAction", 10)
 local SpearActionRemote = Remotes and Remotes:WaitForChild("SpearAction", 10)
 local BoatActionRemote = Remotes and Remotes:WaitForChild("BoatAction", 10)
+local GlobalChatEvent = Remotes and Remotes:WaitForChild("GlobalChatEvent", 10)
+local GlobalChatSend = Remotes and Remotes:WaitForChild("GlobalChatSend", 10)
 local FishingShared = require(ReplicatedStorage:WaitForChild("FishingShared", 10))
 
 -- Cached player data state
@@ -1113,6 +1117,74 @@ AutomationTab:Toggle({
         if autoUpgradeBoat then
             task.spawn(checkAndUpgradeBoat)
         end
+    end
+})
+
+-- ====================
+-- Events & Trivia
+-- ====================
+AutomationTab:Section({
+    Title = "Events & Trivia"
+})
+
+local autoTrivia = Config.AutoTrivia
+
+local function getGlobalChannel()
+    local channels = TextChatService:FindFirstChild("TextChannels")
+    return channels and channels:FindFirstChild("Global")
+end
+
+local function solveMath(text)
+    local expr = text:match("[Ww]hat is%s+(.-)%?")
+    if not expr then
+        expr = text:match("(%d+%s*[%+%-%*/xX÷]%s*%d+)")
+    end
+    if not expr then return nil end
+
+    local sanitized = expr:gsub("[xX]", "*"):gsub("÷", "/"):gsub("[^%d%+%-%*/%s%.%(%)]", "")
+    local f = loadstring("return " .. sanitized)
+    if f then
+        local success, result = pcall(f)
+        if success and type(result) == "number" then
+            return tostring(math.floor(result))
+        end
+    end
+    return nil
+end
+
+if GlobalChatEvent then
+    GlobalChatEvent.OnClientEvent:Connect(function(msg, color, eventType)
+        if not autoTrivia then return end
+        if eventType == "TRIVIA" or eventType == "SUPER-TRIVIA" then
+            if type(msg) == "string" then
+                local answer = solveMath(msg)
+                if answer then
+                    task.wait(0.35)
+                    if not autoTrivia then return end
+                    local channel = getGlobalChannel()
+                    if channel then
+                        pcall(function()
+                            channel:SendAsync(answer)
+                        end)
+                    elseif GlobalChatSend then
+                        pcall(function()
+                            GlobalChatSend:FireServer(answer)
+                        end)
+                    end
+                end
+            end
+        end
+    end)
+end
+
+AutomationTab:Toggle({
+    Title = "Auto Answer Trivia",
+    Desc = "Solves and chats math trivia answers in Global Chat",
+    Value = Config.AutoTrivia,
+    Callback = function(state)
+        autoTrivia = state
+        Config.AutoTrivia = state
+        saveConfig()
     end
 })
 
