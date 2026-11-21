@@ -231,6 +231,15 @@ local function getPlayerData()
             playerData = data
         end
     end
+    local dataCacheModule = LocalPlayer:FindFirstChild("PlayerScripts") and LocalPlayer.PlayerScripts:FindFirstChild("DataCache")
+    if dataCacheModule and playerData then
+        pcall(function()
+            local dc = require(dataCacheModule)
+            if dc and dc.cooler then
+                playerData.Cooler = dc.cooler
+            end
+        end)
+    end
     return playerData
 end
 
@@ -242,6 +251,15 @@ Remotes.DataUpdate.OnClientEvent:Connect(function(update)
             for k, v in pairs(update) do
                 playerData[k] = v
             end
+        end
+        local dataCacheModule = LocalPlayer:FindFirstChild("PlayerScripts") and LocalPlayer.PlayerScripts:FindFirstChild("DataCache")
+        if dataCacheModule and playerData then
+            pcall(function()
+                local dc = require(dataCacheModule)
+                if dc and dc.cooler then
+                    playerData.Cooler = dc.cooler
+                end
+            end)
         end
     end
 end)
@@ -259,7 +277,10 @@ local function getMyBase()
     if not bases then return nil end
 
     for _, base in ipairs(bases:GetChildren()) do
-        if base:GetAttribute("OwnerUserId") == LocalPlayer.UserId then
+        if base:GetAttribute("OwnerUserId") == LocalPlayer.UserId
+           or base:GetAttribute("PetOwner") == LocalPlayer.Name
+           or base:GetAttribute("Owner") == LocalPlayer.Name
+           or (base:FindFirstChild("Owner") and base.Owner.Value == LocalPlayer) then
             return base
         end
     end
@@ -529,69 +550,76 @@ AutomationTab:Section({
 })
 
 local function hasBetterFish()
-    local myBase = getMyBase()
-    if not myBase then return false end
-
-    local pedestals = myBase:FindFirstChild("Pedestals")
-    local showcase = myBase:FindFirstChild("ShowcaseFish")
-    if not pedestals or not showcase then return false end
-
-    local openPedestals = 0
-    for _, p in ipairs(pedestals:GetChildren()) do
-        if p:GetAttribute("Open") == true then
-            openPedestals += 1
-        end
-    end
-
-    local equippedFish = showcase:GetChildren()
-    local lowestEquippedIncome = math.huge
-
-    for _, slot in ipairs(equippedFish) do
-        local fishId = slot:GetAttribute("FishId")
-        local species = FishingShared.SpeciesById[fishId]
-        local size = slot:GetAttribute("BoneScale") or 1
-        local mutation = slot:GetAttribute("Mutation")
-        local mult = FishingShared.MutationMult and FishingShared.MutationMult(mutation) or 1
-        local val = species and math.floor(FishingShared.FishValue(species, size) * mult + 0.5) or 0
-        if val < lowestEquippedIncome then
-            lowestEquippedIncome = val
-        end
-    end
-
-    if #equippedFish == 0 then
-        lowestEquippedIncome = 0
-    end
+    local data = getPlayerData()
+    if not data then return false end
 
     local dataCacheModule = LocalPlayer:FindFirstChild("PlayerScripts") and LocalPlayer.PlayerScripts:FindFirstChild("DataCache")
     local dataCache = dataCacheModule and require(dataCacheModule)
-    local cooler = dataCache and dataCache.cooler
+    local cooler = (dataCache and dataCache.cooler) or data.Cooler
+    if type(cooler) ~= "table" then return false end
 
-    if type(cooler) ~= "table" then
-        return false
-    end
-
-    local bestCoolerVal = 0
-    for _, stack in pairs(cooler) do
-        if type(stack) == "table" and (stack.n or 0) > 0 then
-            local fish = FishingShared.CoolerBest(stack)
-            if fish and (fish.v or 0) > bestCoolerVal then
-                bestCoolerVal = fish.v
+    -- Check if any open slot is empty
+    local openSlots = FishingShared.OpenSlots and FishingShared.OpenSlots(data)
+    local showcase = data.Showcase or {}
+    if type(openSlots) == "table" then
+        for _, slotIdx in ipairs(openSlots) do
+            local key = tostring(slotIdx)
+            if not showcase[key] and not showcase[slotIdx] then
+                for _, stack in pairs(cooler) do
+                    if type(stack) == "table" and (stack.n or 0) > 0 then
+                        return true
+                    end
+                end
             end
         end
     end
 
-    if #equippedFish < openPedestals and bestCoolerVal > 0 then
-        return true
+    -- Find lowest income among unlocked showcase fish
+    local lowestIncome = math.huge
+    local showcaseCount = 0
+
+    for _, fish in pairs(showcase) do
+        if type(fish) == "table" and not fish.locked then
+            showcaseCount += 1
+            local ok, inc = pcall(FishingShared.ShowcaseIncome, data, fish)
+            if ok and inc and inc < lowestIncome then
+                lowestIncome = inc
+            end
+        end
     end
 
-    return bestCoolerVal > lowestEquippedIncome
+    if showcaseCount == 0 then
+        for _, stack in pairs(cooler) do
+            if type(stack) == "table" and (stack.n or 0) > 0 then
+                return true
+            end
+        end
+        return false
+    end
+
+    -- Check if any fish in cooler yields strictly higher showcase income
+    for _, stack in pairs(cooler) do
+        if type(stack) == "table" and (stack.n or 0) > 0 then
+            local fish = FishingShared.CoolerBest(stack)
+            if fish then
+                local ok, inc = pcall(FishingShared.ShowcaseIncome, data, fish)
+                if ok and inc and inc > lowestIncome then
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
 end
 
 local autoEquip = Config.AutoEquip
 local checkingEquip = false
+local lastEquipTime = 0
 
 local function checkAndEquip()
     if not autoEquip or checkingEquip then return end
+    if os.clock() - lastEquipTime < 2 then return end
     checkingEquip = true
 
     local shouldEquip = false
@@ -601,10 +629,24 @@ local function checkAndEquip()
     end
 
     if shouldEquip and BestSetupEvent then
+        lastEquipTime = os.clock()
         pcall(function()
             BestSetupEvent:FireServer()
         end)
-        task.wait(1.5)
+        task.wait(2)
+        pcall(function()
+            local fresh = Remotes.GetData:InvokeServer()
+            if type(fresh) == "table" then
+                playerData = fresh
+                local dataCacheModule = LocalPlayer:FindFirstChild("PlayerScripts") and LocalPlayer.PlayerScripts:FindFirstChild("DataCache")
+                if dataCacheModule then
+                    local dc = require(dataCacheModule)
+                    if dc and dc.cooler then
+                        playerData.Cooler = dc.cooler
+                    end
+                end
+            end
+        end)
     end
 
     checkingEquip = false
@@ -612,7 +654,7 @@ end
 
 AutomationTab:Toggle({
     Title = "Auto Equip Best",
-    Desc = "Only equips when a higher value fish is found in cooler",
+    Desc = "Only equips when a higher income fish is found in cooler",
     Value = Config.AutoEquip,
     Callback = function(state)
         autoEquip = state
