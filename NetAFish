@@ -1248,6 +1248,7 @@ AutomationTab:Section({
 })
 
 local autoTrivia = Config.AutoTrivia
+local triviaAlternate = false
 
 local function getGlobalChannel()
     local channels = TextChatService:FindFirstChild("TextChannels")
@@ -1255,42 +1256,92 @@ local function getGlobalChannel()
 end
 
 local function solveMath(text)
+    if type(text) ~= "string" then return nil end
+
     local expr = text:match("[Ww]hat is%s+(.-)%?")
     if not expr then
-        expr = text:match("(%d+%s*[%+%-%*/xX÷]%s*%d+)")
+        expr = text:match("(%d+[%d%s%+%-%*/%^xX×÷²³⁴%.%(%)]+)")
     end
     if not expr then return nil end
 
-    local sanitized = expr:gsub("[xX]", "*"):gsub("÷", "/"):gsub("[^%d%+%-%*/%s%.%(%)]", "")
-    local f = loadstring("return " .. sanitized)
-    if f then
-        local success, result = pcall(f)
-        if success and type(result) == "number" then
-            return tostring(math.floor(result))
+    local function evaluate(raw)
+        if not raw or raw == "" then return nil end
+        local s = raw
+        s = s:gsub("×", "*"):gsub("[xX]", "*")
+        s = s:gsub("÷", "/")
+        s = s:gsub("²", "^2"):gsub("³", "^3"):gsub("⁴", "^4")
+        s = s:gsub("–", "-"):gsub("—", "-")
+        s = s:gsub("[^%d%+%-%*/%^%s%.%(%)]", "")
+        if not s:match("%d") then return nil end
+
+        local f = loadstring("return " .. s)
+        if f then
+            local success, result = pcall(f)
+            if success and type(result) == "number" and result == result and result ~= (1/0) and result ~= (-1/0) then
+                if result == math.floor(result) then
+                    return tostring(math.floor(result))
+                else
+                    return tostring(result)
+                end
+            end
         end
+        return nil
     end
-    return nil
+
+    -- 1. Try parenthesized explanation first (e.g. "30² (30 × 30)" -> "30 × 30")
+    local parenthesized = expr:match("%((.-)%)")
+    if parenthesized then
+        local ans = evaluate(parenthesized)
+        if ans then return ans end
+    end
+
+    -- 2. Try stripped expression (e.g. "30²" from "30² (30 × 30)")
+    local stripped = expr:gsub("%b()", "")
+    local ans = evaluate(stripped)
+    if ans then return ans end
+
+    -- 3. Fallback to raw expression
+    return evaluate(expr)
 end
 
 if GlobalChatEvent then
     GlobalChatEvent.OnClientEvent:Connect(function(msg, color, eventType)
         if not autoTrivia then return end
-        if eventType == "TRIVIA" or eventType == "SUPER-TRIVIA" then
-            if type(msg) == "string" then
-                local answer = solveMath(msg)
-                if answer then
-                    task.wait(0.35)
-                    if not autoTrivia then return end
-                    local channel = getGlobalChannel()
-                    if channel then
-                        pcall(function()
-                            channel:SendAsync(answer)
-                        end)
-                    elseif GlobalChatSend then
-                        pcall(function()
-                            GlobalChatSend:FireServer(answer)
-                        end)
-                    end
+
+        local isSuper = (eventType == "SUPER-TRIVIA") or (type(msg) == "string" and msg:find("SUPER%-TRIVIA") ~= nil)
+        local isTrivia = isSuper or (eventType == "TRIVIA") or (type(msg) == "string" and (msg:find("%[TRIVIA%]") ~= nil or msg:find("TRIVIA!") ~= nil))
+
+        if not isTrivia then return end
+
+        -- If it's not super-trivia, alternate to avoid trivia answer streaks
+        if not isSuper then
+            triviaAlternate = not triviaAlternate
+            if not triviaAlternate then
+                return
+            end
+        end
+
+        if type(msg) == "string" then
+            local answer = solveMath(msg)
+            if answer then
+                -- Super-trivia: fast response (0.35s) to guarantee winning rare crate.
+                -- Regular trivia: human-like response delay (1.0 - 1.8s).
+                local delay = isSuper and 0.35 or (math.random(10, 18) / 10)
+                task.wait(delay)
+                if not autoTrivia then return end
+
+                local sent = false
+                local channel = getGlobalChannel()
+                if channel then
+                    local ok = pcall(function()
+                        channel:SendAsync(answer)
+                    end)
+                    sent = ok
+                end
+                if not sent and GlobalChatSend then
+                    pcall(function()
+                        GlobalChatSend:FireServer(answer)
+                    end)
                 end
             end
         end
@@ -1299,7 +1350,7 @@ end
 
 AutomationTab:Toggle({
     Title = "Auto Answer Trivia",
-    Desc = "Solves and chats math trivia answers in Global Chat",
+    Desc = "Solves & chats math answers (alternates normal trivia to prevent streaks, always answers Super)",
     Value = Config.AutoTrivia,
     Callback = function(state)
         autoTrivia = state
