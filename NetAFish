@@ -1482,20 +1482,33 @@ local function enterTurretMode()
 end
 
 local function getBossAimPosition()
-    local megFolder = workspace:FindFirstChild("MegalodonLocal")
-    if megFolder then
-        for _, part in ipairs(megFolder:GetDescendants()) do
-            if part:IsA("BasePart") then
-                return part.Position
+    if workspace:GetAttribute("MegActive") == true then
+        local megFolder = workspace:FindFirstChild("MegalodonLocal")
+        if megFolder then
+            for _, part in ipairs(megFolder:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    return part.Position
+                end
             end
         end
+        if FishingShared and FishingShared.MegPos then
+            local start = workspace:GetAttribute("MegStart") or workspace:GetServerTimeNow()
+            return FishingShared.MegPos(workspace:GetServerTimeNow() - start)
+        end
     end
-    local bloopFolder = workspace:FindFirstChild("BloopLocal")
-    if bloopFolder then
-        for _, part in ipairs(bloopFolder:GetDescendants()) do
-            if part:IsA("BasePart") then
-                return part.Position
+
+    if workspace:GetAttribute("BloopActive") == true then
+        local bloopFolder = workspace:FindFirstChild("BloopLocal")
+        if bloopFolder then
+            for _, part in ipairs(bloopFolder:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    return part.Position
+                end
             end
+        end
+        if FishingShared and FishingShared.BloopPos then
+            local start = workspace:GetAttribute("BloopStart") or workspace:GetServerTimeNow()
+            return FishingShared.BloopPos(workspace:GetServerTimeNow() - start)
         end
     end
     return nil
