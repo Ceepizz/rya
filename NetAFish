@@ -1525,52 +1525,40 @@ local function enterTurretMode()
     end
 end
 
+local cachedBossPart = nil
+local cachedTurretState = nil
+local lastBossFireTime = 0
+
 local function getBossAimPosition()
     local isMeg = workspace:GetAttribute("MegActive") == true
     local isBloop = workspace:GetAttribute("BloopActive") == true
-    if not isMeg and not isBloop then return nil end
-
-    -- 1. Extract u13.root directly from MegalodonClient / BloopClient closure upvalues (the exact game hitbox)
-    if typeof(getgc) == "function" and typeof(getupvalues) == "function" then
-        for _, fn in ipairs(getgc()) do
-            if type(fn) == "function" and (typeof(islclosure) ~= "function" or islclosure(fn)) then
-                local info = debug.getinfo(fn)
-                if info and info.source then
-                    local src = info.source
-                    if isMeg and src:find("MegalodonClient") then
-                        local ups = getupvalues(fn)
-                        for _, up in pairs(ups) do
-                            if type(up) == "table" and up.root and typeof(up.root) == "Instance" and up.root:IsA("BasePart") and up.root.Parent then
-                                return up.root.Position
-                            end
-                        end
-                    elseif isBloop and src:find("BloopClient") then
-                        local ups = getupvalues(fn)
-                        for _, up in pairs(ups) do
-                            if type(up) == "table" and up.root and typeof(up.root) == "Instance" and up.root:IsA("BasePart") and up.root.Parent then
-                                return up.root.Position
-                            end
-                        end
-                    end
-                end
-            end
-        end
+    if not isMeg and not isBloop then
+        cachedBossPart = nil
+        return nil
     end
 
-    -- 2. Check MegalodonLocal / BloopLocal folder for the primary hitbox part
+    -- Return cached part if still valid in workspace
+    if cachedBossPart and cachedBossPart.Parent then
+        return cachedBossPart.Position
+    end
+
+    -- 1. Check workspace folder (MegalodonLocal / BloopLocal)
     local folderName = isMeg and "MegalodonLocal" or "BloopLocal"
     local bossFolder = workspace:FindFirstChild(folderName)
     if bossFolder then
         local root = bossFolder:FindFirstChild("Root") or bossFolder:FindFirstChild("HumanoidRootPart") or bossFolder.PrimaryPart
         if root and root:IsA("BasePart") then
+            cachedBossPart = root
             return root.Position
         end
+
         local bestPart = nil
         local maxVol = 0
         for _, p in ipairs(bossFolder:GetDescendants()) do
             if p:IsA("BasePart") then
                 local name = p.Name:lower()
                 if name:find("root") or name:find("hitbox") or name:find("body") or name:find("torso") then
+                    cachedBossPart = p
                     return p.Position
                 end
                 local vol = p.Size.X * p.Size.Y * p.Size.Z
@@ -1581,11 +1569,41 @@ local function getBossAimPosition()
             end
         end
         if bestPart then
+            cachedBossPart = bestPart
             return bestPart.Position
         end
     end
 
-    -- 3. Calculate mathematical trajectory from FishingShared
+    -- 2. Upvalue extraction (cached on first successful find)
+    if typeof(getgc) == "function" and typeof(getupvalues) == "function" then
+        for _, fn in ipairs(getgc()) do
+            if type(fn) == "function" and (typeof(islclosure) ~= "function" or islclosure(fn)) then
+                local info = debug.getinfo(fn)
+                if info and info.source then
+                    local src = info.source
+                    if isMeg and src:find("MegalodonClient") then
+                        local ups = getupvalues(fn)
+                        for _, up in pairs(ups) do
+                            if type(up) == "table" and up.root and typeof(up.root) == "Instance" and up.root:IsA("BasePart") and up.root.Parent then
+                                cachedBossPart = up.root
+                                return up.root.Position
+                            end
+                        end
+                    elseif isBloop and src:find("BloopClient") then
+                        local ups = getupvalues(fn)
+                        for _, up in pairs(ups) do
+                            if type(up) == "table" and up.root and typeof(up.root) == "Instance" and up.root:IsA("BasePart") and up.root.Parent then
+                                cachedBossPart = up.root
+                                return up.root.Position
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- 3. Mathematical trajectory fallback from FishingShared
     if isMeg and FishingShared and FishingShared.MegPos then
         local start = workspace:GetAttribute("MegStart") or workspace:GetServerTimeNow()
         local pos = FishingShared.MegPos(workspace:GetServerTimeNow() - start)
@@ -1608,6 +1626,11 @@ task.spawn(function()
         local bossActive = (workspace:GetAttribute("MegActive") == true) or (workspace:GetAttribute("BloopActive") == true)
         local inTurret = LocalPlayer:GetAttribute("TurretMode") == true
 
+        if not bossActive then
+            cachedBossPart = nil
+            cachedTurretState = nil
+        end
+
         if autoShootBoss and bossActive then
             if not inTurret then
                 if os.clock() - lastEnterAttempt >= 1.5 then
@@ -1616,52 +1639,62 @@ task.spawn(function()
                 end
                 task.wait(0.2)
             else
-                local aimPos = getBossAimPosition()
-                if not aimPos then
-                    local cam = workspace.CurrentCamera
-                    aimPos = cam and (cam.CFrame.Position + cam.CFrame.LookVector * 120) or Vector3.new(0, -5, 0)
-                end
+                -- Weapon reload cooldown: 2.05 seconds
+                local now = os.clock()
+                if (now - lastBossFireTime) >= 2.05 then
+                    lastBossFireTime = now
 
-                -- Keep client turret state aligned with aimPos
-                if typeof(getgc) == "function" and typeof(getupvalues) == "function" then
-                    for _, fn in ipairs(getgc()) do
-                        if type(fn) == "function" and (typeof(islclosure) ~= "function" or islclosure(fn)) then
-                            local info = debug.getinfo(fn)
-                            if info and info.source and (info.source:find("MegalodonClient") or info.source:find("BloopClient")) then
-                                local ups = getupvalues(fn)
-                                for _, up in pairs(ups) do
-                                    if type(up) == "table" and rawget(up, "gunPos") ~= nil and rawget(up, "readyAt") ~= nil then
-                                        up.aim = aimPos
-                                        break
+                    local aimPos = getBossAimPosition()
+                    if not aimPos then
+                        local cam = workspace.CurrentCamera
+                        aimPos = cam and (cam.CFrame.Position + cam.CFrame.LookVector * 120) or Vector3.new(0, -5, 0)
+                    end
+
+                    -- Update cached turret aim if needed
+                    if cachedTurretState then
+                        cachedTurretState.aim = aimPos
+                    elseif typeof(getgc) == "function" and typeof(getupvalues) == "function" then
+                        for _, fn in ipairs(getgc()) do
+                            if type(fn) == "function" and (typeof(islclosure) ~= "function" or islclosure(fn)) then
+                                local info = debug.getinfo(fn)
+                                if info and info.source and (info.source:find("MegalodonClient") or info.source:find("BloopClient")) then
+                                    local ups = getupvalues(fn)
+                                    for _, up in pairs(ups) do
+                                        if type(up) == "table" and rawget(up, "gunPos") ~= nil and rawget(up, "readyAt") ~= nil then
+                                            cachedTurretState = up
+                                            up.aim = aimPos
+                                            break
+                                        end
                                     end
                                 end
                             end
+                            if cachedTurretState then break end
                         end
                     end
+
+                    pcall(function()
+                        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                        local turretUI = playerGui and (playerGui:FindFirstChild("MegTurretUI") or playerGui:FindFirstChild("BloopTurretUI"))
+                        local fireBtn = turretUI and turretUI:FindFirstChild("Fire", true)
+                        if fireBtn and typeof(firesignal) == "function" then
+                            firesignal(fireBtn.MouseButton1Click)
+                        end
+                    end)
+
+                    pcall(function()
+                        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+                        local megEv = remotes and remotes:FindFirstChild("MegEvent") or MegEvent
+                        local bloopEv = remotes and remotes:FindFirstChild("BloopEvent") or BloopEvent
+
+                        if workspace:GetAttribute("MegActive") == true and megEv then
+                            megEv:FireServer("fire", aimPos)
+                        elseif workspace:GetAttribute("BloopActive") == true and bloopEv then
+                            bloopEv:FireServer("fire", aimPos)
+                        end
+                    end)
                 end
 
-                pcall(function()
-                    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                    local turretUI = playerGui and (playerGui:FindFirstChild("MegTurretUI") or playerGui:FindFirstChild("BloopTurretUI"))
-                    local fireBtn = turretUI and turretUI:FindFirstChild("Fire", true)
-                    if fireBtn and typeof(firesignal) == "function" then
-                        firesignal(fireBtn.MouseButton1Click)
-                    end
-                end)
-
-                pcall(function()
-                    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-                    local megEv = remotes and remotes:FindFirstChild("MegEvent") or MegEvent
-                    local bloopEv = remotes and remotes:FindFirstChild("BloopEvent") or BloopEvent
-
-                    if workspace:GetAttribute("MegActive") == true and megEv then
-                        megEv:FireServer("fire", aimPos)
-                    elseif workspace:GetAttribute("BloopActive") == true and bloopEv then
-                        bloopEv:FireServer("fire", aimPos)
-                    end
-                end)
-
-                task.wait(0.08)
+                task.wait(0.1)
             end
         else
             if savedFishingCF and not inTurret then
