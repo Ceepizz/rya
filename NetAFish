@@ -1,3 +1,5 @@
+repeat task.wait() until game:IsLoaded()
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
@@ -2112,7 +2114,7 @@ local function hopToLowestServer()
 
         if lowestServer and lowestServer.id then
             if hopButton and hopButton.SetText then
-                hopButton:SetText(string.format("Found (%d p)! Hopping...", minPlayers))
+                hopButton:SetText("Hopping...")
             end
 
             pcall(function()
@@ -2120,7 +2122,7 @@ local function hopToLowestServer()
                     or (typeof(queue_on_teleport) == "function" and queue_on_teleport)
                     or (typeof(fluxus) == "table" and fluxus.queue_on_teleport)
                 if qot then
-                    qot([[loadstring(game:HttpGet("https://raw.githubusercontent.com/Ceepizz/rya/main/NetAFish"))()]])
+                    qot([[repeat task.wait() until game:IsLoaded() loadstring(game:HttpGet("https://raw.githubusercontent.com/Ceepizz/rya/main/NetAFish"))()]])
                 end
             end)
 
@@ -2149,7 +2151,7 @@ local function hopToLowestServer()
             end
         else
             if hopButton and hopButton.SetText then
-                hopButton:SetText("No Server Found")
+                hopButton:SetText("No Server")
             end
             task.wait(2)
             if hopButton and hopButton.SetText then
