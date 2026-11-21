@@ -1482,17 +1482,20 @@ local function enterTurretMode()
     local remotes = ReplicatedStorage:FindFirstChild("Remotes")
     local megEvent = remotes and remotes:FindFirstChild("MegEvent") or MegEvent
     local bloopEvent = remotes and remotes:FindFirstChild("BloopEvent") or BloopEvent
+    local bloodmawEvent = remotes and remotes:FindFirstChild("BloodmawEvent")
 
     -- 1. Direct server remotes (instant entry)
     if workspace:GetAttribute("MegActive") == true and megEvent then
         pcall(function() megEvent:FireServer("enter") end)
     elseif workspace:GetAttribute("BloopActive") == true and bloopEvent then
         pcall(function() bloopEvent:FireServer("enter") end)
+    elseif workspace:GetAttribute("BloodmawActive") == true and bloodmawEvent then
+        pcall(function() bloodmawEvent:FireServer("enter") end)
     end
 
     -- 2. On-screen TurretGo button fallback
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-    for _, guiName in ipairs({"MegDockUI", "BloopDockUI", "FishingUI"}) do
+    for _, guiName in ipairs({"MegDockUI", "BloopDockUI", "BloodmawDockUI", "FishingUI"}) do
         local gui = playerGui and playerGui:FindFirstChild(guiName)
         if gui then
             local turretBtn = gui:FindFirstChild("TurretGo", true)
@@ -1564,12 +1567,31 @@ local function getBossAimPosition()
         end
     end
 
+    if workspace:GetAttribute("BloodmawActive") == true then
+        local bmFolder = workspace:FindFirstChild("BloodmawLocal")
+        if bmFolder then
+            local bmMesh = bmFolder:FindFirstChild("Bloodmaw")
+            if bmMesh and bmMesh:IsA("BasePart") then
+                return bmMesh.Position
+            end
+            for _, part in ipairs(bmFolder:GetDescendants()) do
+                if part:IsA("BasePart") and not part.Name:find("Range") then
+                    return part.Position
+                end
+            end
+        end
+        if FishingShared and FishingShared.BloodmawPos then
+            local start = workspace:GetAttribute("BloodmawStart") or workspace:GetServerTimeNow()
+            return FishingShared.BloodmawPos(workspace:GetServerTimeNow() - start)
+        end
+    end
+
     return nil
 end
 
 task.spawn(function()
     while true do
-        local bossActive = (workspace:GetAttribute("MegActive") == true) or (workspace:GetAttribute("BloopActive") == true)
+        local bossActive = (workspace:GetAttribute("MegActive") == true) or (workspace:GetAttribute("BloopActive") == true) or (workspace:GetAttribute("BloodmawActive") == true)
         local inTurret = LocalPlayer:GetAttribute("TurretMode") == true
 
         if autoShootBoss and bossActive then
@@ -1590,11 +1612,14 @@ task.spawn(function()
                     local remotes = ReplicatedStorage:FindFirstChild("Remotes")
                     local megEv = remotes and remotes:FindFirstChild("MegEvent") or MegEvent
                     local bloopEv = remotes and remotes:FindFirstChild("BloopEvent") or BloopEvent
+                    local bloodmawEv = remotes and remotes:FindFirstChild("BloodmawEvent")
 
                     if workspace:GetAttribute("MegActive") == true and megEv then
                         megEv:FireServer("fire", aimPos)
                     elseif workspace:GetAttribute("BloopActive") == true and bloopEv then
                         bloopEv:FireServer("fire", aimPos)
+                    elseif workspace:GetAttribute("BloodmawActive") == true and bloodmawEv then
+                        bloodmawEv:FireServer("fire", aimPos)
                     end
                 end)
 
@@ -1606,8 +1631,10 @@ task.spawn(function()
                     local remotes = ReplicatedStorage:FindFirstChild("Remotes")
                     local megEv = remotes and remotes:FindFirstChild("MegEvent") or MegEvent
                     local bloopEv = remotes and remotes:FindFirstChild("BloopEvent") or BloopEvent
+                    local bloodmawEv = remotes and remotes:FindFirstChild("BloodmawEvent")
                     if megEv then megEv:FireServer("leave") end
                     if bloopEv then bloopEv:FireServer("leave") end
+                    if bloodmawEv then bloodmawEv:FireServer("leave") end
                 end)
             end
 
@@ -1626,13 +1653,13 @@ end)
 
 AutomationTab:Toggle({
     Title = "Auto Boss (Turret & Fire)",
-    Desc = "Auto enters Turret Mode when Megalodon/Bloop arrives, aims & fires, then returns to fishing",
+    Desc = "Auto enters Turret Mode when Megalodon/Bloop/Bloodmaw arrives, aims & fires, then returns to fishing",
     Value = Config.AutoShootBoss,
     Callback = function(state)
         autoShootBoss = state
         Config.AutoShootBoss = state
         saveConfig()
-        if state and ((workspace:GetAttribute("MegActive") == true) or (workspace:GetAttribute("BloopActive") == true)) then
+        if state and ((workspace:GetAttribute("MegActive") == true) or (workspace:GetAttribute("BloopActive") == true) or (workspace:GetAttribute("BloodmawActive") == true)) then
             task.spawn(enterTurretMode)
         end
     end
