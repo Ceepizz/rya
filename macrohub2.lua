@@ -318,8 +318,8 @@ function Library:Window(config)
         end
     end)
     titleButton("x", 4, function() window:Destroy() end)
-    local SQRT3_2 = math.sqrt(3) / 2
-    local HEX_SCALE = 0.88
+    local HEX_W_SCALE = 0.6667
+    local HEX_H_SCALE = 0.7333
     floating = create("ImageLabel", {
         Name = "FloatingIcon", AnchorPoint = Vector2.new(.5, .5),
         Position = UDim2.fromScale(.5, .5), Size = UDim2.fromOffset(floatingSize, floatingSize),
@@ -328,11 +328,11 @@ function Library:Window(config)
     }, gui)
     local function inHexagon(screenPos)
         local center = floating.AbsolutePosition + floating.AbsoluteSize * 0.5
-        local halfR = (floating.AbsoluteSize.Y * 0.5) * HEX_SCALE
-        local apothem = halfR * SQRT3_2
+        local hx = (floating.AbsoluteSize.X * 0.5) * HEX_W_SCALE
+        local hy = (floating.AbsoluteSize.Y * 0.5) * HEX_H_SCALE
         local dx = math.abs(screenPos.X - center.X)
         local dy = math.abs(screenPos.Y - center.Y)
-        return dx <= apothem and (dx * 0.5 + dy * SQRT3_2) <= apothem
+        return dx <= hx and ((dx / hx) * 0.5 + (dy / hy)) <= 1
     end
     local moved = false
     local floatingStart, floatPosition, floatInput
