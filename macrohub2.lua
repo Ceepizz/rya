@@ -1,7 +1,6 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local GuiService = game:GetService("GuiService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
@@ -300,7 +299,10 @@ function Library:Window(config)
         minimized = not minimized
         self.Minimized = minimized
         main.Visible = not minimized
-        if floating then floating.Visible = minimized end
+        if floating then
+            if minimized then floating.Position = UDim2.fromScale(0.5, 0.5) end
+            floating.Visible = minimized
+        end
     end
     titleButton("minus", 2, function() window:Minimize() end)
     titleButton("square", 3, function()
@@ -319,19 +321,17 @@ function Library:Window(config)
     local SQRT3_2 = math.sqrt(3) / 2
     local HEX_SCALE = 0.88
     floating = create("ImageLabel", {
-        Name = "FloatingIcon", AnchorPoint = Vector2.new(0, .5),
-        Position = UDim2.new(0, 18, .5, 0), Size = UDim2.fromOffset(floatingSize, floatingSize),
+        Name = "FloatingIcon", AnchorPoint = Vector2.new(.5, .5),
+        Position = UDim2.fromScale(.5, .5), Size = UDim2.fromOffset(floatingSize, floatingSize),
         BackgroundTransparency = 1, Image = "rbxassetid://" .. (selectedTheme == "Dark" and "76956733094432" or "95122283075110"),
         ScaleType = Enum.ScaleType.Fit, Visible = false, Active = false, ZIndex = 50
     }, gui)
     local function inHexagon(screenPos)
-        local inset = GuiService:GetGuiInset()
-        local pos = Vector2.new(screenPos.X, screenPos.Y) - inset
         local center = floating.AbsolutePosition + floating.AbsoluteSize * 0.5
         local halfR = (floating.AbsoluteSize.Y * 0.5) * HEX_SCALE
         local apothem = halfR * SQRT3_2
-        local dx = math.abs(pos.X - center.X)
-        local dy = math.abs(pos.Y - center.Y)
+        local dx = math.abs(screenPos.X - center.X)
+        local dy = math.abs(screenPos.Y - center.Y)
         return dx <= apothem and (dx * 0.5 + dy * SQRT3_2) <= apothem
     end
     local moved = false
@@ -347,10 +347,11 @@ function Library:Window(config)
         if i.UserInputType ~= Enum.UserInputType.MouseMovement and i.UserInputType ~= Enum.UserInputType.Touch then return end
         local delta = i.Position - floatingStart
         if delta.Magnitude > 5 then moved = true end
-        local view = workspace.CurrentCamera.ViewportSize
+        local view = safeViewportSize()
+        local half = floatingSize * 0.5
         floating.Position = UDim2.fromOffset(
-            math.clamp(floatPosition.X.Offset + delta.X, 0, math.max(0, view.X - floatingSize)),
-            math.clamp(view.Y * floatPosition.Y.Scale + floatPosition.Y.Offset + delta.Y, 0, math.max(0, view.Y - floatingSize))
+            math.clamp(view.X * floatPosition.X.Scale + floatPosition.X.Offset + delta.X, half, math.max(half, view.X - half)),
+            math.clamp(view.Y * floatPosition.Y.Scale + floatPosition.Y.Offset + delta.Y, half, math.max(half, view.Y - half))
         )
     end)
     listen(UserInputService.InputEnded, function(i)
