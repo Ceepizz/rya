@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
@@ -315,16 +316,30 @@ function Library:Window(config)
         end
     end)
     titleButton("x", 4, function() window:Destroy() end)
-    floating = create("ImageButton", {
+    local SQRT3_2 = math.sqrt(3) / 2
+    local HEX_SCALE = 0.88
+    floating = create("ImageLabel", {
         Name = "FloatingIcon", AnchorPoint = Vector2.new(0, .5),
         Position = UDim2.new(0, 18, .5, 0), Size = UDim2.fromOffset(floatingSize, floatingSize),
         BackgroundTransparency = 1, Image = "rbxassetid://" .. (selectedTheme == "Dark" and "76956733094432" or "95122283075110"),
-        ScaleType = Enum.ScaleType.Fit, Visible = false, AutoButtonColor = false, ZIndex = 50
+        ScaleType = Enum.ScaleType.Fit, Visible = false, Active = false, ZIndex = 50
     }, gui)
+    local function inHexagon(screenPos)
+        local inset = GuiService:GetGuiInset()
+        local pos = Vector2.new(screenPos.X, screenPos.Y) - inset
+        local center = floating.AbsolutePosition + floating.AbsoluteSize * 0.5
+        local halfR = (floating.AbsoluteSize.Y * 0.5) * HEX_SCALE
+        local apothem = halfR * SQRT3_2
+        local dx = math.abs(pos.X - center.X)
+        local dy = math.abs(pos.Y - center.Y)
+        return dx <= apothem and (dx * 0.5 + dy * SQRT3_2) <= apothem
+    end
     local moved = false
     local floatingStart, floatPosition, floatInput
     listen(floating.InputBegan, function(i)
+        if not floating.Visible then return end
         if i.UserInputType ~= Enum.UserInputType.MouseButton1 and i.UserInputType ~= Enum.UserInputType.Touch then return end
+        if not inHexagon(i.Position) then return end
         floatingStart, floatPosition, floatInput, moved = i.Position, floating.Position, i, false
     end)
     listen(UserInputService.InputChanged, function(i)
@@ -340,11 +355,10 @@ function Library:Window(config)
     end)
     listen(UserInputService.InputEnded, function(i)
         if floatingStart and (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then
-            floatingStart, floatInput = nil, nil
+            local wasMoved = moved
+            floatingStart, floatInput, moved = nil, nil, false
+            if not wasMoved then window:Minimize() end
         end
-    end)
-    listen(floating.MouseButton1Click, function()
-        if not moved then window:Minimize() end
     end)
     local topStart, posStart
     listen(top.InputBegan, function(i)
