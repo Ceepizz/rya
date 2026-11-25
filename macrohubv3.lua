@@ -299,7 +299,10 @@ function Library:Window(config)
         minimized = not minimized
         self.Minimized = minimized
         main.Visible = not minimized
-        if floating then floating.Visible = minimized end
+        if floating then
+            if minimized then floating.Position = UDim2.fromScale(0.5, 0.5) end
+            floating.Visible = minimized
+        end
     end
     titleButton("minus", 2, function() window:Minimize() end)
     titleButton("square", 3, function()
@@ -315,16 +318,28 @@ function Library:Window(config)
         end
     end)
     titleButton("x", 4, function() window:Destroy() end)
-    floating = create("ImageButton", {
-        Name = "FloatingIcon", AnchorPoint = Vector2.new(0, .5),
-        Position = UDim2.new(0, 18, .5, 0), Size = UDim2.fromOffset(floatingSize, floatingSize),
+    local HEX_W_SCALE = 0.6667
+    local HEX_H_SCALE = 0.7333
+    floating = create("ImageLabel", {
+        Name = "FloatingIcon", AnchorPoint = Vector2.new(.5, .5),
+        Position = UDim2.fromScale(.5, .5), Size = UDim2.fromOffset(floatingSize, floatingSize),
         BackgroundTransparency = 1, Image = "rbxassetid://" .. (selectedTheme == "Dark" and "76956733094432" or "95122283075110"),
-        ScaleType = Enum.ScaleType.Fit, Visible = false, AutoButtonColor = false, ZIndex = 50
+        ScaleType = Enum.ScaleType.Fit, Visible = false, Active = false, ZIndex = 50
     }, gui)
+    local function inHexagon(screenPos)
+        local center = floating.AbsolutePosition + floating.AbsoluteSize * 0.5
+        local hx = (floating.AbsoluteSize.X * 0.5) * HEX_W_SCALE
+        local hy = (floating.AbsoluteSize.Y * 0.5) * HEX_H_SCALE
+        local dx = math.abs(screenPos.X - center.X)
+        local dy = math.abs(screenPos.Y - center.Y)
+        return dx <= hx and ((dx / hx) * 0.5 + (dy / hy)) <= 1
+    end
     local moved = false
     local floatingStart, floatPosition, floatInput
     listen(floating.InputBegan, function(i)
+        if not floating.Visible then return end
         if i.UserInputType ~= Enum.UserInputType.MouseButton1 and i.UserInputType ~= Enum.UserInputType.Touch then return end
+        if not inHexagon(i.Position) then return end
         floatingStart, floatPosition, floatInput, moved = i.Position, floating.Position, i, false
     end)
     listen(UserInputService.InputChanged, function(i)
@@ -332,19 +347,19 @@ function Library:Window(config)
         if i.UserInputType ~= Enum.UserInputType.MouseMovement and i.UserInputType ~= Enum.UserInputType.Touch then return end
         local delta = i.Position - floatingStart
         if delta.Magnitude > 5 then moved = true end
-        local view = workspace.CurrentCamera.ViewportSize
+        local view = safeViewportSize()
+        local half = floatingSize * 0.5
         floating.Position = UDim2.fromOffset(
-            math.clamp(floatPosition.X.Offset + delta.X, 0, math.max(0, view.X - floatingSize)),
-            math.clamp(view.Y * floatPosition.Y.Scale + floatPosition.Y.Offset + delta.Y, 0, math.max(0, view.Y - floatingSize))
+            math.clamp(view.X * floatPosition.X.Scale + floatPosition.X.Offset + delta.X, half, math.max(half, view.X - half)),
+            math.clamp(view.Y * floatPosition.Y.Scale + floatPosition.Y.Offset + delta.Y, half, math.max(half, view.Y - half))
         )
     end)
     listen(UserInputService.InputEnded, function(i)
         if floatingStart and (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then
-            floatingStart, floatInput = nil, nil
+            local wasMoved = moved
+            floatingStart, floatInput, moved = nil, nil, false
+            if not wasMoved then window:Minimize() end
         end
-    end)
-    listen(floating.MouseButton1Click, function()
-        if not moved then window:Minimize() end
     end)
     local topStart, posStart
     listen(top.InputBegan, function(i)
