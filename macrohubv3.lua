@@ -1242,10 +1242,10 @@ function Library:Window(config)
             if #selected == 0 then
                 summary.Text = "Select towers (0/" .. maxSelections .. ")"
             else
-                summary.Text = table.concat(selected, ", ")
+                summary.Text = "(" .. tostring(#selected) .. "/" .. tostring(maxSelections) .. ") "
+                    .. table.concat(selected, ", ")
             end
             title.Text = tostring(options.Title or "Select Towers")
-                .. " (" .. tostring(#selected) .. "/" .. tostring(maxSelections) .. ")"
             handle.Value = table.clone(selected)
         end
 
@@ -1282,7 +1282,8 @@ function Library:Window(config)
                 tag.Position = UDim2.new(1, -78, 0, 6)
                 tag.Size = UDim2.fromOffset(68, 16)
                 tag.TextXAlignment = Enum.TextXAlignment.Right
-                listen(button.MouseButton1Click, function()
+                -- Row connections are owned by their buttons, which get replaced on filter/search.
+                button.MouseButton1Click:Connect(function()
                     local oldIndex = table.find(selected, item.Name)
                     if oldIndex then
                         table.remove(selected, oldIndex)
