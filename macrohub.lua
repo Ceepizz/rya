@@ -1144,6 +1144,240 @@ function Library:Window(config)
         handle:SetValue(selectedValue)
         return handle
     end
+    -- Opt-in searchable, categorized multi-select for Tower XP and similar menus.
+    -- The existing Tab:Dropdown remains unchanged for all other settings.
+    function Tab:MultiSelectDropdown(options)
+        options = options or {}
+        local items = options.Options or options.List or {}
+        local categories = options.Categories or {"All", "Normal", "Evolved"}
+        local maxSelections = math.max(1, tonumber(options.MaxSelections) or 2)
+        local selected, selectedLookup = {}, {}
+        local category = "All"
+        local searchText = ""
+        local open = false
+
+        local frame = self:_card(58)
+        frame.ClipsDescendants = true
+        local title = headings(frame, options, 205)
+        title.Position = UDim2.fromOffset(14, 19)
+
+        local selector = round(create("Frame", {
+            Position = UDim2.new(1, -202, 0, 11),
+            Size = UDim2.fromOffset(190, 36),
+            BorderSizePixel = 0
+        }, frame), 8)
+        themed(selector, "BackgroundColor3", "Input")
+        makeStroke(selector)
+        local summary = makeText(selector, "", 12, true, "Text")
+        summary.Position = UDim2.fromOffset(10, 8)
+        summary.Size = UDim2.new(1, -38, 0, 20)
+        local arrow = makeIcon(selector, "chevron-down",
+            UDim2.new(1, -25, 0, 10), 16, "Accent")
+        local hit = create("TextButton", {
+            Text = "", BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(0, 0),
+            Size = UDim2.new(1, 0, 0, 58)
+        }, frame)
+
+        local searchPanel = round(create("Frame", {
+            Position = UDim2.fromOffset(9, 60),
+            Size = UDim2.new(1, -18, 0, 32),
+            BorderSizePixel = 0,
+            Visible = false
+        }, frame), 7)
+        themed(searchPanel, "BackgroundColor3", "Input")
+        makeStroke(searchPanel)
+        local searchBox = create("TextBox", {
+            Text = "", PlaceholderText = "Search towers...",
+            ClearTextOnFocus = false,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Font = Enum.Font.Gotham, TextSize = 12,
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(10, 0),
+            Size = UDim2.new(1, -20, 1, 0)
+        }, searchPanel)
+        themed(searchBox, "TextColor3", "Text")
+        themed(searchBox, "PlaceholderColor3", "Sub")
+
+        local filterFrame = create("Frame", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(9, 99),
+            Size = UDim2.new(1, -18, 0, 28),
+            Visible = false
+        }, frame)
+        local filterButtons = {}
+        for index, name in ipairs(categories) do
+            local button = round(create("TextButton", {
+                Text = tostring(name), Font = Enum.Font.GothamMedium,
+                TextSize = 12, AutoButtonColor = false,
+                Position = UDim2.new((index - 1) / #categories, 2, 0, 0),
+                Size = UDim2.new(1 / #categories, -4, 1, 0),
+                BorderSizePixel = 0
+            }, filterFrame), 6)
+            themed(button, "BackgroundColor3", "Hover")
+            themed(button, "TextColor3", "Text")
+            filterButtons[name] = button
+        end
+
+        local optionList = create("ScrollingFrame", {
+            Position = UDim2.fromOffset(9, 133),
+            Size = UDim2.new(1, -18, 0, 0),
+            CanvasSize = UDim2.new(0, 0, 0, 0),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            BackgroundTransparency = 1, BorderSizePixel = 0,
+            ScrollBarThickness = 3, ScrollingDirection = Enum.ScrollingDirection.Y,
+            Visible = false
+        }, frame)
+        create("UIListLayout", {
+            Padding = UDim.new(0, 3),
+            SortOrder = Enum.SortOrder.LayoutOrder
+        }, optionList)
+
+        local handle = {Instance = {Frame = frame}, Value = {}}
+        local function asName(item)
+            return type(item) == "table" and tostring(item.Name or item.Title or "")
+                or tostring(item or "")
+        end
+        local function normalize(value)
+            return tostring(value or ""):lower()
+        end
+        local function displaySummary()
+            if #selected == 0 then
+                summary.Text = "Select towers (0/" .. maxSelections .. ")"
+            else
+                summary.Text = "(" .. tostring(#selected) .. "/" .. tostring(maxSelections) .. ") "
+                    .. table.concat(selected, ", ")
+            end
+            title.Text = tostring(options.Title or "Select Towers")
+            handle.Value = table.clone(selected)
+        end
+
+        local function render()
+            for _, child in ipairs(optionList:GetChildren()) do
+                if child:IsA("TextButton") or child:IsA("TextLabel") then
+                    child:Destroy()
+                end
+            end
+            local visibleItems = {}
+            for _, item in ipairs(items) do
+                local name = asName(item)
+                local group = type(item) == "table"
+                    and tostring(item.Category or "") or ""
+                if name ~= ""
+                    and (category == "All" or group == category)
+                    and normalize(name):find(normalize(searchText), 1, true) then
+                    visibleItems[#visibleItems + 1] = {Name = name, Category = group}
+                end
+            end
+            for index, item in ipairs(visibleItems) do
+                local checked = selectedLookup[item.Name] == true
+                local button = round(create("TextButton", {
+                    Text = (checked and "  ✓  " or "     ") .. item.Name,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Font = Enum.Font.GothamMedium, TextSize = 12,
+                    BorderSizePixel = 0, AutoButtonColor = false,
+                    LayoutOrder = index, BackgroundTransparency = checked and 0 or .25,
+                    Size = UDim2.new(1, -5, 0, 28)
+                }, optionList), 6)
+                themed(button, "BackgroundColor3", "Hover")
+                themed(button, "TextColor3", "Text")
+                local tag = makeText(button, item.Category, 11, false, "Sub")
+                tag.Position = UDim2.new(1, -78, 0, 6)
+                tag.Size = UDim2.fromOffset(68, 16)
+                tag.TextXAlignment = Enum.TextXAlignment.Right
+                -- Row connections are owned by their buttons, which get replaced on filter/search.
+                button.MouseButton1Click:Connect(function()
+                    local oldIndex = table.find(selected, item.Name)
+                    if oldIndex then
+                        table.remove(selected, oldIndex)
+                        selectedLookup[item.Name] = nil
+                    else
+                        if #selected >= maxSelections then
+                            local removed = table.remove(selected, 1)
+                            selectedLookup[removed] = nil
+                        end
+                        selected[#selected + 1] = item.Name
+                        selectedLookup[item.Name] = true
+                    end
+                    displaySummary()
+                    render()
+                    if type(options.Callback) == "function" then
+                        task.spawn(options.Callback, table.clone(selected))
+                    end
+                end)
+            end
+            if #visibleItems == 0 then
+                local empty = makeText(optionList, "No matching towers", 12, false, "Sub")
+                empty.Size = UDim2.new(1, 0, 0, 28)
+            end
+            for name, button in pairs(filterButtons) do
+                button.BackgroundTransparency = name == category and .05 or .65
+            end
+            local count = math.max(1, #visibleItems)
+            local listHeight = math.min(count, 6) * 31 + 4
+            optionList.Size = UDim2.new(1, -18, 0, listHeight)
+            if open then
+                frame.Size = UDim2.new(1, 0, 0, 137 + listHeight)
+            end
+        end
+
+        function handle:Close()
+            open = false
+            searchPanel.Visible = false
+            filterFrame.Visible = false
+            optionList.Visible = false
+            arrow.Rotation = 0
+            frame.Size = UDim2.new(1, 0, 0, 58)
+        end
+        function handle:Open()
+            open = true
+            searchPanel.Visible = options.Searchable ~= false
+            filterFrame.Visible = true
+            optionList.Visible = true
+            arrow.Rotation = 180
+            render()
+        end
+        function handle:SetValue(values)
+            selected, selectedLookup = {}, {}
+            if type(values) == "table" then
+                for _, value in ipairs(values) do
+                    local name = tostring(value)
+                    if name ~= "" and not selectedLookup[name] then
+                        selected[#selected + 1] = name
+                        selectedLookup[name] = true
+                        if #selected >= maxSelections then break end
+                    end
+                end
+            end
+            displaySummary()
+            render()
+        end
+        function handle:GetValue()
+            return table.clone(selected)
+        end
+        function handle:Refresh(newItems)
+            items = newItems or {}
+            render()
+        end
+
+        listen(hit.MouseButton1Click, function()
+            if open then handle:Close() else handle:Open() end
+        end)
+        listen(searchBox:GetPropertyChangedSignal("Text"), function()
+            searchText = searchBox.Text
+            render()
+        end)
+        for name, button in pairs(filterButtons) do
+            listen(button.MouseButton1Click, function()
+                category = name
+                render()
+            end)
+        end
+
+        handle:SetValue(options.Value or {})
+        handle:Close()
+        return handle
+    end
     function Tab:Textbox(options)
         options = options or {}
         local frame = self:_card(62)
