@@ -69,7 +69,7 @@ local rep = stateReplicators and stateReplicators:FindFirstChild("GameStateRepli
 local timeout = isLobby and 60 or 100
 local startedAt = os.clock()
 
-if isLobby or rep then
+if IsLoading() then
     while IsLoading() and os.clock() - startedAt < timeout do
         task.wait(1)
     end
@@ -204,7 +204,7 @@ local function GetRep()
 end
 
 local function IsInGame()
-    return GetRep() ~= nil
+    return game.PlaceId ~= LOBBY_PLACE_ID
 end
 
 local function CacheState(rep)
