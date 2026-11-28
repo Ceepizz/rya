@@ -618,7 +618,10 @@ function Library:Window(config)
         local normalized = status:lower()
         if normalized:find("^running") or normalized:find("^recording") then
             statusDisplay.TextColor3 = selectedTheme == "Light" and Color3.fromRGB(19, 130, 77) or Color3.fromRGB(74, 222, 128)
-        elseif normalized:find("error", 1, true) or normalized:find("failed", 1, true) then
+        elseif normalized:find("error", 1, true) or normalized:find("failed", 1, true)
+            or normalized:find("not owned", 1, true)
+            or normalized:find("required", 1, true)
+            or normalized:find("missing", 1, true) then
             statusDisplay.TextColor3 = selectedTheme == "Light" and Color3.fromRGB(177, 43, 67) or Color3.fromRGB(251, 113, 133)
         elseif normalized:find("waiting", 1, true) then
             statusDisplay.TextColor3 = selectedTheme == "Light" and Color3.fromRGB(146, 94, 12) or Color3.fromRGB(251, 191, 36)
@@ -1342,7 +1345,15 @@ function Library:Window(config)
     borderGradient.Name = "V3ActivityGradient"
     borderGradient.Enabled = false
     if border then borderGradient.Parent = border end
-    local farming, recording, mode = false, false, nil
+    local farming, recording, statusAlert, mode = false, false, false, nil
+    local function isAlertStatus(value)
+        local normalized = tostring(value or ""):lower()
+        return normalized:find("not owned", 1, true) ~= nil
+            or normalized:find("required", 1, true) ~= nil
+            or normalized:find("missing", 1, true) ~= nil
+            or normalized:find("error", 1, true) ~= nil
+            or normalized:find("failed", 1, true) ~= nil
+    end
     local pulseOuter, pulseInner, travelingShine
 
     local function stopGlowAnimations()
@@ -1352,7 +1363,7 @@ function Library:Window(config)
     end
 
     local function renderGlow(force)
-        local nextMode = recording and "recording" or (farming and "farm" or "idle")
+        local nextMode = recording and "recording" or (statusAlert and "alert" or (farming and "farm" or "idle"))
         if nextMode == mode and not force then return end
         mode = nextMode
         stopGlowAnimations()
@@ -1370,11 +1381,11 @@ function Library:Window(config)
             return
         end
 
-        local isRecording = mode == "recording"
-        local primary = isRecording and REC_PRIMARY or FARM_PRIMARY
-        local dark = isRecording and REC_DARK or FARM_DARK
-        local shine = isRecording and REC_SHINE or FARM_SHINE
-        local pulseSpeed = isRecording and 1.2 or 1.5
+        local isRed = mode == "recording" or mode == "alert"
+        local primary = isRed and REC_PRIMARY or FARM_PRIMARY
+        local dark = isRed and REC_DARK or FARM_DARK
+        local shine = isRed and REC_SHINE or FARM_SHINE
+        local pulseSpeed = isRed and 1.2 or 1.5
 
         -- A subtle inset glow supports the thin border, without a heavy neon ring.
         rimStroke.Color = primary
@@ -1398,7 +1409,7 @@ function Library:Window(config)
 
             -- A moving highlight around the rim, plus a slow breathing effect.
             travelingShine = TweenService:Create(borderGradient,
-                TweenInfo.new(isRecording and 6.5 or 8, Enum.EasingStyle.Linear,
+                TweenInfo.new(isRed and 6.5 or 8, Enum.EasingStyle.Linear,
                     Enum.EasingDirection.InOut, -1),
                 {Rotation = 360})
             travelingShine:Play()
@@ -1431,6 +1442,18 @@ function Library:Window(config)
         farming = value == "farm" or value == "farming"
         renderGlow()
     end
+
+    -- Keep the rim synchronized with automation status changes, not just toggle changes.
+    local baseSetProfileStatus = window.SetProfileStatus
+    function window:SetProfileStatus(value)
+        local nextAlert = isAlertStatus(value)
+        if statusAlert ~= nextAlert then
+            statusAlert = nextAlert
+            renderGlow()
+        end
+        baseSetProfileStatus(self, value)
+    end
+
     renderGlow(true)
 
     local themeConnection = window.ThemeChanged:Connect(function()
